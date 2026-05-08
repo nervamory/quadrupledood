@@ -131,7 +131,7 @@ export class PhotonClient {
     };
 
     this.lbc.onError = (errorCode: number, errorMsg: string) => {
-      if (errorCode === 1003 || errorCode === 2003 || errorCode === 2004) return;
+      if (errorCode === 1003 || errorCode === 1004 || errorCode === 2003 || errorCode === 2004) return;
       this.cb.onStatusChange(`Error ${errorCode}: ${errorMsg}`);
     };
   }
