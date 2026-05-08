@@ -41,6 +41,8 @@ export type NetworkCallbacks = {
   onDisconnected: () => void;
 };
 
+const MAX_RETRIES = 3;
+
 export class PhotonClient {
   private lbc: LoadBalancing.LoadBalancingClient;
   private pendingRoom: string | null = null;
@@ -48,6 +50,7 @@ export class PhotonClient {
   private inLobby = false;
   private lobbyTimer: ReturnType<typeof setInterval> | null = null;
   private intentionalDisconnect = false;
+  private retryCount = 0;
 
   constructor(private cb: NetworkCallbacks) {
     this.lbc = new LoadBalancing.LoadBalancingClient(
@@ -73,11 +76,22 @@ export class PhotonClient {
         this.pendingRoom = null;
         if (!this.intentionalDisconnect) {
           this.cb.onDisconnected();
-          this.cb.onStatusChange('reconnecting…');
-          setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
+          if (this.retryCount < MAX_RETRIES) {
+            this.retryCount++;
+            this.cb.onStatusChange(`reconnecting… (${this.retryCount}/${MAX_RETRIES})`);
+            setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
+          } else {
+            this.cb.onStatusChange('connection lost — refresh to reconnect');
+          }
+        } else {
+          this.retryCount = 0;
         }
         this.intentionalDisconnect = false;
         return;
+      }
+
+      if (state === State.JoinedLobby) {
+        this.retryCount = 0;
       }
 
       if (this.inLobby && !wasInLobby) {
