@@ -78,7 +78,7 @@ export class PhotonClient {
           this.cb.onDisconnected();
           if (this.retryCount < MAX_RETRIES) {
             this.retryCount++;
-            this.cb.onStatusChange(`reconnecting… (${this.retryCount}/${MAX_RETRIES})`);
+            this.cb.onStatusChange('reconnecting…');
             setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
           } else {
             this.cb.onStatusChange('connection lost — refresh to reconnect');
