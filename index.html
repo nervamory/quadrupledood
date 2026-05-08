@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quadruple Dood</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #0a0a14;
+        color: #eee;
+        font-family: monospace;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      #app { text-align: center; }
+      canvas { display: block; }
+      .screen { display: none; }
+      .screen.active { display: block; }
+      input, button, select {
+        margin: 6px 4px;
+        padding: 8px 16px;
+        font-family: monospace;
+        font-size: 14px;
+        background: #1a1a2e;
+        color: #eee;
+        border: 1px solid #333;
+        cursor: pointer;
+      }
+      button:hover { background: #222240; }
+      #status { margin-top: 10px; color: #555; font-size: 13px; }
+      h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: Trattatello, Luminari, fantasy; font-size: 58px; font-weight: normal; }
+      #leave-btn { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="lobby-screen" class="screen active">
+        <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>
+        <div>
+          <input id="room-name" type="text" placeholder="Room name" value="room1" style="display:none" />
+          <select id="deck-select">
+            <option value="random">random deck</option>
+            <option value="vampire">vampire deck</option>
+            <option value="werewolf">werewolf deck</option>
+            <option value="ocean">ocean deck</option>
+            <option value="bones">bones deck</option>
+            <option value="zombie">zombie deck</option>
+            <option value="oni">oni deck</option>
+            <option value="spider">spider deck</option>
+            <option value="debug">debug</option>
+          </select>
+          <button id="join-btn">sacrifice</button>
+        </div>
+        <p id="status">connecting…</p>
+      </div>
+      <div id="game-screen" class="screen">
+        <canvas id="game-canvas" width="680" height="700"></canvas>
+        <button id="leave-btn">leave room</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

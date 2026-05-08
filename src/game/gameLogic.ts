@@ -1,0 +1,681 @@
+import type { Card, BoardCell, GameState, Direction, CardType, DeckType, PendingChange } from './types';
+
+const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
+
+const OFFSETS: Record<Direction, [number, number]> = {
+  up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1],
+  'up-left': [-1, -1], 'up-right': [-1, 1], 'down-left': [1, -1], 'down-right': [1, 1],
+};
+
+const OPPOSITE: Record<Direction, Direction> = {
+  up: 'down', down: 'up', left: 'right', right: 'left',
+  'up-left': 'down-right', 'up-right': 'down-left', 'down-left': 'up-right', 'down-right': 'up-left',
+};
+
+const ALL_DIRS: Direction[] = ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
+
+function randomDirection(): Direction {
+  return ALL_DIRS[Math.floor(Math.random() * 8)];
+}
+
+const COMMON: CardType[] = ['knife'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien'];
+const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon'];
+
+function pick(pool: CardType[], n: number): CardType[] {
+  return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
+}
+
+function dealHand(actorNr: number, deck: DeckType): Card[] {
+  let types: CardType[];
+  switch (deck) {
+    case 'debug':
+      types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire'];
+      break;
+    case 'vampire':
+      types = ['vampire', 'heart', 'eye', 'eye', ...pick(COMMON, 4)];
+      break;
+    case 'werewolf':
+      types = ['wolf', 'wolf', 'moon', 'fog', ...pick(COMMON, 4)];
+      break;
+    case 'ocean':
+      types = ['squid', 'mermaid', 'bubbles', 'bubbles', ...pick(COMMON, 4)];
+      break;
+    case 'bones':
+      types = ['skull', 'bone', 'bone', 'tooth', ...pick(COMMON, 4)];
+      break;
+    case 'zombie':
+      types = ['zombie', 'brain', 'brain', 'gravestone', ...pick(COMMON, 4)];
+      break;
+    case 'oni':
+      types = ['oni', 'eye', 'fire', 'fire', ...pick(COMMON, 4)];
+      break;
+    case 'spider':
+      types = ['spider', 'egg', 'web', 'web', ...pick(COMMON, 4)];
+      break;
+    default:
+      types = [...pick(COMMON, 5), ...pick(RARE, 2), ...pick(FOIL, 1)];
+  }
+
+  for (let i = types.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [types[i], types[j]] = [types[j], types[i]];
+  }
+  let boneIdx = 0;
+  return types.map((type, i) => {
+    let direction: Direction;
+    if (type === 'bone') {
+      direction = deck === 'bones'
+        ? (boneIdx++ % 2 === 0 ? 'up-right' : 'up-left')
+        : (Math.random() < 0.5 ? 'up-right' : 'up-left');
+    } else {
+      direction = randomDirection();
+    }
+    return { id: `${actorNr}-${i}`, direction, type };
+  });
+}
+
+function isBoneImmune(board: BoardCell[][], row: number, col: number): boolean {
+  const cell = board[row][col];
+  const isBoneFamily = (t: string) => t === 'bone' || t === 'skull' || t === 'tooth';
+  if (!cell || 'blood' in cell || !isBoneFamily(cell.card.type)) return false;
+  for (const d of ALL_DIRS) {
+    const [dr, dc] = OFFSETS[d];
+    const nr = row + dr; const nc = col + dc;
+    if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+    const adj = board[nr][nc];
+    if (adj && !('blood' in adj) && isBoneFamily(adj.card.type) && adj.owner === cell.owner) return true;
+  }
+  return false;
+}
+
+function bubblesPop(board: BoardCell[][], row: number, col: number, attackerNr: number): void {
+  const cell = board[row][col];
+  if (!cell || 'blood' in cell) return;
+  const bubblesOwner = cell.owner;
+  board[row][col] = null;
+  const targets: [number, number][] = [];
+  for (const d of ALL_DIRS) {
+    const [dr, dc] = OFFSETS[d];
+    const nr = row + dr; const nc = col + dc;
+    if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+    const adj = board[nr][nc];
+    if (adj && 'card' in adj && adj.owner === attackerNr && !isBoneImmune(board, nr, nc))
+      targets.push([nr, nc]);
+  }
+  if (targets.length > 0) {
+    const [tr, tc] = targets[Math.floor(Math.random() * targets.length)];
+    const t = board[tr][tc];
+    if (t && 'card' in t) board[tr][tc] = { card: t.card, owner: bubblesOwner };
+  }
+}
+
+function captureCell(board: BoardCell[][], row: number, col: number, attackerNr: number): void {
+  const cell = board[row][col];
+  if (!cell || 'blood' in cell) return;
+  if (isBoneImmune(board, row, col)) return;
+  if (cell.card.type === 'brain') {
+    board[row][col] = { blood: true };
+  } else if (cell.card.type === 'bubbles') {
+    bubblesPop(board, row, col, attackerNr);
+  } else if (cell.card.type === 'egg') {
+    const spider: Card = { id: `hatch-${row}-${col}`, direction: cell.card.direction, type: 'spider' };
+    board[row][col] = { card: spider, owner: cell.owner };
+    resolveCaptures(board, row, col, cell.owner);
+  } else {
+    board[row][col] = { card: cell.card, owner: attackerNr };
+  }
+}
+
+function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr: number): void {
+  const placed = board[row][col];
+  if (!placed || 'blood' in placed) return;
+
+  if (placed.card.type === 'heart') {
+    // A knife already on the board pointing at this cell kills the heart before it can act.
+    for (const dir of ALL_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'knife' && neighbor.card.direction === OPPOSITE[dir]) {
+        board[row][col] = { blood: true }; // heart walks into a knife — becomes blood
+        return;
+      }
+    }
+    // Heart survives — captures all adjacent opponent cards (no stalemate).
+    // Heart/eye neighbours become blood instead of being captured.
+    for (const dir of DIRECTIONS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+        board[nr][nc] = { blood: true };
+        continue;
+      }
+
+      if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner }; // reflect heart
+        continue;
+      }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'vampire') {
+    // Clear all blood cells — they become empty and playable again
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cell = board[r][c];
+        if (cell && 'blood' in cell) board[r][c] = null;
+      }
+    }
+    // Capture down-diagonal left and right
+    for (const [nr, nc] of [[row + 1, col - 1], [row + 1, col + 1]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+        board[nr][nc] = { blood: true };
+        continue;
+      }
+      if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        continue;
+      }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'bandage') {
+    // Captures left and right
+    for (const [nr, nc] of [[row, col - 1], [row, col + 1]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+        board[nr][nc] = { blood: true };
+        continue;
+      }
+      if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        continue;
+      }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'ghost') {
+    // Captures the cell directly below
+    const [nr, nc] = [row + 1, col];
+    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+      const neighbor = board[nr][nc];
+      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+          board[nr][nc] = { blood: true };
+        } else if (neighbor.card.type === 'mirror') {
+          board[row][col] = { card: placed.card, owner: neighbor.owner };
+        } else {
+          captureCell(board, nr, nc, actorNr);
+        }
+      }
+    }
+    return;
+  }
+
+  if (placed.card.type === 'wolf') {
+    const moonIsOut = board.flat().some(c => c && 'card' in c && c.card.type === 'moon');
+    const targets: [number, number][] = [
+      [row - 1, col - 1], [row - 1, col + 1],
+      [row + 1, col - 1], [row + 1, col + 1],
+    ];
+    if (moonIsOut) targets.push(
+      [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
+    );
+    for (const [nr, nc] of targets) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+        board[nr][nc] = { blood: true };
+        continue;
+      }
+      if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        continue;
+      }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'squid') {
+    // Convert all blood cells to bubbles cards owned by squid player
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (board[r][c] && 'blood' in board[r][c]!) {
+          board[r][c] = { card: { id: `sbub-${r}-${c}`, direction: 'up', type: 'bubbles' }, owner: actorNr };
+        }
+      }
+    }
+    // Capture left, right, down-left, down-right
+    for (const [nr, nc] of [[row, col - 1], [row, col + 1], [row + 1, col - 1], [row + 1, col + 1]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'mermaid') {
+    // Capture left, up-left, up
+    for (const [nr, nc] of [[row, col - 1], [row - 1, col - 1], [row - 1, col]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'fog') {
+    // Fog all adjacent opponent cards — they stay face-down but keep their abilities
+    for (const dir of DIRECTIONS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      board[nr][nc] = { ...neighbor, fogged: true };
+    }
+    return;
+  }
+
+  if (placed.card.type === 'zombie') {
+    // Zombify all adjacent opponent cards (all 8 directions) — becomes grey, counts for neither player
+    for (const dir of ALL_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (isBoneImmune(board, nr, nc)) continue;
+      if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        continue;
+      }
+      board[nr][nc] = { card: neighbor.card, owner: actorNr, zombified: true };
+    }
+    return;
+  }
+
+  if (placed.card.type === 'brain') {
+    // Captures left, right, down
+    for (const [nr, nc] of [[row, col - 1], [row, col + 1], [row + 1, col]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'skull') {
+    // Captures left, right, up
+    for (const [nr, nc] of [[row, col - 1], [row, col + 1], [row - 1, col]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'bone') {
+    // Captures both corners along its diagonal axis
+    const targets: [number, number][] = placed.card.direction === 'up-right'
+      ? [[row - 1, col + 1], [row + 1, col - 1]]
+      : [[row - 1, col - 1], [row + 1, col + 1]];
+    for (const [nr, nc] of targets) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'spider') {
+    for (const dir of ALL_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'fire') {
+    // Captures up, up-left, up-right
+    for (const [nr, nc] of [[row - 1, col], [row - 1, col - 1], [row - 1, col + 1]] as [number, number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'hand') {
+    // Captures one cell in its pointing direction (like knife, no stalemate)
+    const hDir = placed.card.direction;
+    const [dr, dc] = OFFSETS[hDir];
+    const nr = row + dr; const nc = col + dc;
+    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+      const neighbor = board[nr][nc];
+      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+          board[nr][nc] = { blood: true };
+        } else if (neighbor.card.type === 'mirror') {
+          board[row][col] = { card: placed.card, owner: neighbor.owner };
+        } else {
+          captureCell(board, nr, nc, actorNr);
+        }
+      }
+    }
+    return;
+  }
+
+  if (placed.card.type === 'troll') {
+    for (const [nr, nc] of [[row-1,col],[row+1,col],[row,col-1],[row,col+1]] as [number,number][]) {
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'dragon') {
+    // Piercing line capture in direction — burns through mirrors
+    const [dr, dc] = OFFSETS[placed.card.direction];
+    let nr = row + dr, nc = col + dc;
+    while (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+      const neighbor = board[nr][nc];
+      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+          board[nr][nc] = { blood: true };
+        } else {
+          captureCell(board, nr, nc, actorNr);
+        }
+      }
+      nr += dr; nc += dc;
+    }
+    return;
+  }
+
+  if (placed.card.type === 'alien') {
+    // Knight-move captures: all (±1,±2) and (±2,±1) positions
+    for (const [dr, dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]] as [number,number][]) {
+      const nr = row + dr, nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  // Passive cards — no captures on placement
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web') return;
+
+  // Knife: captures in the single direction it's pointing (cardinal or diagonal)
+  const kDir = placed.card.direction;
+  const [dr, dc] = OFFSETS[kDir];
+  const nr = row + dr; const nc = col + dc;
+  if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+    const neighbor = board[nr][nc];
+    if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+        board[nr][nc] = { blood: true };
+      } else if (neighbor.card.type === 'mirror') {
+        board[row][col] = { card: placed.card, owner: neighbor.owner };
+      } else if (neighbor.card.type === 'knife' && neighbor.card.direction === OPPOSITE[kDir]) {
+        // knife–knife stalemate
+      } else {
+        captureCell(board, nr, nc, actorNr);
+      }
+    }
+  }
+}
+
+export function initGame(actor1: number, actor2: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
+  const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));
+  return {
+    board,
+    hands: {
+      [actor1]: dealHand(actor1, deck1),
+      [actor2]: dealHand(actor2, deck2),
+    },
+    currentTurn: Math.random() < 0.5 ? actor1 : actor2,
+    phase: 'playing',
+    winner: null,
+    blackPlayer: actor1,
+    pendingChanges: [],
+  };
+}
+
+export function placeCard(
+  state: GameState,
+  actorNr: number,
+  cardId: string,
+  row: number,
+  col: number,
+): GameState {
+  if (state.phase !== 'playing') return state;
+  if (state.currentTurn !== actorNr) return state;
+  if (row < 0 || row > 3 || col < 0 || col > 3) return state;
+
+  const hand = state.hands[actorNr] ?? [];
+  const cardIdx = hand.findIndex(c => c.id === cardId);
+  if (cardIdx === -1) return state;
+
+  const card = hand[cardIdx];
+  const targetCell = state.board[row][col];
+  const isBlood = targetCell !== null && 'blood' in targetCell;
+  const isCard = targetCell !== null && !isBlood;
+  if (targetCell !== null && !(card.type === 'bandage' && isBlood) && !(card.type === 'web' && isCard)) return state;
+  const newBoard: BoardCell[][] = state.board.map(r => [...r]);
+  newBoard[row][col] = { card, owner: actorNr };
+
+  let newHands: Record<number, Card[]> = {
+    ...state.hands,
+    [actorNr]: hand.filter((_, i) => i !== cardIdx),
+  };
+
+  resolveCaptures(newBoard, row, col, actorNr);
+
+  const playerNrs = Object.keys(state.hands).map(Number);
+  const otherPlayer = playerNrs.find(n => n !== actorNr)!;
+
+  // Oni: summon hand cards flanking the face — both capture UP, palms face the oni
+  // 🫳 left side, 🫴 right side; both rotated to -π/2 so palms face inward toward the oni
+  if (card.type === 'oni') {
+    const preferred: [[number, number], '🫳' | '🫴', Direction, number][] = [
+      [[row, col - 1], '🫳', 'up', -Math.PI / 2],
+      [[row, col + 1], '🫴', 'up', -Math.PI / 2],
+    ];
+    // Per-emoji fallback configs:
+    //   above: 🫳 palm-down→right, 🫴 rotated palm-down→left
+    //   below: 🫴 palm-up→up,      🫳 rotated palm-up→left
+    const fallbackPositions: [[number, number], Record<'🫳' | '🫴', [Direction, number]>][] = [
+      [[row - 1, col], { '🫳': ['right', 0], '🫴': ['left', Math.PI] }],
+      [[row + 1, col], { '🫳': ['left', Math.PI], '🫴': ['up', 0] }],
+    ];
+    const toPlace: [number, number, Direction, '🫳' | '🫴', number][] = [];
+    const remaining = new Set<'🫳' | '🫴'>(['🫳', '🫴']);
+
+    for (const [[er, ec], emoji, dir, angle] of preferred) {
+      if (toPlace.length >= 2) break;
+      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || newBoard[er][ec]) continue;
+      toPlace.push([er, ec, dir, emoji, angle]);
+      remaining.delete(emoji);
+    }
+    for (const [[er, ec], emojiConfig] of fallbackPositions) {
+      if (toPlace.length >= 2 || remaining.size === 0) break;
+      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || newBoard[er][ec]) continue;
+      const emoji = [...remaining][0] as '🫳' | '🫴';
+      const [dir, angle] = emojiConfig[emoji];
+      toPlace.push([er, ec, dir, emoji, angle]);
+      remaining.delete(emoji);
+    }
+    for (const [er, ec, handDir, emoji, angle] of toPlace) {
+      const summonCard: Card = {
+        id: `oni-${er}-${ec}-${actorNr}`,
+        direction: handDir,
+        type: 'hand',
+        summonedHand: { emoji, angle },
+      };
+      newBoard[er][ec] = { card: summonCard, owner: actorNr };
+      resolveCaptures(newBoard, er, ec, actorNr);
+    }
+  }
+
+  // Moon: flip ownership of every card on the board (including the moon itself)
+  if (card.type === 'moon') {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cell = newBoard[r][c];
+        // Skip moon itself and zombified cells (zombified ownership is tracked by pending changes)
+        if (cell && 'card' in cell && cell.card.type !== 'moon' && !cell.zombified) {
+          newBoard[r][c] = { ...cell, owner: cell.owner === actorNr ? otherPlayer : actorNr };
+        }
+      }
+    }
+  }
+
+  // Ghost: swap a random card between hands after capturing
+  if (card.type === 'ghost') {
+    const myCards = newHands[actorNr];
+    const oppCards = newHands[otherPlayer];
+    if (myCards.length > 0 && oppCards.length > 0) {
+      const myIdx  = Math.floor(Math.random() * myCards.length);
+      const oppIdx = Math.floor(Math.random() * oppCards.length);
+      const myCard  = myCards[myIdx];
+      const oppCard = oppCards[oppIdx];
+      newHands = {
+        ...newHands,
+        [actorNr]:    myCards.map((c, i)  => i === myIdx  ? oppCard : c),
+        [otherPlayer]: oppCards.map((c, i) => i === oppIdx ? myCard  : c),
+      };
+    }
+  }
+
+  // Mermaid: pull a random opponent hand card onto a random empty board cell
+  if (card.type === 'mermaid') {
+    const oppCards = newHands[otherPlayer];
+    if (oppCards.length > 0) {
+      const emptyCells: [number, number][] = [];
+      for (let r = 0; r < 4; r++)
+        for (let c = 0; c < 4; c++)
+          if (!newBoard[r][c]) emptyCells.push([r, c]);
+      if (emptyCells.length > 0) {
+        const [er, ec] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        const pullIdx = Math.floor(Math.random() * oppCards.length);
+        newBoard[er][ec] = { card: oppCards[pullIdx], owner: actorNr };
+        newHands = { ...newHands, [otherPlayer]: oppCards.filter((_, i) => i !== pullIdx) };
+      }
+    }
+  }
+
+  // Pending changes: split existing into "resolves this turn" vs "keep"
+  const toResolve = state.pendingChanges.filter(p => p.resolveAfterActor === actorNr);
+  let newPending: PendingChange[] = state.pendingChanges.filter(p => p.resolveAfterActor !== actorNr);
+
+  // Schedule new deferred effects from this card
+  if (card.type === 'zombie') {
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const cell = newBoard[r][c];
+      if (cell && 'card' in cell && cell.zombified && cell.owner === actorNr)
+        newPending.push({ type: 'zombie-convert', row: r, col: c, owner: actorNr, resolveAfterActor: otherPlayer });
+    }
+  }
+  if (card.type === 'gravestone') {
+    newPending.push({ type: 'gravestone-transform', row, col, owner: actorNr, resolveAfterActor: otherPlayer });
+  }
+
+  // Resolve effects that were deferred until this actor's turn
+  for (const change of toResolve) {
+    if (change.type === 'zombie-convert') {
+      const cell = newBoard[change.row][change.col];
+      if (cell && 'card' in cell && cell.zombified && cell.owner === change.owner)
+        newBoard[change.row][change.col] = { card: cell.card, owner: change.owner };
+    } else if (change.type === 'gravestone-transform') {
+      const cell = newBoard[change.row][change.col];
+      if (cell && 'card' in cell && cell.card.type === 'gravestone' && cell.owner === change.owner) {
+        const zombieCard: Card = { id: `gz-${change.row}-${change.col}`, direction: 'up', type: 'zombie' };
+        newBoard[change.row][change.col] = { card: zombieCard, owner: change.owner };
+        resolveCaptures(newBoard, change.row, change.col, change.owner);
+      }
+    }
+  }
+
+  // Pick up any newly zombified cells (e.g. from a just-spawned gravestone-zombie) not yet scheduled
+  const scheduledConverts = new Set(newPending.filter(p => p.type === 'zombie-convert').map(p => `${p.row},${p.col}`));
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+    const cell = newBoard[r][c];
+    if (cell && 'card' in cell && cell.zombified && !scheduledConverts.has(`${r},${c}`))
+      newPending.push({ type: 'zombie-convert', row: r, col: c, owner: cell.owner, resolveAfterActor: otherPlayer });
+  }
+
+  const filled = newBoard.flat().filter(Boolean).length;
+  const handsEmpty = newHands[actorNr].length === 0 && newHands[otherPlayer].length === 0;
+
+  if (filled === 16 || handsEmpty) {
+    const counts = playerNrs.reduce<Record<number, number>>((acc, nr) => {
+      acc[nr] = newBoard.flat().filter(c => c && 'card' in c && c.owner === nr && !c.zombified).length;
+      return acc;
+    }, {});
+    const [p1, p2] = playerNrs;
+    const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, phase: 'finished', winner, currentTurn: -1 };
+  }
+
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, currentTurn: otherPlayer };
+}
