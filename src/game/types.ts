@@ -10,7 +10,7 @@ export type Card = {
 
 export type BoardCell = { card: Card; owner: number; fogged?: boolean; zombified?: boolean } | { blood: true } | null;
 
-export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider';
+export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider' | 'knife';
 
 export type PendingChange =
   | { type: 'zombie-convert'; row: number; col: number; owner: number; resolveAfterActor: number }
