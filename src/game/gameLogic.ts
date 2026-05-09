@@ -625,10 +625,10 @@ export function placeCard(
     // Fallback positions tried in order: diagonals first, then cardinal above/below.
     // Each diagonal hand captures the cross-diagonal direction (up-right ↔ up-left, etc).
     const fallbackPositions: [[number, number], Record<'🫳' | '🫴', [Direction, number]>][] = [
-      [[row - 1, col - 1], { '🫳': ['up-right',   Math.PI / 4],       '🫴': ['up-right',    Math.PI / 4] }],
-      [[row - 1, col + 1], { '🫳': ['up-left',    -Math.PI / 4],       '🫴': ['up-left',    -Math.PI / 4] }],
-      [[row + 1, col - 1], { '🫳': ['down-right',  3 * Math.PI / 4],   '🫴': ['down-right',  3 * Math.PI / 4] }],
-      [[row + 1, col + 1], { '🫳': ['down-left',  -3 * Math.PI / 4],   '🫴': ['down-left',  -3 * Math.PI / 4] }],
+      [[row - 1, col - 1], { '🫳': ['up-right',  3 * Math.PI / 4],  '🫴': ['up-right',  3 * Math.PI / 4] }],
+      [[row - 1, col + 1], { '🫳': ['up-left',   Math.PI / 4],      '🫴': ['up-left',   Math.PI / 4] }],
+      [[row + 1, col - 1], { '🫳': ['up-left',  -3 * Math.PI / 4],  '🫴': ['up-left',  -3 * Math.PI / 4] }],
+      [[row + 1, col + 1], { '🫳': ['up-right', -Math.PI / 4],      '🫴': ['up-right', -Math.PI / 4] }],
       [[row - 1, col],     { '🫳': ['right', 0],                        '🫴': ['left', Math.PI] }],
       [[row + 1, col],     { '🫳': ['left', Math.PI],                   '🫴': ['up', 0] }],
     ];
