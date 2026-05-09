@@ -1227,20 +1227,25 @@ export class Game {
     );
     const oppLayout = this.computeHandLayout(oppHand, false);
     const HOVER_LIFT = 14;
+    let oppHoveredEntry: CardLayout | null = null;
     for (let i = 0; i < oppLayout.length; i++) {
-      const { cx, cy, rotation, card } = oppLayout[i];
-      if (this.ghostSwapAnim?.hiddenIds.has(card.id)) continue;
+      const l = oppLayout[i];
+      if (this.ghostSwapAnim?.hiddenIds.has(l.card.id)) continue;
+      if (i === this.oppHoverIdx) { oppHoveredEntry = l; continue; }
       ctx.save();
-      if (i === this.oppHoverIdx) {
-        const dx = cx - this.W / 2;
-        const dy = cy - OPP_PIVOT_Y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        ctx.translate(cx + dx / len * HOVER_LIFT, cy + dy / len * HOVER_LIFT);
-      } else {
-        ctx.translate(cx, cy);
-      }
-      ctx.rotate(rotation);
-      this.drawCard(-CARD / 2, -CARD / 2, card, oppIsBlack, !myEyeActive);
+      ctx.translate(l.cx, l.cy);
+      ctx.rotate(l.rotation);
+      this.drawCard(-CARD / 2, -CARD / 2, l.card, oppIsBlack, !myEyeActive);
+      ctx.restore();
+    }
+    if (oppHoveredEntry) {
+      const dx = oppHoveredEntry.cx - this.W / 2;
+      const dy = oppHoveredEntry.cy - OPP_PIVOT_Y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      ctx.save();
+      ctx.translate(oppHoveredEntry.cx + dx / len * HOVER_LIFT, oppHoveredEntry.cy + dy / len * HOVER_LIFT);
+      ctx.rotate(oppHoveredEntry.rotation);
+      this.drawCard(-CARD / 2, -CARD / 2, oppHoveredEntry.card, oppIsBlack, !myEyeActive);
       ctx.restore();
     }
 
