@@ -109,6 +109,9 @@ export class Game {
     canvas.addEventListener('mousedown', this.onMouseDown);
     canvas.addEventListener('mousemove', this.onMouseMove);
     canvas.addEventListener('mouseup', this.onMouseUp);
+    canvas.addEventListener('contextmenu', (e) => {
+      if (this.drag) { e.preventDefault(); this.drag = null; }
+    });
     canvas.addEventListener('mouseleave', () => {
       this.hoverPos = null;
       if (this.lastHoverIdx !== null) {
