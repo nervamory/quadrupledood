@@ -46,7 +46,7 @@ const CARD_LABELS: Record<CardType, string> = {
   bandage: 'plays on blood cells',
   vampire: 'captures all blood cells',
   ghost:   'captures below; swaps hand cards',
-  fog:     'nearby opponents go face-down',
+  fog:     'hides nearby cards from opponent',
   wolf:    "switches to cardinal when moon's out",
   squid:   'pops bubbles; captures adjacent',
   mermaid: 'pulls opponent card onto board',
@@ -321,7 +321,7 @@ export class Game {
     const cell = this.hitCell(mx, my);
     if (cell) {
       const bc = this.state.board[cell.row][cell.col];
-      const hiddenFog = bc && 'card' in bc && !!bc.fogged && bc.owner !== this.localNr && !this.isNearFire(cell.row, cell.col);
+      const hiddenFog = bc && 'card' in bc && !!bc.fogged && bc.owner === this.localNr && !this.isNearFire(cell.row, cell.col);
       if (bc && 'card' in bc && !hiddenFog) return bc.card;
     }
 
@@ -1187,7 +1187,7 @@ export class Game {
         const cell = state.board[row][col];
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
-          const fogged = !!cell.fogged && cell.owner !== this.localNr && !this.isNearFire(row, col);
+          const fogged = !!cell.fogged && cell.owner === this.localNr && !this.isNearFire(row, col);
           this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
           if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
         } else if (cell && 'blood' in cell) {
