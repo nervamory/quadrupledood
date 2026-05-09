@@ -1245,10 +1245,10 @@ export class Game {
     ctx.textAlign = 'center';
 
     ctx.fillStyle = oppBright ? '#eee' : spinning ? '#555' : '#333';
-    ctx.fillText('opponent', W / 2, 52);
+    ctx.fillText(!spinning && !isMyTurn ? 'opponent goes first' : 'opponent', W / 2, 52);
 
     ctx.fillStyle = meBright ? '#eee' : spinning ? '#555' : '#333';
-    ctx.fillText('you', W / 2, H - 52);
+    ctx.fillText(!spinning && isMyTurn ? 'you go first' : 'you', W / 2, H - 52);
 
     // Big knife
     ctx.save();
@@ -1260,14 +1260,9 @@ export class Game {
     ctx.fillText('🔪', 0, 0);
     ctx.restore();
 
-    // After settling: result text + countdown to board
+    // After settling: countdown to board
     if (!spinning) {
       const holdElapsed = elapsed - SPIN_DURATION;
-      ctx.font = 'bold 14px monospace';
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText(isMyTurn ? 'you go first!' : 'opponent goes first!', W / 2, H / 2 + 80);
-
       if (holdElapsed >= SPIN_HOLD) spinAnim.done = true;
     }
   }
@@ -1297,7 +1292,7 @@ export class Game {
       ctx.font = 'bold 14px monospace';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText('waiting for opponent', W / 2, H / 2 + 80);
+      ctx.fillText('waiting for opponent', W / 2, 52);
       return;
     }
 
