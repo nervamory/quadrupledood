@@ -318,32 +318,33 @@ export class Game {
   }
 
   // Mirrors oni placement logic in gameLogic.ts — returns the cells where hands will land.
-  private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string; angle: number }[] {
+  private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string; angle: number; dir: Direction }[] {
     if (!this.state) return [];
     const board = this.state.board;
-    const toPlace: { row: number; col: number; emoji: string; angle: number }[] = [];
+    const toPlace: { row: number; col: number; emoji: string; angle: number; dir: Direction }[] = [];
     const remaining: ('🫳' | '🫴')[] = ['🫳', '🫴'];
 
-    const preferred: [[number, number], '🫳' | '🫴', number][] = [
-      [[row, col - 1], '🫳', -Math.PI / 2],
-      [[row, col + 1], '🫴', -Math.PI / 2],
+    const preferred: [[number, number], '🫳' | '🫴', number, Direction][] = [
+      [[row, col - 1], '🫳', -Math.PI / 2, 'up'],
+      [[row, col + 1], '🫴', -Math.PI / 2, 'up'],
     ];
-    for (const [[er, ec], emoji, angle] of preferred) {
+    for (const [[er, ec], emoji, angle, dir] of preferred) {
       if (toPlace.length >= 2) break;
       if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
-      toPlace.push({ row: er, col: ec, emoji, angle });
+      toPlace.push({ row: er, col: ec, emoji, angle, dir });
       remaining.splice(remaining.indexOf(emoji), 1);
     }
 
-    const fallback: [[number, number], Record<'🫳' | '🫴', number>][] = [
-      [[row - 1, col], { '🫳': 0, '🫴': Math.PI }],
-      [[row + 1, col], { '🫳': Math.PI, '🫴': 0 }],
+    const fallback: [[number, number], Record<'🫳' | '🫴', [number, Direction]>][] = [
+      [[row - 1, col], { '🫳': [0, 'right'], '🫴': [Math.PI, 'left'] }],
+      [[row + 1, col], { '🫳': [Math.PI, 'left'], '🫴': [0, 'up'] }],
     ];
-    for (const [[er, ec], angleMap] of fallback) {
+    for (const [[er, ec], map] of fallback) {
       if (toPlace.length >= 2 || remaining.length === 0) break;
       if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
       const emoji = remaining[0];
-      toPlace.push({ row: er, col: ec, emoji, angle: angleMap[emoji] });
+      const [angle, dir] = map[emoji];
+      toPlace.push({ row: er, col: ec, emoji, angle, dir });
       remaining.shift();
     }
 
@@ -1259,7 +1260,7 @@ export class Game {
     if (this.drag?.card.type === 'oni' && this.hoverPos) {
       const hoverCell = this.hitCell(this.hoverPos.x, this.hoverPos.y);
       if (hoverCell && !state.board[hoverCell.row][hoverCell.col]) {
-        for (const { row: hr, col: hc, emoji, angle } of this.oniHandCells(hoverCell.row, hoverCell.col)) {
+        for (const { row: hr, col: hc, emoji, angle, dir } of this.oniHandCells(hoverCell.row, hoverCell.col)) {
           const { x, y } = this.cellPos(hr, hc);
           ctx.beginPath();
           ctx.roundRect(x, y, CELL, CELL, 4);
@@ -1268,6 +1269,7 @@ export class Game {
           ctx.strokeStyle = 'rgba(255, 160, 40, 0.7)';
           ctx.lineWidth = 2;
           ctx.stroke();
+          // Emoji (rotated to match placed card orientation)
           ctx.save();
           ctx.translate(x + CELL / 2, y + CELL / 2);
           ctx.rotate(angle);
@@ -1276,6 +1278,20 @@ export class Game {
           ctx.textBaseline = 'middle';
           ctx.fillText(emoji, 0, 0);
           ctx.restore();
+          // Direction triangle (card-coordinate space: pad=2 offset into 68×68)
+          const pad = (CELL - CARD) / 2;
+          const xc = x + pad, yc = y + pad;
+          const ccx = xc + CARD / 2, ccy = yc + CARD / 2;
+          const m = 6, ts = 4;
+          ctx.fillStyle = 'rgba(255, 200, 80, 0.9)';
+          ctx.beginPath();
+          switch (dir) {
+            case 'up':    ctx.moveTo(ccx, yc + m); ctx.lineTo(ccx - ts, yc + m + ts * 1.5); ctx.lineTo(ccx + ts, yc + m + ts * 1.5); break;
+            case 'down':  ctx.moveTo(ccx, yc + CARD - m); ctx.lineTo(ccx - ts, yc + CARD - m - ts * 1.5); ctx.lineTo(ccx + ts, yc + CARD - m - ts * 1.5); break;
+            case 'left':  ctx.moveTo(xc + m, ccy); ctx.lineTo(xc + m + ts * 1.5, ccy - ts); ctx.lineTo(xc + m + ts * 1.5, ccy + ts); break;
+            case 'right': ctx.moveTo(xc + CARD - m, ccy); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy - ts); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy + ts); break;
+          }
+          ctx.fill();
         }
       }
     }
