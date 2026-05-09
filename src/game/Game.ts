@@ -48,7 +48,7 @@ const CARD_LABELS: Record<CardType, string> = {
   ghost:   'captures below; swaps hand cards',
   fog:     'nearby opponents go face-down',
   wolf:    "switches to cardinal when moon's out",
-  squid:   'converts blood cells to bubbles',
+  squid:   'pops bubbles; captures adjacent',
   mermaid: 'pulls opponent card onto board',
   bubbles: 'pops when captured, counter-attacks',
   skull:   'protects adjacent bone family',

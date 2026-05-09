@@ -259,12 +259,24 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'squid') {
-    // Convert all blood cells to bubbles cards owned by squid player
-    for (let r = 0; r < 4; r++) {
+    // Pop all bubbles on the board — capture everything adjacent to each popped bubble
+    const bubblesPos: [number, number][] = [];
+    for (let r = 0; r < 4; r++)
       for (let c = 0; c < 4; c++) {
-        if (board[r][c] && 'blood' in board[r][c]!) {
-          board[r][c] = { card: { id: `sbub-${r}-${c}`, direction: 'up', type: 'bubbles' }, owner: actorNr };
-        }
+        const cell = board[r][c];
+        if (cell && 'card' in cell && cell.card.type === 'bubbles') bubblesPos.push([r, c]);
+      }
+    for (const [br, bc] of bubblesPos) {
+      board[br][bc] = null;
+      for (const dir of ALL_DIRS) {
+        const [dr, dc] = OFFSETS[dir];
+        const nr = br + dr, nc = bc + dc;
+        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+        const neighbor = board[nr][nc];
+        if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+        if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+        captureCell(board, nr, nc, actorNr);
       }
     }
     // Capture left, right, down-left, down-right
@@ -272,7 +284,6 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
-
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
       if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
       captureCell(board, nr, nc, actorNr);
