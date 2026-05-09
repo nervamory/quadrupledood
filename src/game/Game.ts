@@ -318,28 +318,32 @@ export class Game {
   }
 
   // Mirrors oni placement logic in gameLogic.ts — returns the cells where hands will land.
-  private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string }[] {
+  private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string; angle: number }[] {
     if (!this.state) return [];
     const board = this.state.board;
-    const toPlace: { row: number; col: number; emoji: string }[] = [];
+    const toPlace: { row: number; col: number; emoji: string; angle: number }[] = [];
     const remaining: ('🫳' | '🫴')[] = ['🫳', '🫴'];
 
-    const preferred: [[number, number], '🫳' | '🫴'][] = [
-      [[row, col - 1], '🫳'],
-      [[row, col + 1], '🫴'],
+    const preferred: [[number, number], '🫳' | '🫴', number][] = [
+      [[row, col - 1], '🫳', -Math.PI / 2],
+      [[row, col + 1], '🫴', -Math.PI / 2],
     ];
-    for (const [[er, ec], emoji] of preferred) {
+    for (const [[er, ec], emoji, angle] of preferred) {
       if (toPlace.length >= 2) break;
       if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
-      toPlace.push({ row: er, col: ec, emoji });
+      toPlace.push({ row: er, col: ec, emoji, angle });
       remaining.splice(remaining.indexOf(emoji), 1);
     }
 
-    const fallback: [number, number][] = [[row - 1, col], [row + 1, col]];
-    for (const [er, ec] of fallback) {
+    const fallback: [[number, number], Record<'🫳' | '🫴', number>][] = [
+      [[row - 1, col], { '🫳': 0, '🫴': Math.PI }],
+      [[row + 1, col], { '🫳': Math.PI, '🫴': 0 }],
+    ];
+    for (const [[er, ec], angleMap] of fallback) {
       if (toPlace.length >= 2 || remaining.length === 0) break;
       if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
-      toPlace.push({ row: er, col: ec, emoji: remaining[0] });
+      const emoji = remaining[0];
+      toPlace.push({ row: er, col: ec, emoji, angle: angleMap[emoji] });
       remaining.shift();
     }
 
@@ -1255,7 +1259,7 @@ export class Game {
     if (this.drag?.card.type === 'oni' && this.hoverPos) {
       const hoverCell = this.hitCell(this.hoverPos.x, this.hoverPos.y);
       if (hoverCell && !state.board[hoverCell.row][hoverCell.col]) {
-        for (const { row: hr, col: hc, emoji } of this.oniHandCells(hoverCell.row, hoverCell.col)) {
+        for (const { row: hr, col: hc, emoji, angle } of this.oniHandCells(hoverCell.row, hoverCell.col)) {
           const { x, y } = this.cellPos(hr, hc);
           ctx.beginPath();
           ctx.roundRect(x, y, CELL, CELL, 4);
@@ -1264,10 +1268,14 @@ export class Game {
           ctx.strokeStyle = 'rgba(255, 160, 40, 0.7)';
           ctx.lineWidth = 2;
           ctx.stroke();
+          ctx.save();
+          ctx.translate(x + CELL / 2, y + CELL / 2);
+          ctx.rotate(angle);
           ctx.font = '22px serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(emoji, x + CELL / 2, y + CELL / 2);
+          ctx.fillText(emoji, 0, 0);
+          ctx.restore();
         }
       }
     }
