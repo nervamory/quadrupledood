@@ -167,11 +167,15 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'vampire') {
-    // Clear all blood cells — they become empty and playable again
+    // Convert all blood cells to vampires owned by the attacker
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         const cell = board[r][c];
-        if (cell && 'blood' in cell) board[r][c] = null;
+        if (cell && 'blood' in cell) {
+          const vampCard: Card = { id: `vamp-${r}-${c}`, direction: 'down', type: 'vampire' };
+          board[r][c] = { card: vampCard, owner: actorNr };
+          resolveCaptures(board, r, c, actorNr);
+        }
       }
     }
     // Capture down-diagonal left and right
