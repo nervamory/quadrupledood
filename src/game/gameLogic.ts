@@ -65,7 +65,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = Array(8).fill('knife') as CardType[];
       break;
     case 'demon':
-      types = ['imp', 'hellfire', 'hellfire', 'snake', ...pick(COMMON, 4)];
+      types = ['imp', 'hellfire', 'snake', 'snake', ...pick(COMMON, 4)];
       break;
     default:
       types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
@@ -76,12 +76,15 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
     [types[i], types[j]] = [types[j], types[i]];
   }
   let boneIdx = 0;
+  let snakeIdx = 0;
   return types.map((type, i) => {
     let direction: Direction;
     if (type === 'bone') {
       direction = deck === 'bones'
         ? (boneIdx++ % 2 === 0 ? 'up-right' : 'up-left')
         : (Math.random() < 0.5 ? 'up-right' : 'up-left');
+    } else if (type === 'snake' && deck === 'demon') {
+      direction = snakeIdx++ % 2 === 0 ? 'right' : 'up';
     } else {
       direction = randomDirection();
     }
