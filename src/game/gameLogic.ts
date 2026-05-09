@@ -156,8 +156,8 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
       const [er, ec] = emptyCells[i];
       const dirs: Direction[] = ['up', 'down', 'left', 'right'];
       const clownCard: Card = { id: `clown-${er}-${ec}-${h}`, direction: dirs[(h >> (i * 4)) % 4], type: 'clown' };
-      board[er][ec] = { card: clownCard, owner: attackerNr };
-      resolveCaptures(board, er, ec, attackerNr);
+      board[er][ec] = { card: clownCard, owner: cell.owner };
+      resolveCaptures(board, er, ec, cell.owner);
     }
   } else if (cell.card.type === 'egg') {
     const spider: Card = { id: `hatch-${row}-${col}`, direction: cell.card.direction, type: 'spider' };
