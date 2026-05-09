@@ -71,7 +71,14 @@ const photon = new PhotonClient({
     game.reset();
     ui.showLobby();
   },
+  onOpponentHover: (idx) => {
+    game.setOppHover(idx);
+  },
 });
+
+game.onHoverChange = (idx) => {
+  photon.sendHover(idx);
+};
 
 game.onPlaceCard = (cardId, row, col) => {
   if (!gameState) return;

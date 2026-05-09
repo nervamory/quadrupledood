@@ -87,6 +87,8 @@ export class Game {
   private hoverPos: { x: number; y: number } | null = null;
   private raf = 0;
   private spinAnim: { startTime: number; target: number; wrongDir: number; done: boolean } | null = null;
+  private lastHoverIdx: number | null = null;
+  oppHoverIdx: number | null = null;
 
   private ghostSwapAnim: {
     startTime: number;
@@ -96,6 +98,7 @@ export class Game {
   } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
+  onHoverChange?: (idx: number | null) => void;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -106,7 +109,13 @@ export class Game {
     canvas.addEventListener('mousedown', this.onMouseDown);
     canvas.addEventListener('mousemove', this.onMouseMove);
     canvas.addEventListener('mouseup', this.onMouseUp);
-    canvas.addEventListener('mouseleave', () => { this.hoverPos = null; });
+    canvas.addEventListener('mouseleave', () => {
+      this.hoverPos = null;
+      if (this.lastHoverIdx !== null) {
+        this.lastHoverIdx = null;
+        this.onHoverChange?.(null);
+      }
+    });
   }
 
   setLocalActor(actorNr: number) {
@@ -182,12 +191,17 @@ export class Game {
     };
   }
 
+  setOppHover(idx: number | null) {
+    this.oppHoverIdx = idx;
+  }
+
   reset() {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.state = null;
     this.drag = null;
     this.spinAnim = null;
+    this.oppHoverIdx = null;
     this.ctx.clearRect(0, 0, this.W, this.H);
   }
 
@@ -231,7 +245,7 @@ export class Game {
   }
 
   // Inverse-rotate the mouse point into each card's local space, then AABB check.
-  private hoveredHandCardId(): string | null {
+  private hoveredHandCardIdx(): number | null {
     if (!this.state || !this.hoverPos || this.drag) return null;
     const { x: mx, y: my } = this.hoverPos;
     const hand = this.state.hands[this.localNr] ?? [];
@@ -243,9 +257,15 @@ export class Game {
       const lx = dx * cos - dy * sin;
       const ly = dx * sin + dy * cos;
       if (lx >= -CARD / 2 && lx < CARD / 2 && ly >= -CARD / 2 && ly < CARD / 2)
-        return layout[i].card.id;
+        return i;
     }
     return null;
+  }
+
+  private hoveredHandCardId(): string | null {
+    const idx = this.hoveredHandCardIdx();
+    if (idx === null || !this.state) return null;
+    return (this.state.hands[this.localNr] ?? [])[idx]?.id ?? null;
   }
 
   private hitHandCard(mx: number, my: number): { layout: CardLayout; idx: number } | null {
@@ -352,6 +372,11 @@ export class Game {
     const my = e.clientY - b.top;
     this.hoverPos = { x: mx, y: my };
     if (this.drag) { this.drag.x = mx; this.drag.y = my; }
+    const idx = this.hoveredHandCardIdx();
+    if (idx !== this.lastHoverIdx) {
+      this.lastHoverIdx = idx;
+      this.onHoverChange?.(idx);
+    }
   };
 
   private onMouseUp = (e: MouseEvent) => {
@@ -1201,10 +1226,19 @@ export class Game {
       c => c && 'card' in c && c.owner === this.localNr && c.card.type === 'eye'
     );
     const oppLayout = this.computeHandLayout(oppHand, false);
-    for (const { cx, cy, rotation, card } of oppLayout) {
+    const HOVER_LIFT = 14;
+    for (let i = 0; i < oppLayout.length; i++) {
+      const { cx, cy, rotation, card } = oppLayout[i];
       if (this.ghostSwapAnim?.hiddenIds.has(card.id)) continue;
       ctx.save();
-      ctx.translate(cx, cy);
+      if (i === this.oppHoverIdx) {
+        const dx = cx - this.W / 2;
+        const dy = cy - OPP_PIVOT_Y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        ctx.translate(cx + dx / len * HOVER_LIFT, cy + dy / len * HOVER_LIFT);
+      } else {
+        ctx.translate(cx, cy);
+      }
       ctx.rotate(rotation);
       this.drawCard(-CARD / 2, -CARD / 2, card, oppIsBlack, !myEyeActive);
       ctx.restore();

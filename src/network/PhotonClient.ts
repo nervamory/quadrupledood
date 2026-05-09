@@ -28,6 +28,7 @@ const APP_VERSION = '1.0';
 const EV_GAME_START = 1;
 const EV_PLACE_CARD = 2;
 const EV_DECK_PICK  = 3;
+const EV_HOVER      = 4;
 
 export type NetworkCallbacks = {
   onJoined: (actorNr: number) => void;
@@ -39,6 +40,7 @@ export type NetworkCallbacks = {
   onLobbyUpdate: (playerCount: number) => void;
   onStatusChange: (msg: string) => void;
   onDisconnected: () => void;
+  onOpponentHover: (idx: number | null) => void;
 };
 
 const MAX_RETRIES = 3;
@@ -141,6 +143,9 @@ export class PhotonClient {
       } else if (code === EV_DECK_PICK) {
         const { deck } = content as { deck: DeckType };
         this.cb.onDeckPick(actorNr, deck);
+      } else if (code === EV_HOVER) {
+        const { idx } = content as { idx: number | null };
+        this.cb.onOpponentHover(idx);
       }
     };
 
@@ -195,6 +200,10 @@ export class PhotonClient {
 
   sendDeckPick(deck: DeckType) {
     this.lbc.raiseEvent(EV_DECK_PICK, { deck });
+  }
+
+  sendHover(idx: number | null) {
+    this.lbc.raiseEvent(EV_HOVER, { idx });
   }
 
   leave() {
