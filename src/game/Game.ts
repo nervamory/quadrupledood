@@ -1032,25 +1032,33 @@ export class Game {
       const snm = ctx.measureText('🐍');
       ctx.fillText('🐍', 0, (snm.actualBoundingBoxAscent - snm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      // One triangle at each end of the capture axis (double-triangle / bone-style)
+      // Dragon-style double arrow at both ends of the capture axis
       ctx.fillStyle = fg;
-      const mc = 7;
+      const mc = 7; const ts2 = ts * 0.7;
       switch (card.direction) {
         case 'up': case 'down':
           ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(cx, y + m + ts * 2.5); ctx.lineTo(cx - ts2, y + m + ts * 2.5 + ts2 * 1.5); ctx.lineTo(cx + ts2, y + m + ts * 2.5 + ts2 * 1.5); ctx.fill();
           ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(cx, y + CARD - m - ts * 2.5); ctx.lineTo(cx - ts2, y + CARD - m - ts * 2.5 - ts2 * 1.5); ctx.lineTo(cx + ts2, y + CARD - m - ts * 2.5 - ts2 * 1.5); ctx.fill();
           break;
         case 'left': case 'right':
           ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + m + ts * 2.5, cy); ctx.lineTo(x + m + ts * 2.5 + ts2 * 1.5, cy - ts2); ctx.lineTo(x + m + ts * 2.5 + ts2 * 1.5, cy + ts2); ctx.fill();
           ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + CARD - m - ts * 2.5, cy); ctx.lineTo(x + CARD - m - ts * 2.5 - ts2 * 1.5, cy - ts2); ctx.lineTo(x + CARD - m - ts * 2.5 - ts2 * 1.5, cy + ts2); ctx.fill();
           break;
         case 'up-right': case 'down-left':
-          ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+CARD-mc,y+mc); ctx.lineTo(x+CARD-mc-ts*1.5,y+mc); ctx.lineTo(x+CARD-mc,y+mc+ts*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+CARD-mc-ts*2,y+mc+ts*2); ctx.lineTo(x+CARD-mc-ts*2-ts2*1.5,y+mc+ts*2); ctx.lineTo(x+CARD-mc-ts*2,y+mc+ts*2+ts2*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+mc,y+CARD-mc); ctx.lineTo(x+mc+ts*1.5,y+CARD-mc); ctx.lineTo(x+mc,y+CARD-mc-ts*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+mc+ts*2,y+CARD-mc-ts*2); ctx.lineTo(x+mc+ts*2+ts2*1.5,y+CARD-mc-ts*2); ctx.lineTo(x+mc+ts*2,y+CARD-mc-ts*2-ts2*1.5); ctx.fill();
           break;
         case 'up-left': case 'down-right':
-          ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+mc,y+mc); ctx.lineTo(x+mc+ts*1.5,y+mc); ctx.lineTo(x+mc,y+mc+ts*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+mc+ts*2,y+mc+ts*2); ctx.lineTo(x+mc+ts*2+ts2*1.5,y+mc+ts*2); ctx.lineTo(x+mc+ts*2,y+mc+ts*2+ts2*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+CARD-mc,y+CARD-mc); ctx.lineTo(x+CARD-mc-ts*1.5,y+CARD-mc); ctx.lineTo(x+CARD-mc,y+CARD-mc-ts*1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x+CARD-mc-ts*2,y+CARD-mc-ts*2); ctx.lineTo(x+CARD-mc-ts*2-ts2*1.5,y+CARD-mc-ts*2); ctx.lineTo(x+CARD-mc-ts*2,y+CARD-mc-ts*2-ts2*1.5); ctx.fill();
           break;
       }
       return;

@@ -65,7 +65,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = Array(8).fill('knife') as CardType[];
       break;
     case 'demon':
-      types = ['imp', 'fire', 'snake', 'snake', ...pick(COMMON, 4)];
+      types = ['imp', 'hellfire', 'snake', 'snake', ...pick(COMMON, 4)];
       break;
     default:
       types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
