@@ -314,6 +314,35 @@ export class Game {
     return false;
   }
 
+  // Mirrors oni placement logic in gameLogic.ts — returns the cells where hands will land.
+  private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string }[] {
+    if (!this.state) return [];
+    const board = this.state.board;
+    const toPlace: { row: number; col: number; emoji: string }[] = [];
+    const remaining: ('🫳' | '🫴')[] = ['🫳', '🫴'];
+
+    const preferred: [[number, number], '🫳' | '🫴'][] = [
+      [[row, col - 1], '🫳'],
+      [[row, col + 1], '🫴'],
+    ];
+    for (const [[er, ec], emoji] of preferred) {
+      if (toPlace.length >= 2) break;
+      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
+      toPlace.push({ row: er, col: ec, emoji });
+      remaining.splice(remaining.indexOf(emoji), 1);
+    }
+
+    const fallback: [number, number][] = [[row - 1, col], [row + 1, col]];
+    for (const [er, ec] of fallback) {
+      if (toPlace.length >= 2 || remaining.length === 0) break;
+      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
+      toPlace.push({ row: er, col: ec, emoji: remaining[0] });
+      remaining.shift();
+    }
+
+    return toPlace;
+  }
+
   private findHoveredCard(mx: number, my: number): Card | null {
     if (!this.state) return null;
 
@@ -1215,6 +1244,27 @@ export class Game {
             ctx.lineWidth = 2;
             ctx.stroke();
           }
+        }
+      }
+    }
+
+    // Oni hand placement preview — show where the two hands will land
+    if (this.drag?.card.type === 'oni' && this.hoverPos) {
+      const hoverCell = this.hitCell(this.hoverPos.x, this.hoverPos.y);
+      if (hoverCell && !state.board[hoverCell.row][hoverCell.col]) {
+        for (const { row: hr, col: hc, emoji } of this.oniHandCells(hoverCell.row, hoverCell.col)) {
+          const { x, y } = this.cellPos(hr, hc);
+          ctx.beginPath();
+          ctx.roundRect(x, y, CELL, CELL, 4);
+          ctx.fillStyle = 'rgba(255, 160, 40, 0.12)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 160, 40, 0.7)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.font = '22px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(emoji, x + CELL / 2, y + CELL / 2);
         }
       }
     }
