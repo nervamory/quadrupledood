@@ -44,7 +44,7 @@ const CARD_LABELS: Record<CardType, string> = {
   moon:    'flips all card ownership',
   mirror:  'reflects captures back',
   bandage: 'plays on blood cells',
-  vampire: 'clears all blood cells',
+  vampire: 'captures all blood cells',
   ghost:   'captures below; swaps hand cards',
   fog:     'nearby opponents go face-down',
   wolf:    "werewolf when moon's out",
