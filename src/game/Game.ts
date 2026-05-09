@@ -68,6 +68,9 @@ const CARD_LABELS: Record<CardType, string> = {
   imp:      'retriggers captured ally',
   hellfire: 'destroys adjacent; self-destructs',
   snake:    'line capture, both directions',
+  clown:    'captures up and down; retriggers adjacent clowns',
+  'clown-car': 'spawns 2 clowns when captured',
+  balloon:  'captures below; disappears when captured',
 };
 
 type SwapCardAnim = {
@@ -338,21 +341,31 @@ export class Game {
       remaining.splice(remaining.indexOf(emoji), 1);
     }
 
-    const fallback: [[number, number], Record<'🫳' | '🫴', [number, Direction]>][] = [
-      [[row - 1, col - 1], { '🫳': [3 * Math.PI / 4,   'up-right'], '🫴': [3 * Math.PI / 4,   'up-right'] }],
-      [[row - 1, col + 1], { '🫳': [Math.PI / 4,        'up-left'],  '🫴': [Math.PI / 4,        'up-left'] }],
-      [[row + 1, col - 1], { '🫳': [-3 * Math.PI / 4,  'up-left'],  '🫴': [-3 * Math.PI / 4,  'up-left'] }],
-      [[row + 1, col + 1], { '🫳': [-Math.PI / 4,       'up-right'], '🫴': [-Math.PI / 4,       'up-right'] }],
-      [[row - 1, col],     { '🫳': [0,       'right'], '🫴': [Math.PI, 'left'] }],
-      [[row + 1, col],     { '🫳': [Math.PI, 'left'],  '🫴': [0,      'up'] }],
-    ];
-    for (const [[er, ec], map] of fallback) {
-      if (toPlace.length >= 2 || remaining.length === 0) break;
-      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
-      const emoji = remaining[0];
-      const [angle, dir] = map[emoji];
-      toPlace.push({ row: er, col: ec, emoji, angle, dir });
-      remaining.shift();
+    const fallbackFor: Record<'🫳' | '🫴', [[number, number], number, Direction][]> = {
+      '🫳': [
+        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
+        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
+        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
+        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
+        [[row - 1, col],      0,                 'right'],
+        [[row + 1, col],      Math.PI,            'left'],
+      ],
+      '🫴': [
+        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
+        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
+        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
+        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
+        [[row - 1, col],      Math.PI,            'left'],
+        [[row + 1, col],      0,                 'up'],
+      ],
+    };
+    for (const emoji of [...remaining] as ('🫳' | '🫴')[]) {
+      for (const [[er, ec], angle, dir] of fallbackFor[emoji]) {
+        if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
+        if (toPlace.some(p => p.row === er && p.col === ec)) continue;
+        toPlace.push({ row: er, col: ec, emoji, angle, dir });
+        break;
+      }
     }
 
     return toPlace;
@@ -1061,6 +1074,48 @@ export class Game {
           ctx.beginPath(); ctx.moveTo(x+CARD-mc-ts*2,y+CARD-mc-ts*2); ctx.lineTo(x+CARD-mc-ts*2-ts2*1.5,y+CARD-mc-ts*2); ctx.lineTo(x+CARD-mc-ts*2,y+CARD-mc-ts*2-ts2*1.5); ctx.fill();
           break;
       }
+      return;
+    }
+
+    if (card.type === 'clown') {
+      this.drawFoilOverlay(x, y);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const clm = ctx.measureText('🤡');
+      ctx.fillText('🤡', 0, (clm.actualBoundingBoxAscent - clm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      return;
+    }
+
+    if (card.type === 'clown-car') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const ccm = ctx.measureText('🚗');
+      ctx.fillText('🚗', 0, (ccm.actualBoundingBoxAscent - ccm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      return;
+    }
+
+    if (card.type === 'balloon') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const blm = ctx.measureText('🎈');
+      ctx.fillText('🎈', 0, (blm.actualBoundingBoxAscent - blm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
       return;
     }
 

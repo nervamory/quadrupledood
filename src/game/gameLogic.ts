@@ -27,8 +27,8 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake'];
-const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon'];
+const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown'];
 
 function pick(pool: CardType[], n: number): CardType[] {
   return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
@@ -38,7 +38,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
   let types: CardType[];
   switch (deck) {
     case 'debug':
-      types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake'];
+      types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake', 'clown', 'clown-car', 'balloon'];
       break;
     case 'vampire':
       types = ['vampire', 'heart', 'eye', 'eye', ...pick(COMMON, 4)];
@@ -66,6 +66,9 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       break;
     case 'demon':
       types = ['imp', 'hellfire', 'snake', 'snake', ...pick(COMMON, 4)];
+      break;
+    case 'clown':
+      types = ['clown', 'clown-car', 'balloon', 'balloon', ...pick(COMMON, 4)];
       break;
     default:
       types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
@@ -135,6 +138,27 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
     board[row][col] = { blood: true };
   } else if (cell.card.type === 'bubbles') {
     bubblesPop(board, row, col, attackerNr);
+  } else if (cell.card.type === 'balloon') {
+    board[row][col] = null;
+  } else if (cell.card.type === 'clown-car') {
+    board[row][col] = null;
+    const emptyCells: [number, number][] = [];
+    for (let r = 0; r < 4; r++)
+      for (let c = 0; c < 4; c++)
+        if (!board[r][c] && !(r === row && c === col)) emptyCells.push([r, c]);
+    emptyCells.sort((a, b) => {
+      const da = Math.abs(a[0] - row) + Math.abs(a[1] - col);
+      const db = Math.abs(b[0] - row) + Math.abs(b[1] - col);
+      return da - db;
+    });
+    const h = cardHash(cell.card.id);
+    for (let i = 0; i < 2 && i < emptyCells.length; i++) {
+      const [er, ec] = emptyCells[i];
+      const dirs: Direction[] = ['up', 'down', 'left', 'right'];
+      const clownCard: Card = { id: `clown-${er}-${ec}-${h}`, direction: dirs[(h >> (i * 4)) % 4], type: 'clown' };
+      board[er][ec] = { card: clownCard, owner: attackerNr };
+      resolveCaptures(board, er, ec, attackerNr);
+    }
   } else if (cell.card.type === 'egg') {
     const spider: Card = { id: `hatch-${row}-${col}`, direction: cell.card.direction, type: 'spider' };
     board[row][col] = { card: spider, owner: cell.owner };
@@ -543,8 +567,54 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     return;
   }
 
+  if (placed.card.type === 'clown') {
+    // Captures up and down; then retriggers any adjacent owned clowns (with loop guard)
+    const captureClown = (board: BoardCell[][], r: number, c: number, owner: number, visited: Set<string>) => {
+      for (const [nr, nc] of [[r - 1, c], [r + 1, c]] as [number, number][]) {
+        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+        const neighbor = board[nr][nc];
+        if (!neighbor || 'blood' in neighbor || neighbor.owner === owner) continue;
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+        if (neighbor.card.type === 'mirror') { board[r][c] = { card: (board[r][c] as { card: Card; owner: number }).card, owner: neighbor.owner }; continue; }
+        captureCell(board, nr, nc, owner);
+      }
+      for (const dir of ALL_DIRS) {
+        const [dr, dc] = OFFSETS[dir];
+        const ar = r + dr; const ac = c + dc;
+        if (ar < 0 || ar >= 4 || ac < 0 || ac >= 4) continue;
+        const adj = board[ar][ac];
+        if (!adj || 'blood' in adj || adj.owner !== owner || adj.card.type !== 'clown') continue;
+        const key = `${ar},${ac}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        captureClown(board, ar, ac, owner, visited);
+      }
+    };
+    const visited = new Set([`${row},${col}`]);
+    captureClown(board, row, col, actorNr, visited);
+    return;
+  }
+
+  if (placed.card.type === 'balloon') {
+    // Captures one cell directly below
+    const [nr, nc] = [row + 1, col];
+    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+      const neighbor = board[nr][nc];
+      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+          board[nr][nc] = { blood: true };
+        } else if (neighbor.card.type === 'mirror') {
+          board[row][col] = { card: placed.card, owner: neighbor.owner };
+        } else {
+          captureCell(board, nr, nc, actorNr);
+        }
+      }
+    }
+    return;
+  }
+
   // Passive cards — no captures on placement
-  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web') return;
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car') return;
 
   // Knife: captures in the single direction it's pointing (cardinal or diagonal)
   const kDir = placed.card.direction;
@@ -622,16 +692,25 @@ export function placeCard(
       [[row, col - 1], '🫳', 'up', -Math.PI / 2],
       [[row, col + 1], '🫴', 'up', -Math.PI / 2],
     ];
-    // Fallback positions tried in order: diagonals first, then cardinal above/below.
-    // Each diagonal hand captures the cross-diagonal direction (up-right ↔ up-left, etc).
-    const fallbackPositions: [[number, number], Record<'🫳' | '🫴', [Direction, number]>][] = [
-      [[row - 1, col - 1], { '🫳': ['up-right',  3 * Math.PI / 4],  '🫴': ['up-right',  3 * Math.PI / 4] }],
-      [[row - 1, col + 1], { '🫳': ['up-left',   Math.PI / 4],      '🫴': ['up-left',   Math.PI / 4] }],
-      [[row + 1, col - 1], { '🫳': ['up-left',  -3 * Math.PI / 4],  '🫴': ['up-left',  -3 * Math.PI / 4] }],
-      [[row + 1, col + 1], { '🫳': ['up-right', -Math.PI / 4],      '🫴': ['up-right', -Math.PI / 4] }],
-      [[row - 1, col],     { '🫳': ['right', 0],                        '🫴': ['left', Math.PI] }],
-      [[row + 1, col],     { '🫳': ['left', Math.PI],                   '🫴': ['up', 0] }],
-    ];
+    // Fallback priority is per-hand: 🫳 prefers left-side diagonals, 🫴 prefers right-side.
+    const fallbackFor: Record<'🫳' | '🫴', [[number, number], Direction, number][]> = {
+      '🫳': [
+        [[row - 1, col - 1], 'up-right',  3 * Math.PI / 4],
+        [[row + 1, col - 1], 'up-left',   Math.PI / 4],
+        [[row - 1, col + 1], 'up-left',  -3 * Math.PI / 4],
+        [[row + 1, col + 1], 'up-right', -Math.PI / 4],
+        [[row - 1, col],     'right',     0],
+        [[row + 1, col],     'left',      Math.PI],
+      ],
+      '🫴': [
+        [[row - 1, col + 1], 'up-left',  -3 * Math.PI / 4],
+        [[row + 1, col + 1], 'up-right', -Math.PI / 4],
+        [[row - 1, col - 1], 'up-right',  3 * Math.PI / 4],
+        [[row + 1, col - 1], 'up-left',   Math.PI / 4],
+        [[row - 1, col],     'left',      Math.PI],
+        [[row + 1, col],     'up',        0],
+      ],
+    };
     const toPlace: [number, number, Direction, '🫳' | '🫴', number][] = [];
     const remaining = new Set<'🫳' | '🫴'>(['🫳', '🫴']);
 
@@ -641,13 +720,13 @@ export function placeCard(
       toPlace.push([er, ec, dir, emoji, angle]);
       remaining.delete(emoji);
     }
-    for (const [[er, ec], emojiConfig] of fallbackPositions) {
-      if (toPlace.length >= 2 || remaining.size === 0) break;
-      if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || newBoard[er][ec]) continue;
-      const emoji = [...remaining][0] as '🫳' | '🫴';
-      const [dir, angle] = emojiConfig[emoji];
-      toPlace.push([er, ec, dir, emoji, angle]);
-      remaining.delete(emoji);
+    for (const emoji of [...remaining] as ('🫳' | '🫴')[]) {
+      for (const [[er, ec], dir, angle] of fallbackFor[emoji]) {
+        if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || newBoard[er][ec]) continue;
+        if (toPlace.some(([pr, pc]) => pr === er && pc === ec)) continue;
+        toPlace.push([er, ec, dir, emoji, angle]);
+        break;
+      }
     }
     for (const [er, ec, handDir, emoji, angle] of toPlace) {
       const summonCard: Card = {
