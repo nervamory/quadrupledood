@@ -132,8 +132,8 @@ export class Game {
   setState(state: GameState | null) {
     if (state && !this.state) {
       const isMyTurn = state.currentTurn === this.localNr;
-      const target   = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
-      const wrongDir = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
+      const target   = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
+      const wrongDir = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
       this.spinAnim = { startTime: performance.now(), target, wrongDir, done: false };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
@@ -339,10 +339,10 @@ export class Game {
     }
 
     const fallback: [[number, number], Record<'🫳' | '🫴', [number, Direction]>][] = [
-      [[row - 1, col - 1], { '🫳': [Math.PI / 4,       'up-right'],   '🫴': [Math.PI / 4,       'up-right'] }],
-      [[row - 1, col + 1], { '🫳': [-Math.PI / 4,      'up-left'],    '🫴': [-Math.PI / 4,      'up-left'] }],
-      [[row + 1, col - 1], { '🫳': [3 * Math.PI / 4,   'down-right'], '🫴': [3 * Math.PI / 4,   'down-right'] }],
-      [[row + 1, col + 1], { '🫳': [-3 * Math.PI / 4,  'down-left'],  '🫴': [-3 * Math.PI / 4,  'down-left'] }],
+      [[row - 1, col - 1], { '🫳': [-Math.PI / 4,       'up-right'],   '🫴': [-Math.PI / 4,       'up-right'] }],
+      [[row - 1, col + 1], { '🫳': [-3 * Math.PI / 4,  'up-left'],    '🫴': [-3 * Math.PI / 4,  'up-left'] }],
+      [[row + 1, col - 1], { '🫳': [Math.PI / 4,        'down-right'], '🫴': [Math.PI / 4,        'down-right'] }],
+      [[row + 1, col + 1], { '🫳': [3 * Math.PI / 4,   'down-left'],  '🫴': [3 * Math.PI / 4,   'down-left'] }],
       [[row - 1, col],     { '🫳': [0,       'right'], '🫴': [Math.PI, 'left'] }],
       [[row + 1, col],     { '🫳': [Math.PI, 'left'],  '🫴': [0,      'up'] }],
     ];
@@ -1375,10 +1375,14 @@ export class Game {
           ctx.fillStyle = 'rgba(255, 200, 80, 0.9)';
           ctx.beginPath();
           switch (dir) {
-            case 'up':    ctx.moveTo(ccx, yc + m); ctx.lineTo(ccx - ts, yc + m + ts * 1.5); ctx.lineTo(ccx + ts, yc + m + ts * 1.5); break;
-            case 'down':  ctx.moveTo(ccx, yc + CARD - m); ctx.lineTo(ccx - ts, yc + CARD - m - ts * 1.5); ctx.lineTo(ccx + ts, yc + CARD - m - ts * 1.5); break;
-            case 'left':  ctx.moveTo(xc + m, ccy); ctx.lineTo(xc + m + ts * 1.5, ccy - ts); ctx.lineTo(xc + m + ts * 1.5, ccy + ts); break;
-            case 'right': ctx.moveTo(xc + CARD - m, ccy); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy - ts); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy + ts); break;
+            case 'up':         ctx.moveTo(ccx, yc + m); ctx.lineTo(ccx - ts, yc + m + ts * 1.5); ctx.lineTo(ccx + ts, yc + m + ts * 1.5); break;
+            case 'down':       ctx.moveTo(ccx, yc + CARD - m); ctx.lineTo(ccx - ts, yc + CARD - m - ts * 1.5); ctx.lineTo(ccx + ts, yc + CARD - m - ts * 1.5); break;
+            case 'left':       ctx.moveTo(xc + m, ccy); ctx.lineTo(xc + m + ts * 1.5, ccy - ts); ctx.lineTo(xc + m + ts * 1.5, ccy + ts); break;
+            case 'right':      ctx.moveTo(xc + CARD - m, ccy); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy - ts); ctx.lineTo(xc + CARD - m - ts * 1.5, ccy + ts); break;
+            case 'up-right':   ctx.moveTo(xc + CARD - m, yc + m); ctx.lineTo(xc + CARD - m - ts * 1.5, yc + m); ctx.lineTo(xc + CARD - m, yc + m + ts * 1.5); break;
+            case 'up-left':    ctx.moveTo(xc + m, yc + m); ctx.lineTo(xc + m + ts * 1.5, yc + m); ctx.lineTo(xc + m, yc + m + ts * 1.5); break;
+            case 'down-left':  ctx.moveTo(xc + m, yc + CARD - m); ctx.lineTo(xc + m + ts * 1.5, yc + CARD - m); ctx.lineTo(xc + m, yc + CARD - m - ts * 1.5); break;
+            case 'down-right': ctx.moveTo(xc + CARD - m, yc + CARD - m); ctx.lineTo(xc + CARD - m - ts * 1.5, yc + CARD - m); ctx.lineTo(xc + CARD - m, yc + CARD - m - ts * 1.5); break;
           }
           ctx.fill();
         }

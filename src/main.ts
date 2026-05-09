@@ -10,6 +10,7 @@ const game = new Game(document.getElementById('game-canvas') as HTMLCanvasElemen
 let gameState: GameState | null = null;
 let oppDeck: DeckType | null = null;
 let debugMode = false;
+let inRoom = false;
 
 function getSelectedDeck(): DeckType {
   return (document.getElementById('deck-select') as HTMLSelectElement).value as DeckType;
@@ -33,6 +34,7 @@ function tryStartGame() {
 
 const photon = new PhotonClient({
   onJoined: (actorNr) => {
+    inRoom = true;
     game.setLocalActor(actorNr);
     ui.showGame();
   },
@@ -41,14 +43,14 @@ const photon = new PhotonClient({
     tryStartGame();
   },
   onPlayerLeft: (_actorNr) => {
+    if (!inRoom || gameState?.phase === 'finished') return;
     oppDeck = null;
-    if (gameState?.phase !== 'finished') {
-      gameState = null;
-      game.reset();
-      photon.leave();
-      ui.showLobby();
-      ui.setStatus('opponent left');
-    }
+    gameState = null;
+    game.reset();
+    inRoom = false;
+    photon.leave();
+    ui.showLobby();
+    ui.setStatus('opponent left');
   },
   onGameStart: (state) => {
     gameState = state;
@@ -69,6 +71,7 @@ const photon = new PhotonClient({
   },
   onStatusChange: (msg) => ui.setStatus(msg),
   onDisconnected: () => {
+    inRoom = false;
     gameState = null;
     oppDeck = null;
     game.reset();
@@ -101,6 +104,7 @@ document.getElementById('join-btn')!.addEventListener('click', () => {
 });
 
 document.getElementById('leave-btn')!.addEventListener('click', () => {
+  inRoom = false;
   oppDeck = null;
   photon.leave();
   game.reset();
