@@ -1294,6 +1294,10 @@ export class Game {
       ctx.textBaseline = 'middle';
       ctx.fillText('🔪', 0, 0);
       ctx.restore();
+      ctx.font = 'bold 14px monospace';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText('waiting for opponent', W / 2, H / 2 + 80);
       return;
     }
 
