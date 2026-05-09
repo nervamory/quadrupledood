@@ -102,7 +102,7 @@ export class PhotonClient {
         if (this.pendingRoom) {
           const room = this.pendingRoom;
           this.pendingRoom = null;
-          this.lbc.joinRoom(room, { createIfNotExists: true }, { playerTtl: 300000, emptyRoomTtl: 300000 });
+          this.lbc.joinRoom(room, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
         } else if (this.pendingMatchmaking) {
           this.pendingMatchmaking = false;
           this.doMatchmaking();
@@ -165,10 +165,10 @@ export class PhotonClient {
     const rooms = this.lbc.availableRooms();
     const open = rooms.find(r => r.playerCount === 1);
     if (open) {
-      this.lbc.joinRoom(open.name, {}, { playerTtl: 300000, emptyRoomTtl: 300000 });
+      this.lbc.joinRoom(open.name, {}, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
     } else {
       const roomName = Math.random().toString(36).slice(2, 10);
-      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 300000, emptyRoomTtl: 300000 });
+      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
     }
   }
 
@@ -183,7 +183,7 @@ export class PhotonClient {
   // Debug mode: join a specific named room
   connectAndJoin(roomName: string) {
     if (this.inLobby) {
-      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 300000, emptyRoomTtl: 300000 });
+      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
     } else {
       this.pendingRoom = roomName;
       this.lbc.connectToRegionMaster('us');
