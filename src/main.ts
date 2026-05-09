@@ -44,7 +44,10 @@ const photon = new PhotonClient({
     oppDeck = null;
     if (gameState?.phase !== 'finished') {
       gameState = null;
-      game.setState(null);
+      game.reset();
+      photon.leave();
+      ui.showLobby();
+      ui.setStatus('opponent left');
     }
   },
   onGameStart: (state) => {
