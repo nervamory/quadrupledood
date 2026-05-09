@@ -18,6 +18,14 @@ function randomDirection(): Direction {
   return ALL_DIRS[Math.floor(Math.random() * 8)];
 }
 
+// Deterministic hash of a card ID — same result on both clients for the same card.
+// Used wherever multiplayer-synced randomness is needed.
+function cardHash(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  return h;
+}
+
 const COMMON: CardType[] = ['knife'];
 const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien'];
 const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon'];
@@ -609,8 +617,9 @@ export function placeCard(
     const myCards = newHands[actorNr];
     const oppCards = newHands[otherPlayer];
     if (myCards.length > 0 && oppCards.length > 0) {
-      const myIdx  = Math.floor(Math.random() * myCards.length);
-      const oppIdx = Math.floor(Math.random() * oppCards.length);
+      const h = cardHash(card.id);
+      const myIdx  = h % myCards.length;
+      const oppIdx = (h >>> 8) % oppCards.length;
       const myCard  = myCards[myIdx];
       const oppCard = oppCards[oppIdx];
       newHands = {
@@ -630,8 +639,9 @@ export function placeCard(
         for (let c = 0; c < 4; c++)
           if (!newBoard[r][c]) emptyCells.push([r, c]);
       if (emptyCells.length > 0) {
-        const [er, ec] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-        const pullIdx = Math.floor(Math.random() * oppCards.length);
+        const h = cardHash(card.id);
+        const pullIdx = h % oppCards.length;
+        const [er, ec] = emptyCells[(h >>> 8) % emptyCells.length];
         newBoard[er][ec] = { card: oppCards[pullIdx], owner: actorNr };
         newHands = { ...newHands, [otherPlayer]: oppCards.filter((_, i) => i !== pullIdx) };
       }
