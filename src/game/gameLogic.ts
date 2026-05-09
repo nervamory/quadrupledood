@@ -54,7 +54,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = ['spider', 'egg', 'web', 'web', ...pick(COMMON, 4)];
       break;
     default:
-      types = [...pick(COMMON, 5), ...pick(RARE, 2), ...pick(FOIL, 1)];
+      types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
   }
 
   for (let i = types.length - 1; i > 0; i--) {
