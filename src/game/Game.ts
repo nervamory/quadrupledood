@@ -47,7 +47,7 @@ const CARD_LABELS: Record<CardType, string> = {
   vampire: 'captures all blood cells',
   ghost:   'captures below; swaps hand cards',
   fog:     'nearby opponents go face-down',
-  wolf:    "werewolf when moon's out",
+  wolf:    "switches to cardinal when moon's out",
   squid:   'converts blood cells to bubbles',
   mermaid: 'pulls opponent card onto board',
   bubbles: 'pops when captured, counter-attacks',
@@ -656,19 +656,20 @@ export class Game {
       const wm = ctx.measureText('🐺');
       ctx.fillText('🐺', 0, (wm.actualBoundingBoxAscent - wm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      // Corner indicators — diagonal captures
       const mc = 7; const ts = 4;
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill();
       if (moonIsOut) {
-        // Cardinal indicators — werewolf bonus captures
+        // Cardinal indicators — werewolf mode
         ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
         ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
         ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
         ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+      } else {
+        // Corner indicators — diagonal captures
+        ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill();
       }
       return;
     }

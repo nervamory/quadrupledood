@@ -237,13 +237,9 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'wolf') {
     const moonIsOut = board.flat().some(c => c && 'card' in c && c.card.type === 'moon');
-    const targets: [number, number][] = [
-      [row - 1, col - 1], [row - 1, col + 1],
-      [row + 1, col - 1], [row + 1, col + 1],
-    ];
-    if (moonIsOut) targets.push(
-      [row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]
-    );
+    const targets: [number, number][] = moonIsOut
+      ? [[row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]]
+      : [[row - 1, col - 1], [row - 1, col + 1], [row + 1, col - 1], [row + 1, col + 1]];
     for (const [nr, nc] of targets) {
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
       const neighbor = board[nr][nc];
