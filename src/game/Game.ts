@@ -336,8 +336,12 @@ export class Game {
     }
 
     const fallback: [[number, number], Record<'🫳' | '🫴', [number, Direction]>][] = [
-      [[row - 1, col], { '🫳': [0, 'right'], '🫴': [Math.PI, 'left'] }],
-      [[row + 1, col], { '🫳': [Math.PI, 'left'], '🫴': [0, 'up'] }],
+      [[row - 1, col - 1], { '🫳': [Math.PI / 4,       'up-right'],   '🫴': [Math.PI / 4,       'up-right'] }],
+      [[row - 1, col + 1], { '🫳': [-Math.PI / 4,      'up-left'],    '🫴': [-Math.PI / 4,      'up-left'] }],
+      [[row + 1, col - 1], { '🫳': [3 * Math.PI / 4,   'down-right'], '🫴': [3 * Math.PI / 4,   'down-right'] }],
+      [[row + 1, col + 1], { '🫳': [-3 * Math.PI / 4,  'down-left'],  '🫴': [-3 * Math.PI / 4,  'down-left'] }],
+      [[row - 1, col],     { '🫳': [0,       'right'], '🫴': [Math.PI, 'left'] }],
+      [[row + 1, col],     { '🫳': [Math.PI, 'left'],  '🫴': [0,      'up'] }],
     ];
     for (const [[er, ec], map] of fallback) {
       if (toPlace.length >= 2 || remaining.length === 0) break;

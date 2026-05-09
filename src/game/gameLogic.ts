@@ -563,12 +563,15 @@ export function placeCard(
       [[row, col - 1], '🫳', 'up', -Math.PI / 2],
       [[row, col + 1], '🫴', 'up', -Math.PI / 2],
     ];
-    // Per-emoji fallback configs:
-    //   above: 🫳 palm-down→right, 🫴 rotated palm-down→left
-    //   below: 🫴 palm-up→up,      🫳 rotated palm-up→left
+    // Fallback positions tried in order: diagonals first, then cardinal above/below.
+    // Each diagonal hand captures the cross-diagonal direction (up-right ↔ up-left, etc).
     const fallbackPositions: [[number, number], Record<'🫳' | '🫴', [Direction, number]>][] = [
-      [[row - 1, col], { '🫳': ['right', 0], '🫴': ['left', Math.PI] }],
-      [[row + 1, col], { '🫳': ['left', Math.PI], '🫴': ['up', 0] }],
+      [[row - 1, col - 1], { '🫳': ['up-right',   Math.PI / 4],       '🫴': ['up-right',    Math.PI / 4] }],
+      [[row - 1, col + 1], { '🫳': ['up-left',    -Math.PI / 4],       '🫴': ['up-left',    -Math.PI / 4] }],
+      [[row + 1, col - 1], { '🫳': ['down-right',  3 * Math.PI / 4],   '🫴': ['down-right',  3 * Math.PI / 4] }],
+      [[row + 1, col + 1], { '🫳': ['down-left',  -3 * Math.PI / 4],   '🫴': ['down-left',  -3 * Math.PI / 4] }],
+      [[row - 1, col],     { '🫳': ['right', 0],                        '🫴': ['left', Math.PI] }],
+      [[row + 1, col],     { '🫳': ['left', Math.PI],                   '🫴': ['up', 0] }],
     ];
     const toPlace: [number, number, Direction, '🫳' | '🫴', number][] = [];
     const remaining = new Set<'🫳' | '🫴'>(['🫳', '🫴']);
