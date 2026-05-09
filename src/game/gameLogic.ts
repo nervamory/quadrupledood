@@ -491,9 +491,9 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'imp') {
-    // Leaps to the two-square up-left and up-right diagonals.
+    // Reaches the adjacent up-left and up-right diagonals.
     // Hitting an opponent card: capture normally. Hitting an owned card: retrigger its capture.
-    for (const [nr, nc] of [[row - 2, col - 2], [row - 2, col + 2]] as [number, number][]) {
+    for (const [nr, nc] of [[row - 1, col - 1], [row - 1, col + 1]] as [number, number][]) {
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor) continue;
