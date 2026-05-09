@@ -65,6 +65,9 @@ const CARD_LABELS: Record<CardType, string> = {
   troll:   'captures all 4 cardinal neighbors',
   dragon:  'pierces line, ignores mirrors',
   alien:   'captures all knight-move positions',
+  imp:      'retriggers captured ally',
+  hellfire: 'destroys adjacent; self-destructs',
+  snake:    'line capture, both directions',
 };
 
 type SwapCardAnim = {
@@ -974,6 +977,81 @@ export class Game {
         ctx.beginPath();
         ctx.arc(kx, ky, 2, 0, Math.PI * 2);
         ctx.fill();
+      }
+      return;
+    }
+
+    if (card.type === 'imp') {
+      this.drawFoilOverlay(x, y);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const im = ctx.measureText('👿');
+      ctx.fillText('👿', 0, (im.actualBoundingBoxAscent - im.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      // Two upper-corner triangles — captures diagonally upward (2 squares)
+      ctx.fillStyle = fg;
+      const mc = 7;
+      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
+      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
+      return;
+    }
+
+    if (card.type === 'hellfire') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.filter = 'hue-rotate(120deg)';
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const hfm = ctx.measureText('🔥');
+      ctx.fillText('🔥', 0, (hfm.actualBoundingBoxAscent - hfm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
+      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill(); // down
+      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
+      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
+      { const mc = 7;
+        ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
+        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
+        ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-left
+        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-right
+      }
+      return;
+    }
+
+    if (card.type === 'snake') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const snm = ctx.measureText('🐍');
+      ctx.fillText('🐍', 0, (snm.actualBoundingBoxAscent - snm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      // One triangle at each end of the capture axis (double-triangle / bone-style)
+      ctx.fillStyle = fg;
+      const mc = 7;
+      switch (card.direction) {
+        case 'up': case 'down':
+          ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+          break;
+        case 'left': case 'right':
+          ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+          break;
+        case 'up-right': case 'down-left':
+          ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill();
+          break;
+        case 'up-left': case 'down-right':
+          ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill();
+          break;
       }
       return;
     }

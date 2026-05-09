@@ -1,5 +1,5 @@
 export type Direction = 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right';
-export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien';
+export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien' | 'imp' | 'hellfire' | 'snake';
 
 export type Card = {
   id: string;
@@ -10,7 +10,7 @@ export type Card = {
 
 export type BoardCell = { card: Card; owner: number; fogged?: boolean; zombified?: boolean } | { blood: true } | null;
 
-export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider' | 'knife';
+export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider' | 'knife' | 'demon';
 
 export type PendingChange =
   | { type: 'zombie-convert'; row: number; col: number; owner: number; resolveAfterActor: number }
