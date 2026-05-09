@@ -132,8 +132,8 @@ export class Game {
   setState(state: GameState | null) {
     if (state && !this.state) {
       const isMyTurn = state.currentTurn === this.localNr;
-      const target   = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
-      const wrongDir = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
+      const target   = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
+      const wrongDir = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
       this.spinAnim = { startTime: performance.now(), target, wrongDir, done: false };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
