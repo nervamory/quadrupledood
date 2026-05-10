@@ -343,20 +343,20 @@ export class Game {
 
     const fallbackFor: Record<'🫳' | '🫴', [[number, number], number, Direction][]> = {
       '🫳': [
-        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
-        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
-        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
-        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
-        [[row - 1, col],      0,                 'right'],
-        [[row + 1, col],      Math.PI,            'left'],
+        [[row - 1, col - 1], -Math.PI / 4,       'up-right'],
+        [[row + 1, col - 1], -3 * Math.PI / 4,   'up-left'],
+        [[row - 1, col + 1],  Math.PI / 4,        'down-right'],
+        [[row + 1, col + 1],  3 * Math.PI / 4,   'down-left'],
+        [[row - 1, col],      0,                  'right'],
+        [[row + 1, col],      Math.PI,             'left'],
       ],
       '🫴': [
-        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
-        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
-        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
-        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
-        [[row - 1, col],      Math.PI,            'left'],
-        [[row + 1, col],      0,                 'up'],
+        [[row - 1, col + 1], -3 * Math.PI / 4,   'up-left'],
+        [[row + 1, col + 1], -Math.PI / 4,        'up-right'],
+        [[row - 1, col - 1],  3 * Math.PI / 4,   'down-left'],
+        [[row + 1, col - 1],  Math.PI / 4,        'down-right'],
+        [[row - 1, col],      Math.PI,             'left'],
+        [[row + 1, col],      0,                  'right'],
       ],
     };
     for (const emoji of [...remaining] as ('🫳' | '🫴')[]) {

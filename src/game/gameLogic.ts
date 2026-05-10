@@ -685,30 +685,27 @@ export function placeCard(
   const playerNrs = Object.keys(state.hands).map(Number);
   const otherPlayer = playerNrs.find(n => n !== actorNr)!;
 
-  // Oni: summon hand cards flanking the face — both capture UP, palms face the oni
-  // 🫳 left side, 🫴 right side; both rotated to -π/2 so palms face inward toward the oni
   if (card.type === 'oni') {
     const preferred: [[number, number], '🫳' | '🫴', Direction, number][] = [
       [[row, col - 1], '🫳', 'up', -Math.PI / 2],
       [[row, col + 1], '🫴', 'up', -Math.PI / 2],
     ];
-    // Fallback priority is per-hand: 🫳 prefers left-side diagonals, 🫴 prefers right-side.
     const fallbackFor: Record<'🫳' | '🫴', [[number, number], Direction, number][]> = {
       '🫳': [
-        [[row - 1, col - 1], 'up-right',  3 * Math.PI / 4],
-        [[row + 1, col - 1], 'up-left',   Math.PI / 4],
-        [[row - 1, col + 1], 'up-left',  -3 * Math.PI / 4],
-        [[row + 1, col + 1], 'up-right', -Math.PI / 4],
-        [[row - 1, col],     'right',     0],
-        [[row + 1, col],     'left',      Math.PI],
+        [[row - 1, col - 1], 'up-right',   -Math.PI / 4],
+        [[row + 1, col - 1], 'up-left',    -3 * Math.PI / 4],
+        [[row - 1, col + 1], 'down-right',  Math.PI / 4],
+        [[row + 1, col + 1], 'down-left',   3 * Math.PI / 4],
+        [[row - 1, col],     'right',       0],
+        [[row + 1, col],     'left',        Math.PI],
       ],
       '🫴': [
-        [[row - 1, col + 1], 'up-left',  -3 * Math.PI / 4],
-        [[row + 1, col + 1], 'up-right', -Math.PI / 4],
-        [[row - 1, col - 1], 'up-right',  3 * Math.PI / 4],
-        [[row + 1, col - 1], 'up-left',   Math.PI / 4],
-        [[row - 1, col],     'left',      Math.PI],
-        [[row + 1, col],     'up',        0],
+        [[row - 1, col + 1], 'up-left',    -3 * Math.PI / 4],
+        [[row + 1, col + 1], 'up-right',   -Math.PI / 4],
+        [[row - 1, col - 1], 'down-left',   3 * Math.PI / 4],
+        [[row + 1, col - 1], 'down-right',  Math.PI / 4],
+        [[row - 1, col],     'left',        Math.PI],
+        [[row + 1, col],     'right',       0],
       ],
     };
     const toPlace: [number, number, Direction, '🫳' | '🫴', number][] = [];
