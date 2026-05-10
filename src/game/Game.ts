@@ -330,40 +330,40 @@ export class Game {
     const toPlace: { row: number; col: number; emoji: string; angle: number; dir: Direction }[] = [];
     const remaining: ('🫳' | '🫴')[] = ['🫳', '🫴'];
 
-    const preferred: [[number, number], '🫳' | '🫴', Direction][] = [
-      [[row, col - 1], '🫳', 'up'],
-      [[row, col + 1], '🫴', 'up'],
+    const preferred: [[number, number], '🫳' | '🫴', number, Direction][] = [
+      [[row, col - 1], '🫳', -Math.PI / 2, 'up'],
+      [[row, col + 1], '🫴', -Math.PI / 2, 'up'],
     ];
-    for (const [[er, ec], emoji, dir] of preferred) {
+    for (const [[er, ec], emoji, angle, dir] of preferred) {
       if (toPlace.length >= 2) break;
       if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
-      toPlace.push({ row: er, col: ec, emoji, angle: HAND_ANGLES[dir], dir });
+      toPlace.push({ row: er, col: ec, emoji, angle, dir });
       remaining.splice(remaining.indexOf(emoji), 1);
     }
 
-    const fallbackFor: Record<'🫳' | '🫴', [[number, number], Direction][]> = {
+    const fallbackFor: Record<'🫳' | '🫴', [[number, number], number, Direction][]> = {
       '🫳': [
-        [[row - 1, col - 1], 'up-right'],
-        [[row + 1, col - 1], 'up-left'],
-        [[row - 1, col + 1], 'up-left'],
-        [[row + 1, col + 1], 'up-right'],
-        [[row - 1, col],     'right'],
-        [[row + 1, col],     'left'],
+        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
+        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
+        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
+        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
+        [[row - 1, col],      0,                 'right'],
+        [[row + 1, col],      Math.PI,            'left'],
       ],
       '🫴': [
-        [[row - 1, col + 1], 'up-left'],
-        [[row + 1, col + 1], 'up-right'],
-        [[row - 1, col - 1], 'up-right'],
-        [[row + 1, col - 1], 'up-left'],
-        [[row - 1, col],     'left'],
-        [[row + 1, col],     'up'],
+        [[row - 1, col + 1], -3 * Math.PI / 4,  'up-left'],
+        [[row + 1, col + 1], -Math.PI / 4,       'up-right'],
+        [[row - 1, col - 1],  3 * Math.PI / 4,  'up-right'],
+        [[row + 1, col - 1],  Math.PI / 4,       'up-left'],
+        [[row - 1, col],      Math.PI,            'left'],
+        [[row + 1, col],      0,                 'up'],
       ],
     };
     for (const emoji of [...remaining] as ('🫳' | '🫴')[]) {
-      for (const [[er, ec], dir] of fallbackFor[emoji]) {
+      for (const [[er, ec], angle, dir] of fallbackFor[emoji]) {
         if (er < 0 || er >= 4 || ec < 0 || ec >= 4 || board[er][ec]) continue;
         if (toPlace.some(p => p.row === er && p.col === ec)) continue;
-        toPlace.push({ row: er, col: ec, emoji, angle: HAND_ANGLES[dir], dir });
+        toPlace.push({ row: er, col: ec, emoji, angle, dir });
         break;
       }
     }
