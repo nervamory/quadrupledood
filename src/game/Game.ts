@@ -102,7 +102,9 @@ export class Game {
   onHoverChange?: (idx: number | null) => void;
 
   constructor(private canvas: HTMLCanvasElement) {
-    this.ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+    this.ctx = ctx;
     this.W = canvas.width;
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
@@ -139,7 +141,7 @@ export class Game {
   private detectGhostSwap(oldState: GameState, newState: GameState) {
     const playerNrs = Object.keys(newState.hands).map(Number);
     const oppNr = playerNrs.find(n => n !== this.localNr);
-    if (oppNr === undefined || this.localNr === 0) return;
+    if (oppNr === undefined || this.localNr === 0) return; // localNr 0 = not yet initialised (Photon assigns from 1)
 
     const oldMyHand  = oldState.hands[this.localNr] ?? [];
     const newMyHand  = newState.hands[this.localNr] ?? [];

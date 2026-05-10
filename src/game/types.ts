@@ -19,6 +19,7 @@ export type PendingChange =
 export type GameState = {
   board: BoardCell[][];
   hands: Record<number, Card[]>;
+  /** Active player's actorNr. Set to -1 (sentinel) when phase === 'finished'. */
   currentTurn: number;
   phase: 'playing' | 'finished';
   winner: number | null;

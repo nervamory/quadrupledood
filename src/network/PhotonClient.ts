@@ -136,7 +136,7 @@ export class PhotonClient {
 
     this.lbc.onEvent = (code: number, content: unknown, actorNr: number) => {
       if (code === EV_GAME_START) {
-        this.cb.onGameStart(content as GameState);
+        this.cb.onGameStart(JSON.parse(content as string) as GameState);
       } else if (code === EV_PLACE_CARD) {
         const { cardId, row, col } = content as { cardId: string; row: number; col: number };
         this.cb.onCardPlaced(actorNr, cardId, row, col);
@@ -150,6 +150,9 @@ export class PhotonClient {
     };
 
     this.lbc.onError = (errorCode: number, errorMsg: string) => {
+      // 1003/1004 = WebSocket "unsupported data"/"reserved" close codes fired on clean disconnects.
+      // 2003/2004 = Photon internal disconnect codes (e.g. leaving a room intentionally).
+      // All four are expected non-fatal conditions; surface anything else to the user.
       if (errorCode === 1003 || errorCode === 1004 || errorCode === 2003 || errorCode === 2004) return;
       this.cb.onStatusChange(`Error ${errorCode}: ${errorMsg}`);
     };
@@ -191,7 +194,7 @@ export class PhotonClient {
   }
 
   sendGameStart(state: GameState) {
-    this.lbc.raiseEvent(EV_GAME_START, state);
+    this.lbc.raiseEvent(EV_GAME_START, JSON.stringify(state));
   }
 
   sendPlaceCard(cardId: string, row: number, col: number) {

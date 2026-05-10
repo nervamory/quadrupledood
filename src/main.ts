@@ -4,8 +4,14 @@ import { UI } from './ui/UI';
 import { initGame, placeCard } from './game/gameLogic';
 import type { GameState, DeckType } from './game/types';
 
+function getElement<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Required element #${id} not found`);
+  return el as T;
+}
+
 const ui = new UI();
-const game = new Game(document.getElementById('game-canvas') as HTMLCanvasElement);
+const game = new Game(getElement<HTMLCanvasElement>('game-canvas'));
 
 let gameState: GameState | null = null;
 let oppDeck: DeckType | null = null;
@@ -13,7 +19,7 @@ let debugMode = false;
 let inRoom = false;
 
 function getSelectedDeck(): DeckType {
-  return (document.getElementById('deck-select') as HTMLSelectElement).value as DeckType;
+  return getElement<HTMLSelectElement>('deck-select').value as DeckType;
 }
 
 function tryStartGame() {
@@ -93,9 +99,9 @@ game.onPlaceCard = (cardId, row, col) => {
   photon.sendPlaceCard(cardId, row, col);
 };
 
-document.getElementById('join-btn')!.addEventListener('click', () => {
+getElement('join-btn').addEventListener('click', () => {
   if (debugMode) {
-    const roomName = (document.getElementById('room-name') as HTMLInputElement).value.trim();
+    const roomName = getElement<HTMLInputElement>('room-name').value.trim();
     if (!roomName) return;
     photon.connectAndJoin(roomName);
   } else {
@@ -103,7 +109,7 @@ document.getElementById('join-btn')!.addEventListener('click', () => {
   }
 });
 
-document.getElementById('leave-btn')!.addEventListener('click', () => {
+getElement('leave-btn').addEventListener('click', () => {
   inRoom = false;
   oppDeck = null;
   photon.leave();
@@ -116,5 +122,5 @@ document.getElementById('leave-btn')!.addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   if (e.key !== '`') return;
   debugMode = !debugMode;
-  (document.getElementById('room-name') as HTMLInputElement).style.display = debugMode ? '' : 'none';
+  getElement<HTMLInputElement>('room-name').style.display = debugMode ? '' : 'none';
 });
