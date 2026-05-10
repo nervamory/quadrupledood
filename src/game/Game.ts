@@ -5,14 +5,6 @@ const CELL = 72;
 const CELL_GAP = 8;
 const GRID = 4 * CELL + 3 * CELL_GAP; // 312
 
-// Rotation so fingers of 🫴/🫳 point in the given direction (fingers up at 0°)
-const HAND_ANGLES: Record<Direction, number> = {
-  up: 0, down: Math.PI,
-  right: Math.PI / 2, left: -Math.PI / 2,
-  'up-right': Math.PI / 4, 'up-left': -Math.PI / 4,
-  'down-right': 3 * Math.PI / 4, 'down-left': -3 * Math.PI / 4,
-};
-
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
   left:  3 * Math.PI / 4, up:   -3 * Math.PI / 4,
@@ -71,6 +63,9 @@ const CARD_LABELS: Record<CardType, string> = {
   clown:    'captures up and down; retriggers adjacent clowns',
   'clown-car': 'spawns 2 clowns when captured',
   balloon:  'captures below; disappears when captured',
+  succubus: 'pulls cards 2 away then captures 4 cardinal',
+  lipstick: 'recaptures adjacent kisses; retriggers their capture',
+  kisses:   'captures one random adjacent card',
 };
 
 type SwapCardAnim = {
@@ -92,7 +87,7 @@ export class Game {
   private drag: { card: Card; x: number; y: number } | null = null;
   private hoverPos: { x: number; y: number } | null = null;
   private raf = 0;
-  private spinAnim: { startTime: number; target: number; wrongDir: number; done: boolean } | null = null;
+  private spinAnim: { startTime: number; done: boolean } | null = null;
   private lastHoverIdx: number | null = null;
   oppHoverIdx: number | null = null;
 
@@ -134,10 +129,7 @@ export class Game {
 
   setState(state: GameState | null) {
     if (state && !this.state) {
-      const isMyTurn = state.currentTurn === this.localNr;
-      const target   = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
-      const wrongDir = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
-      this.spinAnim = { startTime: performance.now(), target, wrongDir, done: false };
+      this.spinAnim = { startTime: performance.now(), done: false };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
     if (state && this.state) this.detectGhostSwap(this.state, state);
@@ -874,7 +866,7 @@ export class Game {
       const emoji = card.summonedHand?.emoji ?? '🫴';
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(card.summonedHand?.angle ?? HAND_ANGLES[card.direction]);
+      ctx.rotate(card.summonedHand?.angle ?? 0);
       ctx.font = '28px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -1121,6 +1113,48 @@ export class Game {
       return;
     }
 
+    if (card.type === 'succubus') {
+      this.drawFoilOverlay(x, y);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const scm = ctx.measureText('🦹‍♀️');
+      ctx.fillText('🦹‍♀️', 0, (scm.actualBoundingBoxAscent - scm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+      return;
+    }
+
+    if (card.type === 'lipstick') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const lsm = ctx.measureText('💄');
+      ctx.fillText('💄', 0, (lsm.actualBoundingBoxAscent - lsm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      return;
+    }
+
+    if (card.type === 'kisses') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const ksm = ctx.measureText('💋');
+      ctx.fillText('💋', 0, (ksm.actualBoundingBoxAscent - ksm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      return;
+    }
+
     if (card.type === 'spider') {
       this.drawFoilOverlay(x, y);
       ctx.save();
@@ -1275,7 +1309,11 @@ export class Game {
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
 
+    // 🔪 tip is at NW at 0° rotation; KNIFE_ANGLES.up (-3π/4) rotates it to face south (down).
+    // going-first player is at the bottom ("you"), so their target = KNIFE_ANGLES.up.
     const isMyTurn = state.currentTurn === this.localNr;
+    const target   = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
+    const wrongDir = isMyTurn ? KNIFE_ANGLES.down  : KNIFE_ANGLES.up;
 
     // Two-phase animation — avoids false "landed on wrong person" appearance:
     // Phase 1 (0–75%): constant-speed spin, 4.5 rotations, starts at target, ends at wrongDir
@@ -1285,14 +1323,14 @@ export class Game {
     let angle: number;
     if (spinning) {
       if (t < PHASE1) {
-        angle = spinAnim.target + 4.5 * 2 * Math.PI * (t / PHASE1);
+        angle = target + 4.5 * 2 * Math.PI * (t / PHASE1);
       } else {
         const phaseT = (t - PHASE1) / (1 - PHASE1);
         const eased = 1 - Math.pow(1 - phaseT, 3);
-        angle = spinAnim.wrongDir + Math.PI * eased;
+        angle = wrongDir + Math.PI * eased;
       }
     } else {
-      angle = spinAnim.target;
+      angle = target;
     }
 
     // Labels — dim the side that didn't win

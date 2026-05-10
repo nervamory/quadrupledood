@@ -27,8 +27,8 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon'];
-const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses'];
+const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus'];
 
 function pick(pool: CardType[], n: number): CardType[] {
   return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
@@ -38,7 +38,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
   let types: CardType[];
   switch (deck) {
     case 'debug':
-      types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake', 'clown', 'clown-car', 'balloon'];
+      types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake', 'clown', 'clown-car', 'balloon', 'succubus', 'lipstick', 'kisses'];
       break;
     case 'vampire':
       types = ['vampire', 'heart', 'eye', 'eye', ...pick(COMMON, 4)];
@@ -69,6 +69,9 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       break;
     case 'clown':
       types = ['clown', 'clown-car', 'balloon', 'balloon', ...pick(COMMON, 4)];
+      break;
+    case 'succubus':
+      types = ['succubus', 'lipstick', 'kisses', 'kisses', ...pick(COMMON, 4)];
       break;
     default:
       types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
@@ -124,7 +127,7 @@ function bubblesPop(board: BoardCell[][], row: number, col: number, attackerNr: 
       targets.push([nr, nc]);
   }
   if (targets.length > 0) {
-    const [tr, tc] = targets[Math.floor(Math.random() * targets.length)];
+    const [tr, tc] = targets[cardHash(cell.card.id) % targets.length];
     const t = board[tr][tc];
     if (t && 'card' in t) board[tr][tc] = { card: t.card, owner: bubblesOwner };
   }
@@ -615,6 +618,75 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   // Passive cards — no captures on placement
   if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car') return;
+
+  if (placed.card.type === 'succubus') {
+    // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer
+    for (const dir of DIRECTIONS) {
+      const [dr, dc] = OFFSETS[dir];
+      const r1 = row + dr,  c1 = col + dc;
+      const r2 = row + 2*dr, c2 = col + 2*dc;
+      if (r2 < 0 || r2 >= 4 || c2 < 0 || c2 >= 4) continue;
+      if (r1 < 0 || r1 >= 4 || c1 < 0 || c1 >= 4) continue;
+      const far = board[r2][c2];
+      if (!far || 'blood' in far || far.owner === actorNr) continue;
+      if (board[r1][c1] !== null) continue;
+      board[r1][c1] = far;
+      board[r2][c2] = null;
+    }
+    // Capture: all 4 adjacent cardinal cells
+    for (const dir of DIRECTIONS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr);
+    }
+    return;
+  }
+
+  if (placed.card.type === 'kisses') {
+    // Captures exactly one random adjacent opponent card (all 8 directions)
+    const targets: [number, number][] = [];
+    for (const dir of ALL_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr, nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      targets.push([nr, nc]);
+    }
+    if (targets.length > 0) {
+      const [nr, nc] = targets[cardHash(placed.card.id) % targets.length];
+      const neighbor = board[nr][nc];
+      if (neighbor && !('blood' in neighbor)) {
+        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
+          board[nr][nc] = { blood: true };
+        } else if (neighbor.card.type === 'mirror') {
+          board[row][col] = { card: placed.card, owner: neighbor.owner };
+        } else {
+          captureCell(board, nr, nc, actorNr);
+        }
+      }
+    }
+    return;
+  }
+
+  if (placed.card.type === 'lipstick') {
+    // No direct capture — recaptures adjacent kisses cards and retriggers them
+    for (const dir of ALL_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr, nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.card.type !== 'kisses') continue;
+      board[nr][nc] = { card: neighbor.card, owner: actorNr };
+      resolveCaptures(board, nr, nc, actorNr);
+    }
+    return;
+  }
 
   // Knife: captures in the single direction it's pointing (cardinal or diagonal)
   const kDir = placed.card.direction;

@@ -9,155 +9,142 @@
   canvas { display: block; }
   .label { font-size: 11px; color: #888; text-align: center; margin-top: 2px; }
   .group { display: inline-block; }
-  .section { margin-bottom: 32px; }
+  .section { margin-bottom: 40px; border-top: 1px solid #333; padding-top: 16px; }
 </style>
 </head>
 <body>
 <h1 style="color:#c33">Oni Hand Permutations</h1>
-<p style="color:#888">Each card shows the emoji at a specific rotation. The small triangle = capture direction (based on card direction). ONI is the grey square.</p>
+<p style="color:#888">Each mini-scene shows the hand at a specific rotation with its capture indicator. ONI = grey square. Pick the combo that looks right and note its code (position · emoji · angle).</p>
 
 <div id="root"></div>
 
 <script>
 const CARD = 68;
-const ANGLES = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
-const ANGLE_LABELS = ['0', 'π/4', 'π/2', '3π/4', 'π', '5π/4', '3π/2', '7π/4'];
+const GAP  = 4;
+const CELL = CARD + GAP;
+
+const ANGLES = [
+  [0,           '0'],
+  [Math.PI/4,   'π/4'],
+  [Math.PI/2,   'π/2'],
+  [3*Math.PI/4, '3π/4'],
+  [Math.PI,     'π'],
+  [-3*Math.PI/4,'−3π/4'],
+  [-Math.PI/2,  '−π/2'],
+  [-Math.PI/4,  '−π/4'],
+];
+
 const EMOJIS = ['🫴', '🫳'];
-const CAPTURES = ['up', 'down', 'left', 'right'];
-const CAP_LABEL = { up:'▲up', down:'▼dn', left:'◀lt', right:'▶rt' };
 
-function drawCard(ctx, x, y, emoji, angle, capture) {
-  const bg = '#f0f0f0';
-  const fg = '#111';
-  ctx.beginPath();
-  ctx.roundRect(x, y, CARD, CARD, 6);
-  ctx.fillStyle = bg;
-  ctx.fill();
-  ctx.strokeStyle = '#ccc';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
+// capture direction → triangle drawing fn
+function drawIndicator(ctx, x, y, cap) {
+  const m = 6, ts = 4, mc = 7;
   const cx = x + CARD/2, cy = y + CARD/2;
-
-  // emoji rotated
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-  ctx.font = '28px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 0, 0);
-  ctx.restore();
-
-  // capture indicator
-  const m = 6, ts = 4;
-  ctx.fillStyle = fg;
   ctx.beginPath();
-  if (capture === 'up')    { ctx.moveTo(cx, y+m); ctx.lineTo(cx-ts, y+m+ts*1.5); ctx.lineTo(cx+ts, y+m+ts*1.5); }
-  if (capture === 'down')  { ctx.moveTo(cx, y+CARD-m); ctx.lineTo(cx-ts, y+CARD-m-ts*1.5); ctx.lineTo(cx+ts, y+CARD-m-ts*1.5); }
-  if (capture === 'left')  { ctx.moveTo(x+m, cy); ctx.lineTo(x+m+ts*1.5, cy-ts); ctx.lineTo(x+m+ts*1.5, cy+ts); }
-  if (capture === 'right') { ctx.moveTo(x+CARD-m, cy); ctx.lineTo(x+CARD-m-ts*1.5, cy-ts); ctx.lineTo(x+CARD-m-ts*1.5, cy+ts); }
+  switch (cap) {
+    case 'up':         ctx.moveTo(cx,y+m);         ctx.lineTo(cx-ts,y+m+ts*1.5);       ctx.lineTo(cx+ts,y+m+ts*1.5);       break;
+    case 'down':       ctx.moveTo(cx,y+CARD-m);     ctx.lineTo(cx-ts,y+CARD-m-ts*1.5); ctx.lineTo(cx+ts,y+CARD-m-ts*1.5); break;
+    case 'left':       ctx.moveTo(x+m,cy);          ctx.lineTo(x+m+ts*1.5,cy-ts);       ctx.lineTo(x+m+ts*1.5,cy+ts);       break;
+    case 'right':      ctx.moveTo(x+CARD-m,cy);     ctx.lineTo(x+CARD-m-ts*1.5,cy-ts); ctx.lineTo(x+CARD-m-ts*1.5,cy+ts); break;
+    case 'up-left':    ctx.moveTo(x+mc,y+mc);       ctx.lineTo(x+mc+ts*1.5,y+mc);      ctx.lineTo(x+mc,y+mc+ts*1.5);       break;
+    case 'up-right':   ctx.moveTo(x+CARD-mc,y+mc);  ctx.lineTo(x+CARD-mc-ts*1.5,y+mc); ctx.lineTo(x+CARD-mc,y+mc+ts*1.5); break;
+    case 'down-left':  ctx.moveTo(x+mc,y+CARD-mc);  ctx.lineTo(x+mc+ts*1.5,y+CARD-mc); ctx.lineTo(x+mc,y+CARD-mc-ts*1.5); break;
+    case 'down-right': ctx.moveTo(x+CARD-mc,y+CARD-mc); ctx.lineTo(x+CARD-mc-ts*1.5,y+CARD-mc); ctx.lineTo(x+CARD-mc,y+CARD-mc-ts*1.5); break;
+  }
   ctx.fill();
+}
+
+function drawCard(ctx, x, y, emoji, angle, cap) {
+  ctx.beginPath(); ctx.roundRect(x,y,CARD,CARD,6);
+  ctx.fillStyle = '#f0f0f0'; ctx.fill();
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.stroke();
+  const cx = x+CARD/2, cy = y+CARD/2;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle);
+  ctx.font = '28px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 0, 0); ctx.restore();
+  ctx.fillStyle = '#111';
+  drawIndicator(ctx, x, y, cap);
 }
 
 function drawOni(ctx, x, y) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, CARD, CARD, 6);
-  ctx.fillStyle = '#2a2a3a';
-  ctx.fill();
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.font = '36px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('👹', x + CARD/2, y + CARD/2);
+  ctx.beginPath(); ctx.roundRect(x,y,CARD,CARD,6);
+  ctx.fillStyle = '#2a2a3a'; ctx.fill();
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.font = '36px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('👹', x+CARD/2, y+CARD/2);
 }
 
 function drawEmpty(ctx, x, y) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, CARD, CARD, 6);
-  ctx.fillStyle = '#16213e';
-  ctx.fill();
-  ctx.strokeStyle = '#1e2a50';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(x,y,CARD,CARD,6);
+  ctx.fillStyle = '#16213e'; ctx.fill();
+  ctx.strokeStyle = '#1e2a50'; ctx.lineWidth = 1; ctx.stroke();
 }
 
-const root = document.getElementById('root');
-const GAP = 4;
-const CELL = CARD + GAP;
-
-// For each position (left, right, above, below) × each emoji × each angle
+// ── positions ──────────────────────────────────────────────────────────────
+// layout: where is the hand relative to oni?
+// oni always drawn at (1,1) in a 3×3 grid; hand at the named position
+// captureDirs: which capture directions make sense to show for this position
 const POSITIONS = [
-  { name: 'LEFT of oni (col-1)', layout: 'left' },
-  { name: 'RIGHT of oni (col+1)', layout: 'right' },
-  { name: 'ABOVE oni (row-1)', layout: 'above' },
-  { name: 'BELOW oni (row+1)', layout: 'below' },
+  // Cardinal preferred
+  { code: 'L',  name: 'LEFT of oni',        hand:[1,0], oni:[1,1], captureDirs:['up','down','left','right'] },
+  { code: 'R',  name: 'RIGHT of oni',       hand:[1,2], oni:[1,1], captureDirs:['up','down','left','right'] },
+  // Cardinal fallback
+  { code: 'U',  name: 'ABOVE oni',          hand:[0,1], oni:[1,1], captureDirs:['up','down','left','right'] },
+  { code: 'D',  name: 'BELOW oni',          hand:[2,1], oni:[1,1], captureDirs:['up','down','left','right'] },
+  // Diagonal fallback
+  { code: 'UL', name: 'UPPER-LEFT of oni',  hand:[0,0], oni:[1,1], captureDirs:['up-left','up-right','down-left','down-right'] },
+  { code: 'UR', name: 'UPPER-RIGHT of oni', hand:[0,2], oni:[1,1], captureDirs:['up-left','up-right','down-left','down-right'] },
+  { code: 'DL', name: 'LOWER-LEFT of oni',  hand:[2,0], oni:[1,1], captureDirs:['up-left','up-right','down-left','down-right'] },
+  { code: 'DR', name: 'LOWER-RIGHT of oni', hand:[2,2], oni:[1,1], captureDirs:['up-left','up-right','down-left','down-right'] },
 ];
+
+const root = document.getElementById('root');
 
 for (const pos of POSITIONS) {
   const section = document.createElement('div');
   section.className = 'section';
   const h2 = document.createElement('h2');
-  h2.textContent = pos.name;
+  h2.textContent = `[${pos.code}] — ${pos.name}`;
   section.appendChild(h2);
 
   for (const emoji of EMOJIS) {
-    const label = document.createElement('div');
-    label.style.color = '#aaa';
-    label.style.marginBottom = '6px';
-    label.textContent = emoji + ' at each angle × each capture direction:';
-    section.appendChild(label);
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'color:#aaa;margin-bottom:6px';
+    lbl.textContent = emoji + ':';
+    section.appendChild(lbl);
 
     const row = document.createElement('div');
     row.className = 'row';
 
-    // Show all 8 angles × 4 captures = 32, but group by angle
-    for (let ai = 0; ai < ANGLES.length; ai++) {
-      const angle = ANGLES[ai];
-      // show with "best guess" capture matching finger direction, but also show all 4
-      for (const cap of CAPTURES) {
+    for (const [angle, angleLabel] of ANGLES) {
+      for (const cap of pos.captureDirs) {
         const group = document.createElement('div');
         group.className = 'group';
 
-        // mini scene: show the 3x1 or 1x3 layout
-        let w, h;
-        if (pos.layout === 'left' || pos.layout === 'right') {
-          w = CELL * 2 + CARD; h = CARD;
-        } else {
-          w = CARD; h = CELL * 2 + CARD;
-        }
-
         const cv = document.createElement('canvas');
-        cv.width = w; cv.height = h;
+        cv.width = CELL*3 - GAP; cv.height = CELL*3 - GAP;
         const ctx = cv.getContext('2d');
-        ctx.fillStyle = '#0a0a14';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#0a0a14'; ctx.fillRect(0,0,cv.width,cv.height);
 
-        let hx, hy, ox, oy;
-        if (pos.layout === 'left')  { hx=0; hy=0; ox=CELL; oy=0; }
-        if (pos.layout === 'right') { hx=CELL; hy=0; ox=0; oy=0; }
-        if (pos.layout === 'above') { hx=0; hy=0; ox=0; oy=CELL; }
-        if (pos.layout === 'below') { hx=0; hy=CELL; ox=0; oy=0; }
+        // draw 3×3 grid of empties, then oni and hand
+        for (let r = 0; r < 3; r++)
+          for (let c = 0; c < 3; c++)
+            drawEmpty(ctx, c*CELL, r*CELL);
 
-        drawOni(ctx, ox, oy);
-        drawCard(ctx, hx, hy, emoji, angle, cap);
+        drawOni(ctx, pos.oni[1]*CELL, pos.oni[0]*CELL);
+        drawCard(ctx, pos.hand[1]*CELL, pos.hand[0]*CELL, emoji, angle, cap);
 
         group.appendChild(cv);
 
-        const lbl = document.createElement('div');
-        lbl.className = 'label';
-        lbl.textContent = ANGLE_LABELS[ai] + ' ' + CAP_LABEL[cap];
-        group.appendChild(lbl);
-
+        const lb = document.createElement('div');
+        lb.className = 'label';
+        lb.textContent = `${pos.code}·${emoji}·${angleLabel}·${cap}`;
+        group.appendChild(lb);
         row.appendChild(group);
       }
     }
-
     section.appendChild(row);
   }
-
   root.appendChild(section);
 }
 </script>
