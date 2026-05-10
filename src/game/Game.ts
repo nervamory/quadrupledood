@@ -349,6 +349,7 @@ export class Game {
         [[row + 1, col],      Math.PI,             'left'],
         [[row - 1, col + 1],  Math.PI / 4,        'down-right'],
         [[row + 1, col + 1],  3 * Math.PI / 4,   'down-left'],
+        [[row,     col + 1], -Math.PI / 2,        'up'],
       ],
       '🫴': [
         [[row - 1, col + 1], -3 * Math.PI / 4,   'up-left'],
@@ -357,6 +358,7 @@ export class Game {
         [[row + 1, col],      0,                  'right'],
         [[row - 1, col - 1],  3 * Math.PI / 4,   'down-left'],
         [[row + 1, col - 1],  Math.PI / 4,        'down-right'],
+        [[row,     col - 1], -Math.PI / 2,        'up'],
       ],
     };
     for (const emoji of [...remaining] as ('🫳' | '🫴')[]) {

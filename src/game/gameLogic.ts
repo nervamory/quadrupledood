@@ -698,6 +698,7 @@ export function placeCard(
         [[row + 1, col],     'left',        Math.PI],
         [[row - 1, col + 1], 'down-right',  Math.PI / 4],
         [[row + 1, col + 1], 'down-left',   3 * Math.PI / 4],
+        [[row,     col + 1], 'up',         -Math.PI / 2],
       ],
       '🫴': [
         [[row - 1, col + 1], 'up-left',    -3 * Math.PI / 4],
@@ -706,6 +707,7 @@ export function placeCard(
         [[row + 1, col],     'right',       0],
         [[row - 1, col - 1], 'down-left',   3 * Math.PI / 4],
         [[row + 1, col - 1], 'down-right',  Math.PI / 4],
+        [[row,     col - 1], 'up',         -Math.PI / 2],
       ],
     };
     const toPlace: [number, number, Direction, '🫳' | '🫴', number][] = [];
