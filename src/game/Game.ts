@@ -30,6 +30,13 @@ const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
+type FlipAnim = {
+  row: number; col: number;
+  startTime: number;
+  oldCard: Card; oldIsBlack: boolean;
+  newCard: Card; newIsBlack: boolean;
+};
+
 const CARD_LABELS: Record<CardType, string> = {
   knife:   'stalemate vs facing knife',
   heart:   'turns to blood if knifed',
@@ -93,6 +100,8 @@ export class Game {
   private lastHoverIdx: number | null = null;
   oppHoverIdx: number | null = null;
 
+  private flipAnims: FlipAnim[] = [];
+
   private ghostSwapAnim: {
     startTime: number;
     cards: [SwapCardAnim, SwapCardAnim];
@@ -136,7 +145,10 @@ export class Game {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
-    if (state && this.state) this.detectGhostSwap(this.state, state);
+    if (state && this.state) {
+      this.detectGhostSwap(this.state, state);
+      this.detectFlips(this.state, state);
+    }
     this.state = state;
   }
 
@@ -196,6 +208,26 @@ export class Game {
     };
   }
 
+  private detectFlips(oldState: GameState, newState: GameState) {
+    if (this.localNr === 0) return;
+    const now = performance.now();
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const old = oldState.board[r][c];
+        const next = newState.board[r][c];
+        if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner) {
+          this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
+          this.flipAnims.push({
+            row: r, col: c,
+            startTime: now,
+            oldCard: old.card, oldIsBlack: old.owner === oldState.blackPlayer,
+            newCard: next.card, newIsBlack: next.owner === newState.blackPlayer,
+          });
+        }
+      }
+    }
+  }
+
   setOppHover(idx: number | null) {
     this.oppHoverIdx = idx;
   }
@@ -207,6 +239,7 @@ export class Game {
     this.drag = null;
     this.spinAnim = null;
     this.oppHoverIdx = null;
+    this.flipAnims = [];
     this.ctx.clearRect(0, 0, this.W, this.H);
   }
 
@@ -1428,9 +1461,26 @@ export class Game {
         const cell = state.board[row][col];
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
-          const fogged = cell.owner === this.localNr && this.isFoggedFor(row, col) && !this.isNearFire(row, col);
-          this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
-          if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
+          const flip = this.flipAnims.find(f => f.row === row && f.col === col);
+          if (flip) {
+            const FLIP_DUR = 450;
+            const t = Math.min((now - flip.startTime) / FLIP_DUR, 1);
+            const scaleX = Math.abs(Math.cos(Math.PI * t));
+            ctx.save();
+            ctx.translate(x + pad + CARD / 2, y + pad + CARD / 2);
+            ctx.scale(scaleX, 1);
+            if (t < 0.5) {
+              this.drawCard(-CARD / 2, -CARD / 2, flip.oldCard, flip.oldIsBlack);
+            } else {
+              this.drawCard(-CARD / 2, -CARD / 2, flip.newCard, flip.newIsBlack);
+            }
+            ctx.restore();
+            if (t >= 1) this.flipAnims = this.flipAnims.filter(f => f !== flip);
+          } else {
+            const fogged = cell.owner === this.localNr && this.isFoggedFor(row, col) && !this.isNearFire(row, col);
+            this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
+            if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
+          }
         } else if (cell && 'blood' in cell) {
           ctx.font = '36px serif';
           ctx.textAlign = 'center';
