@@ -87,7 +87,7 @@ export class Game {
   private drag: { card: Card; x: number; y: number } | null = null;
   private hoverPos: { x: number; y: number } | null = null;
   private raf = 0;
-  private spinAnim: { startTime: number; done: boolean } | null = null;
+  private spinAnim: { startTime: number; done: boolean; firstPlayer: number } | null = null;
   private lastHoverIdx: number | null = null;
   oppHoverIdx: number | null = null;
 
@@ -131,7 +131,7 @@ export class Game {
 
   setState(state: GameState | null) {
     if (state && !this.state) {
-      this.spinAnim = { startTime: performance.now(), done: false };
+      this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
     if (state && this.state) this.detectGhostSwap(this.state, state);
@@ -414,6 +414,7 @@ export class Game {
   }
 
   private onMouseDown = (e: MouseEvent) => {
+    if (this.spinAnim && !this.spinAnim.done) return;
     const b = this.canvas.getBoundingClientRect();
     const hit = this.hitHandCard(e.clientX - b.left, e.clientY - b.top);
     if (hit) this.drag = { card: hit.layout.card, x: e.clientX - b.left, y: e.clientY - b.top };
@@ -1313,7 +1314,7 @@ export class Game {
 
     // 🔪 tip is at NW at 0° rotation; KNIFE_ANGLES.up (-3π/4) rotates it to face south (down).
     // going-first player is at the bottom ("you"), so their target = KNIFE_ANGLES.up.
-    const isMyTurn = state.currentTurn === this.localNr;
+    const isMyTurn = spinAnim.firstPlayer === this.localNr;
     const target   = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
     const wrongDir = isMyTurn ? KNIFE_ANGLES.down  : KNIFE_ANGLES.up;
 
