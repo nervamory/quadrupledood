@@ -1312,11 +1312,12 @@ export class Game {
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
 
-    // 🔪 tip is at NW at 0° rotation; KNIFE_ANGLES.up (-3π/4) rotates it to face south (down).
-    // going-first player is at the bottom ("you"), so their target = KNIFE_ANGLES.up.
+    // 🔪 KNIFE_ANGLES.up (-3π/4) rotates tip to face north (toward opponent at top).
+    // KNIFE_ANGLES.down (π/4) rotates tip to face south (toward "you" at bottom).
+    // going-first player is at bottom, so their target = KNIFE_ANGLES.down.
     const isMyTurn = spinAnim.firstPlayer === this.localNr;
-    const target   = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
-    const wrongDir = isMyTurn ? KNIFE_ANGLES.down  : KNIFE_ANGLES.up;
+    const target   = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
+    const wrongDir = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
 
     // Two-phase animation — avoids false "landed on wrong person" appearance:
     // Phase 1 (0–75%): constant-speed spin, 4.5 rotations, starts at target, ends at wrongDir

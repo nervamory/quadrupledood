@@ -681,8 +681,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const nr = row + dr, nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
       const neighbor = board[nr][nc];
-      if (!neighbor || 'blood' in neighbor || neighbor.card.type !== 'kisses') continue;
-      board[nr][nc] = { card: neighbor.card, owner: actorNr };
+      if (!neighbor || 'blood' in neighbor || neighbor.card.type !== 'kisses' || neighbor.owner !== actorNr) continue;
       resolveCaptures(board, nr, nc, actorNr);
     }
     return;
