@@ -1461,7 +1461,7 @@ export class Game {
           const pad = (CELL - CARD) / 2;
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
           if (flip) {
-            const FLIP_DUR = 450;
+            const FLIP_DUR = 340;
             const t = Math.min((now - flip.startTime) / FLIP_DUR, 1);
             const scaleX = Math.abs(Math.cos(Math.PI * t));
             ctx.save();
