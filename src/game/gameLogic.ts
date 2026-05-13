@@ -707,6 +707,19 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 }
 
+function canPlay(board: BoardCell[][], hand: Card[]): boolean {
+  if (hand.length === 0) return false;
+  const cells = board.flat();
+  const hasEmpty = cells.some(c => c === null);
+  const hasBlood = cells.some(c => c !== null && 'blood' in c);
+  const hasCard  = cells.some(c => c !== null && !('blood' in c));
+  return hand.some(card => {
+    if (card.type === 'bandage') return hasBlood;
+    if (card.type === 'web')     return hasCard;
+    return hasEmpty;
+  });
+}
+
 export function initGame(actor1: number, actor2: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
   const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));
   return {
@@ -900,9 +913,10 @@ export function placeCard(
   }
 
   const filled = newBoard.flat().filter(Boolean).length;
-  const handsEmpty = newHands[actorNr].length === 0 && newHands[otherPlayer].length === 0;
+  const otherCanPlay = canPlay(newBoard, newHands[otherPlayer] ?? []);
+  const meCanPlay    = canPlay(newBoard, newHands[actorNr]    ?? []);
 
-  if (filled === 16 || handsEmpty) {
+  if (filled === 16 || (!otherCanPlay && !meCanPlay)) {
     const counts = playerNrs.reduce<Record<number, number>>((acc, nr) => {
       acc[nr] = newBoard.flat().filter(c => c && 'card' in c && c.owner === nr && !c.zombified).length;
       return acc;
@@ -912,5 +926,7 @@ export function placeCard(
     return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, phase: 'finished', winner, currentTurn: -1 };
   }
 
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, currentTurn: otherPlayer };
+  // Skip otherPlayer's turn if they have no playable moves
+  const nextTurn = otherCanPlay ? otherPlayer : actorNr;
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, currentTurn: nextTurn };
 }
