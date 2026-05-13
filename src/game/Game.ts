@@ -1,7 +1,5 @@
 import type { GameState, Card, CardType, Direction } from './types';
 
-const VERSION = '1.0';
-
 const CARD = 68;
 const CELL = 72;
 const CELL_GAP = 8;
@@ -1696,11 +1694,5 @@ export class Game {
       }
     }
 
-    // version — lower-right corner
-    ctx.font = '11px monospace';
-    ctx.fillStyle = '#333';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`v${VERSION}`, W - 6, H - 6);
   }
 }
