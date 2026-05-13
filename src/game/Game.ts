@@ -39,33 +39,33 @@ const CARD_LABELS: Record<CardType, string> = {
   vampire: 'captures all blood cells',
   ghost:   'captures below; swaps hand cards',
   fog:     'hides nearby cards from opponent',
-  wolf:    "switches to cardinal when moon's out",
-  squid:   'pops bubbles; captures adjacent',
+  wolf:    "switches to orthogonal when moon's out",
+  squid:   'pops bubbles; captures touching',
   mermaid: 'pulls opponent card onto board',
   bubbles: 'pops when captured, counter-attacks',
-  skull:   'protects adjacent bone family',
-  bone:    'protects adjacent bone family',
+  skull:   'protects touching bone family',
+  bone:    'protects touching bone family',
   zombie:  'zombifies neighbors; converts next turn',
   brain:   'turns to blood when captured',
   gravestone: 'becomes zombie if untouched',
   oni:     'summons 2 flanking hand cards',
   fire:    'up-arc capture; reveals fog',
   hand:    'captures in finger direction',
-  spider:  'captures all 8 adjacent cells',
+  spider:  'captures all 8 touching cells',
   web:     'replaces any placed card',
   egg:     'hatches a spider if captured',
-  troll:   'captures all 4 cardinal neighbors',
+  troll:   'captures 4 orthogonal neighbors',
   dragon:  'pierces line, ignores mirrors',
   alien:   'captures all knight-move positions',
   imp:      'retriggers captured ally',
-  hellfire: 'destroys adjacent; self-destructs',
+  hellfire: 'destroys all touching; self-destructs',
   snake:    'line capture, both directions',
-  clown:    'captures up and down; retriggers adjacent clowns',
+  clown:    'captures up and down; retriggers touching clowns',
   'clown-car': 'spawns 2 clowns when captured',
   balloon:  'captures below; disappears when captured',
-  succubus: 'pulls cards 2 away then captures 4 cardinal',
-  lipstick: 'recaptures adjacent kisses; retriggers their capture',
-  kisses:   'captures one random adjacent card',
+  succubus: 'pulls 2 away; captures 4 orthogonal',
+  lipstick: 'retriggers touching kisses',
+  kisses:   'captures one random touching card',
 };
 
 type SwapCardAnim = {
@@ -785,7 +785,7 @@ export class Game {
       ctx.fillText('🧟', 0, (zm.actualBoundingBoxAscent - zm.actualBoundingBoxDescent) / 2);
       ctx.restore();
       ctx.fillStyle = fg;
-      // All 8 adjacent indicators
+      // All 8 touching indicators
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill(); // down
       ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left

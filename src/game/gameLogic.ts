@@ -1,6 +1,6 @@
 import type { Card, BoardCell, GameState, Direction, CardType, DeckType, PendingChange } from './types';
 
-const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
+const ORTHOGONAL_DIRS: Direction[] = ['up', 'down', 'left', 'right'];
 
 const OFFSETS: Record<Direction, [number, number]> = {
   up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1],
@@ -12,10 +12,10 @@ const OPPOSITE: Record<Direction, Direction> = {
   'up-left': 'down-right', 'up-right': 'down-left', 'down-left': 'up-right', 'down-right': 'up-left',
 };
 
-const ALL_DIRS: Direction[] = ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
+const TOUCHING_DIRS: Direction[] = ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
 
 function randomDirection(): Direction {
-  return ALL_DIRS[Math.floor(Math.random() * 8)];
+  return TOUCHING_DIRS[Math.floor(Math.random() * 8)];
 }
 
 // Deterministic hash of a card ID — same result on both clients for the same card.
@@ -102,7 +102,7 @@ function isBoneImmune(board: BoardCell[][], row: number, col: number): boolean {
   const cell = board[row][col];
   const isBoneFamily = (t: string) => t === 'bone' || t === 'skull' || t === 'tooth';
   if (!cell || 'blood' in cell || !isBoneFamily(cell.card.type)) return false;
-  for (const d of ALL_DIRS) {
+  for (const d of TOUCHING_DIRS) {
     const [dr, dc] = OFFSETS[d];
     const nr = row + dr; const nc = col + dc;
     if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -118,7 +118,7 @@ function bubblesPop(board: BoardCell[][], row: number, col: number, attackerNr: 
   const bubblesOwner = cell.owner;
   board[row][col] = null;
   const targets: [number, number][] = [];
-  for (const d of ALL_DIRS) {
+  for (const d of TOUCHING_DIRS) {
     const [dr, dc] = OFFSETS[d];
     const nr = row + dr; const nc = col + dc;
     if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -177,7 +177,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'heart') {
     // A knife already on the board pointing at this cell kills the heart before it can act.
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -190,7 +190,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     }
     // Heart survives — captures all adjacent opponent cards (no stalemate).
     // Heart/eye neighbours become blood instead of being captured.
-    for (const dir of DIRECTIONS) {
+    for (const dir of ORTHOGONAL_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -312,7 +312,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       }
     for (const [br, bc] of bubblesPos) {
       board[br][bc] = null;
-      for (const dir of ALL_DIRS) {
+      for (const dir of TOUCHING_DIRS) {
         const [dr, dc] = OFFSETS[dir];
         const nr = br + dr, nc = bc + dc;
         if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -351,7 +351,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'fog') {
     // Fog all adjacent opponent cards — they stay face-down but keep their abilities
-    for (const dir of DIRECTIONS) {
+    for (const dir of ORTHOGONAL_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -364,7 +364,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'zombie') {
     // Zombify all adjacent opponent cards (all 8 directions) — becomes grey, counts for neither player
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -426,7 +426,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'spider') {
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -537,7 +537,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'hellfire') {
     // Destroys all 8 adjacent cells (friend and foe), then self-destructs.
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr, nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -581,7 +581,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         if (neighbor.card.type === 'mirror') { board[r][c] = { card: (board[r][c] as { card: Card; owner: number }).card, owner: neighbor.owner }; continue; }
         captureCell(board, nr, nc, owner);
       }
-      for (const dir of ALL_DIRS) {
+      for (const dir of TOUCHING_DIRS) {
         const [dr, dc] = OFFSETS[dir];
         const ar = r + dr; const ac = c + dc;
         if (ar < 0 || ar >= 4 || ac < 0 || ac >= 4) continue;
@@ -621,7 +621,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'succubus') {
     // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer
-    for (const dir of DIRECTIONS) {
+    for (const dir of ORTHOGONAL_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const r1 = row + dr,  c1 = col + dc;
       const r2 = row + 2*dr, c2 = col + 2*dc;
@@ -634,7 +634,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       board[r2][c2] = null;
     }
     // Capture: all 4 adjacent cardinal cells
-    for (const dir of DIRECTIONS) {
+    for (const dir of ORTHOGONAL_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -650,7 +650,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   if (placed.card.type === 'kisses') {
     // Captures exactly one random adjacent opponent card (all 8 directions)
     const targets: [number, number][] = [];
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr, nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -676,7 +676,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'lipstick') {
     // No direct capture — recaptures adjacent kisses cards and retriggers them
-    for (const dir of ALL_DIRS) {
+    for (const dir of TOUCHING_DIRS) {
       const [dr, dc] = OFFSETS[dir];
       const nr = row + dr, nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
