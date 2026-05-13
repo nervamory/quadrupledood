@@ -317,6 +317,20 @@ export class Game {
     return false;
   }
 
+  // A cell is fogged for localNr if any touching cell has a fog card owned by the opponent.
+  // Computed dynamically so stale fogged state (e.g. after moon flip or succubus move) can't mislead.
+  private isFoggedFor(row: number, col: number): boolean {
+    if (!this.state) return false;
+    const board = this.state.board;
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+      const nr = row + dr; const nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const cell = board[nr][nc];
+      if (cell && 'card' in cell && cell.card.type === 'fog' && cell.owner !== this.localNr) return true;
+    }
+    return false;
+  }
+
   // Mirrors oni placement logic in gameLogic.ts — returns the cells where hands will land.
   private oniHandCells(row: number, col: number): { row: number; col: number; emoji: string; angle: number; dir: Direction }[] {
     if (!this.state) return [];
@@ -374,7 +388,7 @@ export class Game {
     const cell = this.hitCell(mx, my);
     if (cell) {
       const bc = this.state.board[cell.row][cell.col];
-      const hiddenFog = bc && 'card' in bc && !!bc.fogged && bc.owner === this.localNr && !this.isNearFire(cell.row, cell.col);
+      const hiddenFog = bc && 'card' in bc && bc.owner === this.localNr && this.isFoggedFor(cell.row, cell.col) && !this.isNearFire(cell.row, cell.col);
       if (bc && 'card' in bc && !hiddenFog) return bc.card;
     }
 
@@ -1412,7 +1426,7 @@ export class Game {
         const cell = state.board[row][col];
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
-          const fogged = !!cell.fogged && cell.owner === this.localNr && !this.isNearFire(row, col);
+          const fogged = cell.owner === this.localNr && this.isFoggedFor(row, col) && !this.isNearFire(row, col);
           this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
           if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
         } else if (cell && 'blood' in cell) {

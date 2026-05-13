@@ -350,15 +350,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'fog') {
-    // Fog all adjacent opponent cards — they stay face-down but keep their abilities
-    for (const dir of ORTHOGONAL_DIRS) {
-      const [dr, dc] = OFFSETS[dir];
-      const nr = row + dr; const nc = col + dc;
-      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
-      const neighbor = board[nr][nc];
-      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
-      board[nr][nc] = { ...neighbor, fogged: true };
-    }
+    // Visibility is computed dynamically in Game.ts (isFoggedFor) — no board mutation needed.
     return;
   }
 
