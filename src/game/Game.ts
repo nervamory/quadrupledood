@@ -25,6 +25,7 @@ const MY_HAND_CY = 600;
 const OPP_HAND_CY = 100;
 const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
 const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
+const HOVER_LIFT = 14; // px a hovered hand card rises toward pivot
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
@@ -1607,7 +1608,6 @@ export class Game {
       ctx.restore();
     }
     if (hoveredEntry) {
-      const HOVER_LIFT = 14;
       const dx = hoveredEntry.cx - this.W / 2;
       const dy = hoveredEntry.cy - MY_PIVOT_Y;
       const len = Math.sqrt(dx * dx + dy * dy);
@@ -1655,7 +1655,9 @@ export class Game {
       const isMyTurn = state.currentTurn === this.localNr;
       ctx.font = '14px monospace';
       ctx.fillStyle = isMyTurn ? '#eee' : '#444';
-      ctx.fillText(isMyTurn ? 'your turn' : "opponent's turn", W / 2, (this.gridY + GRID + MY_HAND_CY) / 2);
+      // Equidistant between board bottom and top edge of highest hovered hand card
+      const handTop = MY_HAND_CY - HOVER_LIFT - CARD / 2;
+      ctx.fillText(isMyTurn ? 'your turn' : "opponent's turn", W / 2, (this.gridY + GRID + handTop) / 2);
     }
 
     // ghost swap animation — flying cards drawn above everything except drag
