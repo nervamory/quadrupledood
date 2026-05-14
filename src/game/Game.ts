@@ -25,7 +25,6 @@ const MY_HAND_CY = 600;
 const OPP_HAND_CY = 100;
 const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
 const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
-const HOVER_LIFT = 14; // px a hovered hand card rises toward pivot
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
