@@ -41,40 +41,40 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake', 'clown', 'clown-car', 'balloon', 'succubus', 'lipstick', 'kisses'];
       break;
     case 'vampire':
-      types = ['vampire', 'heart', 'eye', 'eye', ...pick(COMMON, 4)];
+      types = ['vampire', 'heart', 'eye', 'eye', 'knife', ...pick(COMMON, 4)];
       break;
     case 'werewolf':
-      types = ['wolf', 'wolf', 'moon', 'fog', ...pick(COMMON, 4)];
+      types = ['wolf', 'wolf', 'moon', 'fog', 'knife', ...pick(COMMON, 4)];
       break;
     case 'ocean':
-      types = ['squid', 'mermaid', 'bubbles', 'bubbles', ...pick(COMMON, 4)];
+      types = ['squid', 'mermaid', 'bubbles', 'bubbles', 'knife', ...pick(COMMON, 4)];
       break;
     case 'bones':
-      types = ['skull', 'bone', 'bone', 'tooth', ...pick(COMMON, 4)];
+      types = ['skull', 'bone', 'bone', 'tooth', 'knife', ...pick(COMMON, 4)];
       break;
     case 'zombie':
-      types = ['zombie', 'brain', 'brain', 'gravestone', ...pick(COMMON, 4)];
+      types = ['zombie', 'brain', 'brain', 'gravestone', 'knife', ...pick(COMMON, 4)];
       break;
     case 'oni':
-      types = ['oni', 'eye', 'fire', 'fire', ...pick(COMMON, 4)];
+      types = ['oni', 'eye', 'fire', 'fire', 'knife', ...pick(COMMON, 4)];
       break;
     case 'spider':
-      types = ['spider', 'egg', 'web', 'web', ...pick(COMMON, 4)];
+      types = ['spider', 'egg', 'web', 'web', 'knife', ...pick(COMMON, 4)];
       break;
     case 'knife':
-      types = Array(8).fill('knife') as CardType[];
+      types = Array(9).fill('knife') as CardType[];
       break;
     case 'demon':
-      types = ['imp', 'hellfire', 'snake', 'snake', ...pick(COMMON, 4)];
+      types = ['imp', 'hellfire', 'snake', 'snake', 'knife', ...pick(COMMON, 4)];
       break;
     case 'clown':
-      types = ['clown', 'clown-car', 'balloon', 'balloon', ...pick(COMMON, 4)];
+      types = ['clown', 'clown-car', 'balloon', 'balloon', 'knife', ...pick(COMMON, 4)];
       break;
     case 'succubus':
-      types = ['succubus', 'lipstick', 'kisses', 'kisses', ...pick(COMMON, 4)];
+      types = ['succubus', 'lipstick', 'kisses', 'kisses', 'knife', ...pick(COMMON, 4)];
       break;
     default:
-      types = [...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
+      types = ['knife', ...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
   }
 
   for (let i = types.length - 1; i > 0; i--) {
