@@ -862,11 +862,11 @@ export function placeCard(
     }
   }
 
-  // Clown-car: each turn, spawn 1 clown in a random touching empty cell for each owned clown-car
+  // Clown-car: spawn 1 clown at the START of the owner's turn (= after opponent places)
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
       const ccCell = newBoard[r][c];
-      if (!ccCell || !('card' in ccCell) || ccCell.card.type !== 'clown-car' || ccCell.owner !== actorNr) continue;
+      if (!ccCell || !('card' in ccCell) || ccCell.card.type !== 'clown-car' || ccCell.owner !== otherPlayer) continue;
       const empty: [number, number][] = [];
       for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
         const nr = r + dr, nc = c + dc;
