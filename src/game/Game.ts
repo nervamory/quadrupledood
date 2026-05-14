@@ -421,7 +421,7 @@ export class Game {
     const cell = this.hitCell(mx, my);
     if (cell) {
       const bc = this.state.board[cell.row][cell.col];
-      const hiddenFog = bc && 'card' in bc && bc.owner === this.localNr && this.isFoggedFor(cell.row, cell.col) && !this.isNearFire(cell.row, cell.col);
+      const hiddenFog = bc && 'card' in bc && this.isFoggedFor(cell.row, cell.col) && !this.isNearFire(cell.row, cell.col);
       if (bc && 'card' in bc && !hiddenFog) return bc.card;
     }
 
@@ -1482,7 +1482,7 @@ export class Game {
             ctx.restore();
             if (t >= 1) this.flipAnims = this.flipAnims.filter(f => f !== flip);
           } else {
-            const fogged = cell.owner === this.localNr && this.isFoggedFor(row, col) && !this.isNearFire(row, col);
+            const fogged = this.isFoggedFor(row, col) && !this.isNearFire(row, col);
             this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
             if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
           }
