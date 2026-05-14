@@ -303,41 +303,27 @@ export class Game {
     if (t > SHOW_MS + FADE_MS) this.hellfireAnim = null;
   }
 
-  private detectCrystalBallReturn(oldState: GameState, newState: GameState) {
+  private detectCrystalBallReturn(_oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
-    const newMyHand = newState.hands[this.localNr] ?? [];
-    const returned = newMyHand.find(c => c.id.startsWith('cb-return-'));
-    if (!returned) return;
+    const cbr = newState.crystalBallReturn;
+    if (!cbr || cbr.actorNr !== this.localNr) return;
 
-    let cbRow = -1, cbCol = -1;
-    outer: for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
-        const nc = newState.board[r][c];
-        const oc = oldState.board[r][c];
-        if (nc && 'card' in nc && nc.card.type === 'crystal-ball' && nc.owner === this.localNr &&
-            !(oc && 'card' in oc && oc.card.type === 'crystal-ball' && oc.owner === this.localNr)) {
-          cbRow = r; cbCol = c;
-          break outer;
-        }
-      }
-    }
-    if (cbRow === -1) return;
-
-    const { x, y } = this.cellPos(cbRow, cbCol);
+    const { x, y } = this.cellPos(cbr.fromRow, cbr.fromCol);
     const fromX = x + CELL / 2;
     const fromY = y + CELL / 2;
 
+    const newMyHand = newState.hands[this.localNr] ?? [];
     const newLayout = this.computeHandLayout(newMyHand, true);
-    const tl = newLayout.find(l => l.card.id === returned.id);
+    const tl = newLayout.find(l => l.card.id === cbr.card.id);
     this.cbReturnAnim = {
-      card: returned,
+      card: cbr.card,
       fromX, fromY,
       toX: tl?.cx ?? this.W / 2,
       toY: tl?.cy ?? MY_HAND_CY,
       startTime: performance.now(),
       done: false,
       isBlack: this.localNr === newState.blackPlayer,
-      hiddenId: returned.id,
+      hiddenId: cbr.card.id,
     };
   }
 
@@ -366,9 +352,12 @@ export class Game {
     this.state = null;
     this.drag = null;
     this.spinAnim = null;
-    this.oppHoverIdx = null;
-    this.flipAnims = [];
+    this.ghostSwapAnim = null;
     this.hellfireAnim = null;
+    this.cbReturnAnim = null;
+    this.oppHoverIdx = null;
+    this.lastHoverIdx = null;
+    this.flipAnims = [];
     this.ctx.clearRect(0, 0, this.W, this.H);
   }
 

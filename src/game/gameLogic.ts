@@ -709,6 +709,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 let _fireChain: [number, number][] = [];
 let _candleFirePos: [number, number] | null = null;
 let _lastPlayed: Record<number, Card | undefined> = {};
+let _lastPlayedPos: Record<number, [number, number] | undefined> = {};
 
 function canPlay(board: BoardCell[][], hand: Card[]): boolean {
   if (hand.length === 0) return false;
@@ -725,6 +726,7 @@ function canPlay(board: BoardCell[][], hand: Card[]): boolean {
 
 export function initGame(actor1: number, actor2: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
   _lastPlayed = {};
+  _lastPlayedPos = {};
   const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));
   return {
     board,
@@ -848,12 +850,16 @@ export function placeCard(
     newHands = { ...newHands, [actorNr]: newHands[otherPlayer] ?? [], [otherPlayer]: newHands[actorNr] ?? [] };
   }
 
-  // Crystal-ball: return last played card to hand (reads module-level tracker, reliable across network)
+  // Crystal-ball: remove last played card from board (original state) and return it to hand
+  let crystalBallReturn: GameState['crystalBallReturn'] | undefined;
   if (card.type === 'crystal-ball') {
     const lastCard = _lastPlayed[actorNr];
-    if (lastCard) {
-      const returnedCard: Card = { ...lastCard, id: `cb-return-${lastCard.id}` };
-      newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), returnedCard] };
+    const lastPos = _lastPlayedPos[actorNr];
+    if (lastCard && lastPos) {
+      const [lr, lc] = lastPos;
+      newBoard[lr][lc] = null;
+      newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), lastCard] };
+      crystalBallReturn = { fromRow: lr, fromCol: lc, card: lastCard, actorNr };
     }
   }
 
@@ -890,8 +896,8 @@ export function placeCard(
       const [er, ec] = empty[h % empty.length];
       const dirs: Direction[] = ['up', 'down', 'left', 'right'];
       const clownCard: Card = { id: `cc-clown-${r}-${c}-${card.id}`, direction: dirs[h % 4], type: 'clown' };
-      newBoard[er][ec] = { card: clownCard, owner: actorNr };
-      resolveCaptures(newBoard, er, ec, actorNr);
+      newBoard[er][ec] = { card: clownCard, owner: otherPlayer };
+      resolveCaptures(newBoard, er, ec, otherPlayer);
     }
   }
 
@@ -936,6 +942,7 @@ export function placeCard(
   }
 
   _lastPlayed[actorNr] = card;
+  _lastPlayedPos[actorNr] = [row, col];
   const newLastPlayed = { ...(state.lastPlayed ?? {}), [actorNr]: card };
 
   const filled = newBoard.flat().filter(Boolean).length;
@@ -950,11 +957,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, currentTurn: nextTurn };
 }
