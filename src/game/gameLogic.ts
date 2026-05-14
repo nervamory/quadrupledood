@@ -81,8 +81,15 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
     const j = Math.floor(Math.random() * (i + 1));
     [types[i], types[j]] = [types[j], types[i]];
   }
+  const KNIFE_QUADRANTS: Direction[][] = [
+    ['up', 'up-right'],
+    ['right', 'down-right'],
+    ['down', 'down-left'],
+    ['left', 'up-left'],
+  ];
   let boneIdx = 0;
   let snakeIdx = 0;
+  let knifeIdx = 0;
   return types.map((type, i) => {
     let direction: Direction;
     if (type === 'bone') {
@@ -91,6 +98,14 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
         : (Math.random() < 0.5 ? 'up-right' : 'up-left');
     } else if (type === 'snake' && deck === 'demon') {
       direction = snakeIdx++ % 2 === 0 ? 'right' : 'up';
+    } else if (type === 'knife') {
+      const ki = knifeIdx++;
+      if (ki < 4) {
+        const q = KNIFE_QUADRANTS[ki];
+        direction = q[Math.floor(Math.random() * 2)];
+      } else {
+        direction = randomDirection();
+      }
     } else {
       direction = randomDirection();
     }
