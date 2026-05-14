@@ -74,7 +74,7 @@ const CARD_LABELS: Record<CardType, string> = {
   lipstick: 'retriggers touching kisses',
   kisses:   'captures one random touching card',
   'crystal-ball': 'returns your last played card to hand',
-  candle:   'if captured, spawns fire for previous owner',
+  candle:   'turns capturer into fire',
 };
 
 type SwapCardAnim = {
@@ -114,6 +114,16 @@ export class Game {
     done: boolean;
   } | null = null;
 
+  private cbReturnAnim: {
+    card: Card;
+    fromX: number; fromY: number;
+    toX: number; toY: number;
+    startTime: number;
+    done: boolean;
+    isBlack: boolean;
+    hiddenId: string;
+  } | null = null;
+
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
 
@@ -149,11 +159,12 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
       this.detectHellfire(this.state, state);
+      this.detectCrystalBallReturn(this.state, state);
     }
     this.state = state;
   }
@@ -285,6 +296,59 @@ export class Game {
     if (t > SHOW_MS + FADE_MS) this.hellfireAnim = null;
   }
 
+  private detectCrystalBallReturn(oldState: GameState, newState: GameState) {
+    if (this.localNr === 0) return;
+    const newMyHand = newState.hands[this.localNr] ?? [];
+    const returned = newMyHand.find(c => c.id.startsWith('cb-return-'));
+    if (!returned) return;
+
+    let cbRow = -1, cbCol = -1;
+    outer: for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const nc = newState.board[r][c];
+        const oc = oldState.board[r][c];
+        if (nc && 'card' in nc && nc.card.type === 'crystal-ball' && nc.owner === this.localNr &&
+            !(oc && 'card' in oc && oc.card.type === 'crystal-ball' && oc.owner === this.localNr)) {
+          cbRow = r; cbCol = c;
+          break outer;
+        }
+      }
+    }
+    if (cbRow === -1) return;
+
+    const { x, y } = this.cellPos(cbRow, cbCol);
+    const fromX = x + CELL / 2;
+    const fromY = y + CELL / 2;
+
+    const newLayout = this.computeHandLayout(newMyHand, true);
+    const tl = newLayout.find(l => l.card.id === returned.id);
+    this.cbReturnAnim = {
+      card: returned,
+      fromX, fromY,
+      toX: tl?.cx ?? this.W / 2,
+      toY: tl?.cy ?? MY_HAND_CY,
+      startTime: performance.now(),
+      done: false,
+      isBlack: this.localNr === newState.blackPlayer,
+      hiddenId: returned.id,
+    };
+  }
+
+  private drawCbReturnAnim(now: number) {
+    if (!this.cbReturnAnim) return;
+    const DURATION = 400;
+    const t = Math.min((now - this.cbReturnAnim.startTime) / DURATION, 1);
+    if (t >= 1) { this.cbReturnAnim.done = true; return; }
+
+    const { card, fromX, fromY, toX, toY, isBlack } = this.cbReturnAnim;
+    const px = fromX + (toX - fromX) * t;
+    const py = fromY + (toY - fromY) * t;
+    this.ctx.save();
+    this.ctx.translate(px, py);
+    this.drawCard(-CARD / 2, -CARD / 2, card, isBlack);
+    this.ctx.restore();
+  }
+
   setOppHover(idx: number | null) {
     this.oppHoverIdx = idx;
   }
@@ -316,8 +380,9 @@ export class Game {
     if (N === 0) return [];
     const pivotX = this.W / 2;
     const pivotY = isLocal ? MY_PIVOT_Y : OPP_PIVOT_Y;
-    // Spread shrinks as cards are played — 8 cards = full spread, fewer = tighter
-    const spread = FAN_HALF_ANGLE * 2 * Math.min(N / 8, 1);
+    // Spread shrinks as cards are played — 8 cards = full spread, fewer = tighter.
+    // N=2 gets a fixed narrow spread so the two cards slightly overlap.
+    const spread = N <= 1 ? 0 : N === 2 ? (10 * Math.PI / 180) : FAN_HALF_ANGLE * 2 * Math.min(N / 8, 1);
 
     return cards.map((card, i) => {
       const t = N === 1 ? 0 : (i / (N - 1)) - 0.5; // −0.5 to +0.5
@@ -1340,13 +1405,20 @@ export class Game {
       ctx.textBaseline = 'alphabetic';
       const frm = ctx.measureText('🔥');
       ctx.fillText('🔥', 0, (frm.actualBoundingBoxAscent - frm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
       ctx.fillStyle = fg;
       ctx.beginPath();
-      ctx.moveTo(0, -CARD / 2 + m);
-      ctx.lineTo(-ts, -CARD / 2 + m + ts * 1.5);
-      ctx.lineTo(ts, -CARD / 2 + m + ts * 1.5);
+      switch (card.direction) {
+        case 'up':         ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); break;
+        case 'down':       ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); break;
+        case 'left':       ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); break;
+        case 'right':      ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); break;
+        case 'up-left':    ctx.moveTo(x + m, y + m); ctx.lineTo(x + m + ts * 1.5, y + m); ctx.lineTo(x + m, y + m + ts * 1.5); break;
+        case 'up-right':   ctx.moveTo(x + CARD - m, y + m); ctx.lineTo(x + CARD - m - ts * 1.5, y + m); ctx.lineTo(x + CARD - m, y + m + ts * 1.5); break;
+        case 'down-left':  ctx.moveTo(x + m, y + CARD - m); ctx.lineTo(x + m + ts * 1.5, y + CARD - m); ctx.lineTo(x + m, y + CARD - m - ts * 1.5); break;
+        case 'down-right': ctx.moveTo(x + CARD - m, y + CARD - m); ctx.lineTo(x + CARD - m - ts * 1.5, y + CARD - m); ctx.lineTo(x + CARD - m, y + CARD - m - ts * 1.5); break;
+      }
       ctx.fill();
-      ctx.restore();
       return;
     }
 
@@ -1676,6 +1748,7 @@ export class Game {
     for (const l of myLayout) {
       if (l.card.id === draggingId) continue;
       if (this.ghostSwapAnim?.hiddenIds.has(l.card.id)) continue;
+      if (this.cbReturnAnim?.hiddenId === l.card.id) continue;
       if (l.card.id === hoveredId) { hoveredEntry = l; continue; }
       ctx.save();
       ctx.translate(l.cx, l.cy);
@@ -1743,6 +1816,12 @@ export class Game {
     if (this.ghostSwapAnim) {
       this.drawGhostSwapCards(now);
       if (this.ghostSwapAnim?.done) this.ghostSwapAnim = null;
+    }
+
+    // crystal ball return animation — card slides from board to hand
+    if (this.cbReturnAnim) {
+      this.drawCbReturnAnim(now);
+      if (this.cbReturnAnim?.done) this.cbReturnAnim = null;
     }
 
     // drag ghost — always upright
