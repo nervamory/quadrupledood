@@ -28,4 +28,5 @@ export type GameState = {
   lastPlayed?: Record<number, Card>;
   fireChain?: [number, number][];
   hellfirePos?: [number, number];
+  candleFirePos?: [number, number];
 };

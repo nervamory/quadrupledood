@@ -236,14 +236,21 @@ export class Game {
     const now = performance.now();
     const FIRE_STAGGER_MS = 150;
     const fireChain = newState.fireChain ?? [];
+    const candleFirePos = newState.candleFirePos;
+    const isCandlePlay = !!candleFirePos;
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         const old = oldState.board[r][c];
         const next = newState.board[r][c];
         if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner) {
           this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
+          const isCandleCell = isCandlePlay && candleFirePos![0] === r && candleFirePos![1] === c;
           const chainIdx = fireChain.findIndex(([fr, fc]) => fr === r && fc === c);
-          const delay = chainIdx >= 0 ? chainIdx * FIRE_STAGGER_MS : 0;
+          const delay = isCandleCell
+            ? FIRE_STAGGER_MS
+            : chainIdx >= 0
+              ? (isCandlePlay ? chainIdx + 2 : chainIdx) * FIRE_STAGGER_MS
+              : 0;
           this.flipAnims.push({
             row: r, col: c,
             startTime: now + delay,

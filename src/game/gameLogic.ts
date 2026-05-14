@@ -183,6 +183,7 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
       const fireDir = OFFSET_TO_DIR[`${dr},${dc}`] ?? 'up';
       const fireCard: Card = { id: `candle-fire-${row}-${col}-${cell.card.id}`, direction: fireDir, type: 'fire' };
       board[fromRow][fromCol] = { card: fireCard, owner: prevOwner };
+      _candleFirePos = [fromRow, fromCol];
       resolveCaptures(board, fromRow, fromCol, prevOwner);
     }
   } else {
@@ -706,6 +707,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 }
 
 let _fireChain: [number, number][] = [];
+let _candleFirePos: [number, number] | null = null;
 let _lastPlayed: Record<number, Card | undefined> = {};
 
 function canPlay(board: BoardCell[][], hand: Card[]): boolean {
@@ -750,6 +752,7 @@ export function placeCard(
   if (state.currentTurn !== actorNr) return state;
   if (row < 0 || row > 3 || col < 0 || col > 3) return state;
   _fireChain = [];
+  _candleFirePos = null;
 
   const hand = state.hands[actorNr] ?? [];
   const cardIdx = hand.findIndex(c => c.id === cardId);
@@ -947,11 +950,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, currentTurn: nextTurn };
 }
