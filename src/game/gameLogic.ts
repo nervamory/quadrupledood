@@ -688,8 +688,8 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         board[nr][nc] = { blood: true };
       } else if (neighbor.card.type === 'mirror') {
         board[row][col] = { card: placed.card, owner: neighbor.owner };
-      } else if (neighbor.card.type === 'knife' && neighbor.card.direction === OPPOSITE[kDir]) {
-        // knife–knife stalemate
+      } else if (neighbor.card.direction === OPPOSITE[kDir]) {
+        // knife cannot capture any card facing it
       } else {
         captureCell(board, nr, nc, actorNr);
       }

@@ -36,7 +36,7 @@ type FlipAnim = {
 };
 
 const CARD_LABELS: Record<CardType, string> = {
-  knife:   'cannot capture facing knife',
+  knife:   'cannot capture any facing card',
   heart:   'becomes blood when captured',
   eye:     "reveals opponent's hand",
   tooth:   'immune when touching bone',
