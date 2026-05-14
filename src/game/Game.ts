@@ -234,7 +234,7 @@ export class Game {
   private detectFlips(oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const now = performance.now();
-    const FIRE_STAGGER_MS = 80;
+    const FIRE_STAGGER_MS = 150;
     const fireChain = newState.fireChain ?? [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
