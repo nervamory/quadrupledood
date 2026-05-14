@@ -1638,10 +1638,10 @@ export class Game {
     ctx.fillText(String(scoreMy), leftX, scoreCy - 10);
     ctx.fillText(String(scoreOpp), rightX, scoreCy - 10);
 
-    ctx.font = 'bold 14px monospace';
+    ctx.font = '14px monospace';
     ctx.fillStyle = '#aaa';
-    ctx.fillText('you', leftX, scoreCy + 46);
-    ctx.fillText('opp', rightX, scoreCy + 46);
+    ctx.fillText((myIsBlack ? '⬛ ' : '⬜ ') + 'you', leftX, scoreCy + 46);
+    ctx.fillText((myIsBlack ? '⬜ ' : '⬛ ') + 'opp', rightX, scoreCy + 46);
 
     // turn / result
     ctx.textBaseline = 'alphabetic';
