@@ -413,15 +413,17 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'fire') {
-    // Captures up, up-left, up-right
-    for (const [nr, nc] of [[row - 1, col], [row - 1, col - 1], [row - 1, col + 1]] as [number, number][]) {
-      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+    // Wildfire: transforms the card in the pointing direction into fire (bypasses all capture blocks).
+    // The new fire resolves its own captures, chaining until it hits empty, blood, a friendly, or the edge.
+    const [dr, dc] = OFFSETS[placed.card.direction];
+    const nr = row + dr, nc = col + dc;
+    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
       const neighbor = board[nr][nc];
-      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
-
-      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
-      captureCell(board, nr, nc, actorNr);
+      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        const spreadFire: Card = { id: `fire-${nr}-${nc}-${placed.card.id}`, direction: placed.card.direction, type: 'fire' };
+        board[nr][nc] = { card: spreadFire, owner: actorNr };
+        resolveCaptures(board, nr, nc, actorNr);
+      }
     }
     return;
   }

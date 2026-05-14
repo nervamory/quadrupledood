@@ -56,7 +56,7 @@ const CARD_LABELS: Record<CardType, string> = {
   brain:   'becomes blood when captured',
   gravestone: 'become zombie if uncaptured',
   oni:     'summons 2 flanking hand cards',
-  fire:    'up-arc capture; reveals fog',
+  fire:    'wildfire: transforms in direction, chaining',
   hand:    'captures in finger direction',
   spider:  'captures all 8 touching cells',
   web:     'replaces any played card',
@@ -1267,19 +1267,26 @@ export class Game {
     }
 
     if (card.type === 'fire') {
+      const FIRE_ANGLE: Record<Direction, number> = {
+        up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2,
+        'up-right': Math.PI / 4, 'down-right': 3 * Math.PI / 4,
+        'down-left': -3 * Math.PI / 4, 'up-left': -Math.PI / 4,
+      };
       ctx.save();
       ctx.translate(cx, cy);
+      ctx.rotate(FIRE_ANGLE[card.direction]);
       ctx.font = '28px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       const frm = ctx.measureText('🔥');
       ctx.fillText('🔥', 0, (frm.actualBoundingBoxAscent - frm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
-      const mc = 7;
-      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
+      ctx.beginPath();
+      ctx.moveTo(0, -CARD / 2 + m);
+      ctx.lineTo(-ts, -CARD / 2 + m + ts * 1.5);
+      ctx.lineTo(ts, -CARD / 2 + m + ts * 1.5);
+      ctx.fill();
+      ctx.restore();
       return;
     }
 
