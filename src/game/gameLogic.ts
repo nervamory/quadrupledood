@@ -857,9 +857,12 @@ export function placeCard(
     const lastPos = _lastPlayedPos[actorNr];
     if (lastCard && lastPos) {
       const [lr, lc] = lastPos;
-      newBoard[lr][lc] = null;
-      newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), lastCard] };
-      crystalBallReturn = { fromRow: lr, fromCol: lc, card: lastCard, actorNr };
+      const cellAtPos = newBoard[lr][lc];
+      if (cellAtPos && 'card' in cellAtPos) {
+        newBoard[lr][lc] = null;
+        newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), lastCard] };
+        crystalBallReturn = { fromRow: lr, fromCol: lc, card: lastCard, actorNr };
+      }
     }
   }
 
