@@ -143,25 +143,6 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
     bubblesPop(board, row, col, attackerNr);
   } else if (cell.card.type === 'balloon') {
     board[row][col] = null;
-  } else if (cell.card.type === 'clown-car') {
-    board[row][col] = null;
-    const emptyCells: [number, number][] = [];
-    for (let r = 0; r < 4; r++)
-      for (let c = 0; c < 4; c++)
-        if (!board[r][c] && !(r === row && c === col)) emptyCells.push([r, c]);
-    emptyCells.sort((a, b) => {
-      const da = Math.abs(a[0] - row) + Math.abs(a[1] - col);
-      const db = Math.abs(b[0] - row) + Math.abs(b[1] - col);
-      return da - db;
-    });
-    const h = cardHash(cell.card.id);
-    for (let i = 0; i < 2 && i < emptyCells.length; i++) {
-      const [er, ec] = emptyCells[i];
-      const dirs: Direction[] = ['up', 'down', 'left', 'right'];
-      const clownCard: Card = { id: `clown-${er}-${ec}-${h}`, direction: dirs[(h >> (i * 4)) % 4], type: 'clown' };
-      board[er][ec] = { card: clownCard, owner: cell.owner };
-      resolveCaptures(board, er, ec, cell.owner);
-    }
   } else if (cell.card.type === 'egg') {
     const spider: Card = { id: `hatch-${row}-${col}`, direction: cell.card.direction, type: 'spider' };
     board[row][col] = { card: spider, owner: cell.owner };
@@ -861,6 +842,26 @@ export function placeCard(
         newBoard[er][ec] = { card: oppCards[pullIdx], owner: actorNr };
         newHands = { ...newHands, [otherPlayer]: oppCards.filter((_, i) => i !== pullIdx) };
       }
+    }
+  }
+
+  // Clown-car: each turn, spawn 1 clown in a random touching empty cell for each owned clown-car
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const ccCell = newBoard[r][c];
+      if (!ccCell || !('card' in ccCell) || ccCell.card.type !== 'clown-car' || ccCell.owner !== actorNr) continue;
+      const empty: [number, number][] = [];
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4 && !newBoard[nr][nc]) empty.push([nr, nc]);
+      }
+      if (empty.length === 0) continue;
+      const h = cardHash(ccCell.card.id + card.id);
+      const [er, ec] = empty[h % empty.length];
+      const dirs: Direction[] = ['up', 'down', 'left', 'right'];
+      const clownCard: Card = { id: `cc-clown-${r}-${c}-${card.id}`, direction: dirs[h % 4], type: 'clown' };
+      newBoard[er][ec] = { card: clownCard, owner: actorNr };
+      resolveCaptures(newBoard, er, ec, actorNr);
     }
   }
 

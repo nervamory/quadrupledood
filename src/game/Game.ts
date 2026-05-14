@@ -68,7 +68,7 @@ const CARD_LABELS: Record<CardType, string> = {
   hellfire: 'destroys all touching; self-destructs',
   snake:    'multi-square capture',
   clown:    'retriggers touching clowns',
-  'clown-car': 'spawns 2 clowns when captured',
+  'clown-car': 'spawns a clown each turn',
   balloon:  'pops when captured',
   succubus: 'pulls orthogonal closer before capturing',
   lipstick: 'retriggers touching kisses',
