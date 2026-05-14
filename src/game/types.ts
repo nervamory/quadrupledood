@@ -1,5 +1,5 @@
 export type Direction = 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right';
-export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien' | 'imp' | 'hellfire' | 'snake' | 'clown' | 'clown-car' | 'balloon' | 'succubus' | 'lipstick' | 'kisses';
+export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien' | 'imp' | 'hellfire' | 'snake' | 'clown' | 'clown-car' | 'balloon' | 'succubus' | 'lipstick' | 'kisses' | 'crystal-ball' | 'candle';
 
 export type Card = {
   id: string;
@@ -10,7 +10,7 @@ export type Card = {
 
 export type BoardCell = { card: Card; owner: number; fogged?: boolean; zombified?: boolean } | { blood: true } | null;
 
-export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider' | 'knife' | 'demon' | 'clown' | 'succubus';
+export type DeckType = 'random' | 'debug' | 'vampire' | 'werewolf' | 'ocean' | 'bones' | 'zombie' | 'oni' | 'spider' | 'knife' | 'demon' | 'clown' | 'succubus' | 'ghost';
 
 export type PendingChange =
   | { type: 'zombie-convert'; row: number; col: number; owner: number; resolveAfterActor: number }
@@ -25,4 +25,7 @@ export type GameState = {
   winner: number | null;
   blackPlayer: number;
   pendingChanges: PendingChange[];
+  lastPlayed?: Record<number, Card>;
+  fireChain?: [number, number][];
+  hellfirePos?: [number, number];
 };

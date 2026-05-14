@@ -44,7 +44,7 @@ const CARD_LABELS: Record<CardType, string> = {
   mirror:  'reflects captures back',
   bandage: 'plays on blood cells',
   vampire: 'captures all blood cells',
-  ghost:   'swap random card with opponent',
+  ghost:   'switches entire hands with opponent',
   fog:     'hides nearby cards from opponent',
   wolf:    "switches to orthogonal when moon's out",
   squid:   'pops bubbles, they capture touching',
@@ -73,6 +73,8 @@ const CARD_LABELS: Record<CardType, string> = {
   succubus: 'pulls orthogonal closer before capturing',
   lipstick: 'retriggers touching kisses',
   kisses:   'captures one random touching card',
+  'crystal-ball': 'returns your last played card to hand',
+  candle:   'if captured, spawns fire for previous owner',
 };
 
 type SwapCardAnim = {
@@ -99,6 +101,11 @@ export class Game {
   oppHoverIdx: number | null = null;
 
   private flipAnims: FlipAnim[] = [];
+
+  private hellfireAnim: {
+    cells: { row: number; col: number; card: Card; isBlack: boolean }[];
+    startTime: number;
+  } | null = null;
 
   private ghostSwapAnim: {
     startTime: number;
@@ -142,10 +149,11 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
+      this.detectHellfire(this.state, state);
     }
     this.state = state;
   }
@@ -209,21 +217,66 @@ export class Game {
   private detectFlips(oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const now = performance.now();
+    const FIRE_STAGGER_MS = 80;
+    const fireChain = newState.fireChain ?? [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         const old = oldState.board[r][c];
         const next = newState.board[r][c];
         if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner) {
           this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
+          const chainIdx = fireChain.findIndex(([fr, fc]) => fr === r && fc === c);
+          const delay = chainIdx >= 0 ? chainIdx * FIRE_STAGGER_MS : 0;
           this.flipAnims.push({
             row: r, col: c,
-            startTime: now,
+            startTime: now + delay,
             oldCard: old.card, oldIsBlack: old.owner === oldState.blackPlayer,
             newCard: next.card, newIsBlack: next.owner === newState.blackPlayer,
           });
         }
       }
     }
+  }
+
+  private detectHellfire(oldState: GameState, newState: GameState) {
+    if (!newState.hellfirePos) return;
+    const [hr, hc] = newState.hellfirePos;
+    const cells: { row: number; col: number; card: Card; isBlack: boolean }[] = [];
+    for (const [dr, dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]] as [number,number][]) {
+      const r = hr + dr, c = hc + dc;
+      if (r < 0 || r >= 4 || c < 0 || c >= 4) continue;
+      const cell = oldState.board[r][c];
+      if (cell && 'card' in cell) {
+        cells.push({ row: r, col: c, card: cell.card, isBlack: cell.owner === oldState.blackPlayer });
+      }
+    }
+    this.hellfireAnim = { cells, startTime: performance.now() };
+  }
+
+  private drawHellfireAnim(now: number) {
+    if (!this.hellfireAnim) return;
+    const SHOW_MS  = 300; // green fire visible before fade
+    const FADE_MS  = 200; // fade out duration
+    const t = now - this.hellfireAnim.startTime;
+    const ctx = this.ctx;
+    const pad = (CELL - CARD) / 2;
+
+    for (const { row, col, card, isBlack } of this.hellfireAnim.cells) {
+      const { x, y } = this.cellPos(row, col);
+      const alpha = t < SHOW_MS ? 1 : Math.max(0, 1 - (t - SHOW_MS) / FADE_MS);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      this.drawCard(x + pad, y + pad, card, isBlack);
+      ctx.font = '32px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.filter = 'hue-rotate(120deg)'; // orange fire → green
+      ctx.fillText('🔥', x + CELL / 2, y + CELL / 2);
+      ctx.filter = 'none';
+      ctx.restore();
+    }
+
+    if (t > SHOW_MS + FADE_MS) this.hellfireAnim = null;
   }
 
   setOppHover(idx: number | null) {
@@ -238,6 +291,7 @@ export class Game {
     this.spinAnim = null;
     this.oppHoverIdx = null;
     this.flipAnims = [];
+    this.hellfireAnim = null;
     this.ctx.clearRect(0, 0, this.W, this.H);
   }
 
@@ -1311,13 +1365,30 @@ export class Game {
       const gm = ctx.measureText('👻');
       ctx.fillText('👻', 0, (gm.actualBoundingBoxAscent - gm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      // Downward triangle — captures the cell below
-      ctx.fillStyle = fg;
-      ctx.beginPath();
-      ctx.moveTo(cx, y + CARD - m);
-      ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5);
-      ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5);
-      ctx.fill();
+      return;
+    }
+
+    if (card.type === 'crystal-ball') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const cbm = ctx.measureText('🔮');
+      ctx.fillText('🔮', 0, (cbm.actualBoundingBoxAscent - cbm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      return;
+    }
+
+    if (card.type === 'candle') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const cdm = ctx.measureText('🕯️');
+      ctx.fillText('🕯️', 0, (cdm.actualBoundingBoxAscent - cdm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
       return;
     }
 
@@ -1658,6 +1729,9 @@ export class Game {
       const handTop = MY_HAND_CY - HOVER_LIFT - CARD / 2;
       ctx.fillText(isMyTurn ? 'your turn' : "opponent's turn", W / 2, (this.gridY + GRID + handTop) / 2);
     }
+
+    // hellfire animation — green fire over destroyed cards, then fade
+    if (this.hellfireAnim) this.drawHellfireAnim(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
     if (this.ghostSwapAnim) {

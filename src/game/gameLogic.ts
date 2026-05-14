@@ -27,7 +27,7 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle'];
 const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus'];
 
 function pick(pool: CardType[], n: number): CardType[] {
@@ -72,6 +72,9 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       break;
     case 'succubus':
       types = ['succubus', 'lipstick', 'kisses', 'kisses', 'knife', ...pick(COMMON, 4)];
+      break;
+    case 'ghost':
+      types = ['ghost', 'crystal-ball', 'crystal-ball', 'candle', 'knife', ...pick(COMMON, 4)];
       break;
     default:
       types = ['knife', ...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
@@ -167,6 +170,19 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
     const spider: Card = { id: `hatch-${row}-${col}`, direction: cell.card.direction, type: 'spider' };
     board[row][col] = { card: spider, owner: cell.owner };
     resolveCaptures(board, row, col, cell.owner);
+  } else if (cell.card.type === 'candle') {
+    const prevOwner = cell.owner;
+    board[row][col] = { card: cell.card, owner: attackerNr };
+    // Spawn a fire card in a random empty cell for the previous candle owner
+    const empty: [number, number][] = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!board[r][c]) empty.push([r, c]);
+    if (empty.length > 0) {
+      const h = cardHash(cell.card.id + String(row) + String(col));
+      const [fr, fc] = empty[h % empty.length];
+      const fireCard: Card = { id: `candle-fire-${row}-${col}-${cell.card.id}`, direction: TOUCHING_DIRS[h % 8], type: 'fire' };
+      board[fr][fc] = { card: fireCard, owner: prevOwner };
+      resolveCaptures(board, fr, fc, prevOwner);
+    }
   } else {
     board[row][col] = { card: cell.card, owner: attackerNr };
   }
@@ -263,21 +279,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   if (placed.card.type === 'ghost') {
-    // Captures the cell directly below
-    const [nr, nc] = [row + 1, col];
-    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
-      const neighbor = board[nr][nc];
-      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
-        if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
-          board[nr][nc] = { blood: true };
-        } else if (neighbor.card.type === 'mirror') {
-          board[row][col] = { card: placed.card, owner: neighbor.owner };
-        } else {
-          captureCell(board, nr, nc, actorNr, row, col);
-        }
-      }
-    }
-    return;
+    return; // effect is the full hand swap handled in placeCard
   }
 
   if (placed.card.type === 'wolf') {
@@ -440,6 +442,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
       const neighbor = board[nr][nc];
       if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+        _fireChain.push([nr, nc]);
         const spreadFire: Card = { id: `fire-${nr}-${nc}-${placed.card.id}`, direction: placed.card.direction, type: 'fire' };
         board[nr][nc] = { card: spreadFire, owner: actorNr };
         resolveCaptures(board, nr, nc, actorNr);
@@ -612,7 +615,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   // Passive cards — no captures on placement
-  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car') return;
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle') return;
 
   if (placed.card.type === 'succubus') {
     // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer
@@ -700,6 +703,8 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 }
 
+let _fireChain: [number, number][] = [];
+
 function canPlay(board: BoardCell[][], hand: Card[]): boolean {
   if (hand.length === 0) return false;
   const cells = board.flat();
@@ -726,6 +731,7 @@ export function initGame(actor1: number, actor2: number, deck1: DeckType = 'rand
     winner: null,
     blackPlayer: actor1,
     pendingChanges: [],
+    lastPlayed: {},
   };
 }
 
@@ -739,6 +745,7 @@ export function placeCard(
   if (state.phase !== 'playing') return state;
   if (state.currentTurn !== actorNr) return state;
   if (row < 0 || row > 3 || col < 0 || col > 3) return state;
+  _fireChain = [];
 
   const hand = state.hands[actorNr] ?? [];
   const cardIdx = hand.findIndex(c => c.id === cardId);
@@ -829,21 +836,17 @@ export function placeCard(
     }
   }
 
-  // Ghost: swap a random card between hands after capturing
+  // Ghost: swap entire hands
   if (card.type === 'ghost') {
-    const myCards = newHands[actorNr];
-    const oppCards = newHands[otherPlayer];
-    if (myCards.length > 0 && oppCards.length > 0) {
-      const h = cardHash(card.id);
-      const myIdx  = h % myCards.length;
-      const oppIdx = (h >>> 8) % oppCards.length;
-      const myCard  = myCards[myIdx];
-      const oppCard = oppCards[oppIdx];
-      newHands = {
-        ...newHands,
-        [actorNr]:    myCards.map((c, i)  => i === myIdx  ? oppCard : c),
-        [otherPlayer]: oppCards.map((c, i) => i === oppIdx ? myCard  : c),
-      };
+    newHands = { ...newHands, [actorNr]: newHands[otherPlayer] ?? [], [otherPlayer]: newHands[actorNr] ?? [] };
+  }
+
+  // Crystal-ball: return last played card to hand
+  if (card.type === 'crystal-ball') {
+    const lastCard = state.lastPlayed?.[actorNr];
+    if (lastCard) {
+      const returnedCard: Card = { ...lastCard, id: `cb-return-${lastCard.id}` };
+      newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), returnedCard] };
     }
   }
 
@@ -925,6 +928,8 @@ export function placeCard(
       newPending.push({ type: 'zombie-convert', row: r, col: c, owner: cell.owner, resolveAfterActor: otherPlayer });
   }
 
+  const newLastPlayed = { ...(state.lastPlayed ?? {}), [actorNr]: card };
+
   const filled = newBoard.flat().filter(Boolean).length;
   const otherCanPlay = canPlay(newBoard, newHands[otherPlayer] ?? []);
   const meCanPlay    = canPlay(newBoard, newHands[actorNr]    ?? []);
@@ -936,10 +941,12 @@ export function placeCard(
     }, {});
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, phase: 'finished', winner, currentTurn: -1 };
+    const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, currentTurn: nextTurn };
+  const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, currentTurn: nextTurn };
 }
