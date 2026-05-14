@@ -109,7 +109,7 @@ export class Game {
 
   private ghostSwapAnim: {
     startTime: number;
-    cards: [SwapCardAnim, SwapCardAnim];
+    cards: SwapCardAnim[];
     hiddenIds: Set<string>;
     done: boolean;
   } | null = null;
@@ -171,45 +171,51 @@ export class Game {
     const newMyIds  = new Set(newMyHand.map(c => c.id));
     const newOppIds = new Set(newOppHand.map(c => c.id));
 
-    // A card that was in my hand and is now in opp's hand (ghost swap out)
-    const fromMe  = oldMyHand.find(c => !newMyIds.has(c.id)  && newOppIds.has(c.id));
-    // A card that was in opp's hand and is now in my hand (ghost swap in)
-    const fromOpp = oldOppHand.find(c => !newOppIds.has(c.id) && newMyIds.has(c.id));
-    if (!fromMe || !fromOpp) return;
+    // Cards that moved from my hand → opp's hand
+    const fromMeCards  = oldMyHand.filter(c => !newMyIds.has(c.id)  && newOppIds.has(c.id));
+    // Cards that moved from opp's hand → my hand
+    const fromOppCards = oldOppHand.filter(c => !newOppIds.has(c.id) && newMyIds.has(c.id));
+    if (fromMeCards.length === 0 || fromOppCards.length === 0) return;
 
     const oldMyLayout  = this.computeHandLayout(oldMyHand, true);
     const oldOppLayout = this.computeHandLayout(oldOppHand, false);
-    const myL  = oldMyLayout.find(l => l.card.id === fromMe.id);
-    const oppL = oldOppLayout.find(l => l.card.id === fromOpp.id);
-    if (!myL || !oppL) return;
-
     const myIsBlack  = this.localNr === oldState.blackPlayer;
     const oppIsBlack = oppNr === oldState.blackPlayer;
     const myEyeActive = oldState.board.flat().some(
       c => c && 'card' in c && c.owner === this.localNr && c.card.type === 'eye'
     );
 
+    const swapCards: SwapCardAnim[] = [];
+    const hiddenIds = new Set<string>();
+
+    for (const c of fromMeCards) {
+      const l = oldMyLayout.find(l => l.card.id === c.id);
+      if (!l) continue;
+      swapCards.push({
+        card: c,
+        fromX: l.cx, fromY: l.cy, fromRotation: l.rotation,
+        toX: this.W / 2, toY: OPP_HAND_CY, toRotation: 0,
+        startFaceDown: false, startIsBlack: myIsBlack, endIsBlack: oppIsBlack,
+      });
+      hiddenIds.add(c.id);
+    }
+    for (const c of fromOppCards) {
+      const l = oldOppLayout.find(l => l.card.id === c.id);
+      if (!l) continue;
+      swapCards.push({
+        card: c,
+        fromX: l.cx, fromY: l.cy, fromRotation: l.rotation,
+        toX: this.W / 2, toY: MY_HAND_CY, toRotation: 0,
+        startFaceDown: !myEyeActive, startIsBlack: oppIsBlack, endIsBlack: myIsBlack,
+      });
+      hiddenIds.add(c.id);
+    }
+
+    if (swapCards.length === 0) return;
     this.ghostSwapAnim = {
       startTime: performance.now(),
-      cards: [
-        {
-          card: fromMe,
-          fromX: myL.cx, fromY: myL.cy, fromRotation: myL.rotation,
-          toX: this.W / 2, toY: OPP_HAND_CY, toRotation: 0,
-          startFaceDown: false,
-          startIsBlack: myIsBlack,
-          endIsBlack: oppIsBlack,
-        },
-        {
-          card: fromOpp,
-          fromX: oppL.cx, fromY: oppL.cy, fromRotation: oppL.rotation,
-          toX: this.W / 2, toY: MY_HAND_CY, toRotation: 0,
-          startFaceDown: !myEyeActive,
-          startIsBlack: oppIsBlack,
-          endIsBlack: myIsBlack,
-        },
-      ],
-      hiddenIds: new Set([fromMe.id, fromOpp.id]),
+      cards: swapCards,
+      hiddenIds,
       done: false,
     };
   }

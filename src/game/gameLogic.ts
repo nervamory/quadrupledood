@@ -173,15 +173,17 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
   } else if (cell.card.type === 'candle') {
     const prevOwner = cell.owner;
     board[row][col] = { card: cell.card, owner: attackerNr };
-    // Spawn a fire card in a random empty cell for the previous candle owner
-    const empty: [number, number][] = [];
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!board[r][c]) empty.push([r, c]);
-    if (empty.length > 0) {
-      const h = cardHash(cell.card.id + String(row) + String(col));
-      const [fr, fc] = empty[h % empty.length];
-      const fireCard: Card = { id: `candle-fire-${row}-${col}-${cell.card.id}`, direction: TOUCHING_DIRS[h % 8], type: 'fire' };
-      board[fr][fc] = { card: fireCard, owner: prevOwner };
-      resolveCaptures(board, fr, fc, prevOwner);
+    // Turn the capturing card into fire for the previous candle owner, then chain
+    if (fromRow !== undefined && fromCol !== undefined) {
+      const dr = row - fromRow, dc = col - fromCol;
+      const OFFSET_TO_DIR: Record<string, Direction> = {
+        '-1,0': 'up', '1,0': 'down', '0,-1': 'left', '0,1': 'right',
+        '-1,-1': 'up-left', '-1,1': 'up-right', '1,-1': 'down-left', '1,1': 'down-right',
+      };
+      const fireDir = OFFSET_TO_DIR[`${dr},${dc}`] ?? 'up';
+      const fireCard: Card = { id: `candle-fire-${row}-${col}-${cell.card.id}`, direction: fireDir, type: 'fire' };
+      board[fromRow][fromCol] = { card: fireCard, owner: prevOwner };
+      resolveCaptures(board, fromRow, fromCol, prevOwner);
     }
   } else {
     board[row][col] = { card: cell.card, owner: attackerNr };
@@ -704,6 +706,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 }
 
 let _fireChain: [number, number][] = [];
+let _lastPlayed: Record<number, Card | undefined> = {};
 
 function canPlay(board: BoardCell[][], hand: Card[]): boolean {
   if (hand.length === 0) return false;
@@ -719,6 +722,7 @@ function canPlay(board: BoardCell[][], hand: Card[]): boolean {
 }
 
 export function initGame(actor1: number, actor2: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
+  _lastPlayed = {};
   const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));
   return {
     board,
@@ -841,9 +845,9 @@ export function placeCard(
     newHands = { ...newHands, [actorNr]: newHands[otherPlayer] ?? [], [otherPlayer]: newHands[actorNr] ?? [] };
   }
 
-  // Crystal-ball: return last played card to hand
+  // Crystal-ball: return last played card to hand (reads module-level tracker, reliable across network)
   if (card.type === 'crystal-ball') {
-    const lastCard = state.lastPlayed?.[actorNr];
+    const lastCard = _lastPlayed[actorNr];
     if (lastCard) {
       const returnedCard: Card = { ...lastCard, id: `cb-return-${lastCard.id}` };
       newHands = { ...newHands, [actorNr]: [...(newHands[actorNr] ?? []), returnedCard] };
@@ -928,6 +932,7 @@ export function placeCard(
       newPending.push({ type: 'zombie-convert', row: r, col: c, owner: cell.owner, resolveAfterActor: otherPlayer });
   }
 
+  _lastPlayed[actorNr] = card;
   const newLastPlayed = { ...(state.lastPlayed ?? {}), [actorNr]: card };
 
   const filled = newBoard.flat().filter(Boolean).length;
