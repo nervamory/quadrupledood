@@ -917,7 +917,7 @@ export function placeCard(
     }
   }
   if (card.type === 'gravestone') {
-    newPending.push({ type: 'gravestone-transform', row, col, owner: actorNr, resolveAfterActor: actorNr });
+    newPending.push({ type: 'gravestone-transform', row, col, owner: actorNr, resolveAfterActor: otherPlayer });
   }
 
   // Resolve effects that were deferred until this actor's turn
