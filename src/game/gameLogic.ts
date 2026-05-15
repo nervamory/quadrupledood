@@ -687,7 +687,6 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
-    triggerRobots(board);
     triggerLightnings(board, placed.card.id);
     return;
   }

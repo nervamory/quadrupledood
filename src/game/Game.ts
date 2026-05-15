@@ -77,7 +77,7 @@ const CARD_LABELS: Record<CardType, string> = {
   candle:   'turns capturer into fire',
   robot:    'flips all touching ownership each turn',
   lightning: 'destroys one random touching card',
-  outlet:   'captures up & down; triggers robots & lightnings',
+  outlet:   'captures up & down; retriggers all lightnings on board',
 };
 
 type SwapCardAnim = {
