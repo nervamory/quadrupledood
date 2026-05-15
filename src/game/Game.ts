@@ -1602,18 +1602,6 @@ export class Game {
 
     const myIsBlack = this.localNr === state.blackPlayer;
 
-    // match score at top center
-    const oppNrForScore = Object.keys(this.matchScore).map(Number).find(n => n !== this.localNr);
-    if (oppNrForScore !== undefined) {
-      const mw = this.matchScore[this.localNr] ?? 0;
-      const ow = this.matchScore[oppNrForScore] ?? 0;
-      ctx.font = '13px monospace';
-      ctx.fillStyle = '#555';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`match  ${mw} — ${ow}`, W / 2, 22);
-    }
-
     // grid
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
@@ -1805,6 +1793,31 @@ export class Game {
     ctx.fillStyle = '#aaa';
     ctx.fillText((myIsBlack ? '⬛ ' : '⬜ ') + 'you', leftX, scoreCy + 46);
     ctx.fillText((myIsBlack ? '⬜ ' : '⬛ ') + 'opp', rightX, scoreCy + 46);
+
+    // match win circles — 2 per side, filled = won, empty = not yet
+    {
+      const myWins  = this.matchScore[this.localNr] ?? 0;
+      const oppWins = oppNr !== undefined ? (this.matchScore[oppNr] ?? 0) : 0;
+      const circleR   = 6;
+      const circleGap = 6;
+      const circleY   = scoreCy + 74;
+      const totalW    = 2 * circleR * 2 + circleGap;
+      for (const [cx, wins] of [[leftX, myWins], [rightX, oppWins]] as [number, number][]) {
+        const startX = cx - totalW / 2 + circleR;
+        for (let i = 0; i < 2; i++) {
+          ctx.beginPath();
+          ctx.arc(startX + i * (circleR * 2 + circleGap), circleY, circleR, 0, Math.PI * 2);
+          if (i < wins) {
+            ctx.fillStyle = '#cc1111';
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
 
     // turn / result
     ctx.textBaseline = 'alphabetic';
