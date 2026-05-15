@@ -917,15 +917,18 @@ export function placeCard(
     }
   }
   if (card.type === 'gravestone') {
-    newPending.push({ type: 'gravestone-transform', row, col, owner: actorNr, resolveAfterActor: otherPlayer });
+    newPending.push({ type: 'gravestone-transform', row, col, owner: actorNr, resolveAfterActor: actorNr });
   }
 
   // Resolve effects that were deferred until this actor's turn
   for (const change of toResolve) {
     if (change.type === 'zombie-convert') {
       const cell = newBoard[change.row][change.col];
-      if (cell && 'card' in cell && cell.zombified && cell.owner === change.owner)
-        newBoard[change.row][change.col] = { card: cell.card, owner: change.owner };
+      if (cell && 'card' in cell && cell.zombified && cell.owner === change.owner) {
+        const zombieCard: Card = { id: `zc-${change.row}-${change.col}-${card.id}`, direction: 'up', type: 'zombie' };
+        newBoard[change.row][change.col] = { card: zombieCard, owner: change.owner };
+        resolveCaptures(newBoard, change.row, change.col, change.owner);
+      }
     } else if (change.type === 'gravestone-transform') {
       const cell = newBoard[change.row][change.col];
       if (cell && 'card' in cell && cell.card.type === 'gravestone' && cell.owner === change.owner) {
