@@ -27,8 +27,8 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle'];
-const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle', 'lightning', 'outlet'];
+const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus', 'robot'];
 
 function pick(pool: CardType[], n: number): CardType[] {
   return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
@@ -76,6 +76,9 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
     case 'ghost':
       types = ['ghost', 'crystal-ball', 'crystal-ball', 'candle', 'knife', ...pick(COMMON, 4)];
       break;
+    case 'robot':
+      types = ['robot', 'lightning', 'lightning', 'outlet', 'knife', ...pick(COMMON, 4)];
+      break;
     default:
       types = ['knife', ...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
   }
@@ -99,6 +102,8 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       direction = deck === 'bones'
         ? (boneIdx++ % 2 === 0 ? 'up-right' : 'up-left')
         : (Math.random() < 0.5 ? 'up-right' : 'up-left');
+    } else if (type === 'outlet' || type === 'robot') {
+      direction = 'up';
     } else if (type === 'snake' && deck === 'demon') {
       direction = snakeIdx++ % 2 === 0 ? 'right' : 'up';
     } else if (type === 'knife') {
@@ -114,6 +119,45 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
     }
     return { id: `${actorNr}-${i}`, direction, type };
   });
+}
+
+function triggerRobots(board: BoardCell[][]): void {
+  const seen = new Set<number>();
+  for (const row of board) for (const cell of row) if (cell && 'card' in cell) seen.add(cell.owner);
+  if (seen.size < 2) return;
+  const [p1, p2] = [...seen];
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const cell = board[r][c];
+      if (!cell || !('card' in cell) || cell.card.type !== 'robot') continue;
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+        const neighbor = board[nr][nc];
+        if (!neighbor || 'blood' in neighbor) continue;
+        board[nr][nc] = { ...neighbor, owner: neighbor.owner === p1 ? p2 : p1 };
+      }
+    }
+  }
+}
+
+function triggerLightnings(board: BoardCell[][], seedId: string): void {
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const cell = board[r][c];
+      if (!cell || !('card' in cell) || cell.card.type !== 'lightning') continue;
+      const targets: [number, number][] = [];
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+        const n = board[nr][nc];
+        if (n && !('blood' in n)) targets.push([nr, nc]);
+      }
+      if (targets.length === 0) continue;
+      const [tr, tc] = targets[cardHash(cell.card.id + seedId) % targets.length];
+      board[tr][tc] = null;
+    }
+  }
 }
 
 function isBoneImmune(board: BoardCell[][], row: number, col: number): boolean {
@@ -617,8 +661,39 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     return;
   }
 
+  if (placed.card.type === 'lightning') {
+    const targets: [number, number][] = [];
+    for (const dir of TOUCHING_DIRS) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr, nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const n = board[nr][nc];
+      if (n && !('blood' in n)) targets.push([nr, nc]);
+    }
+    if (targets.length > 0) {
+      const [tr, tc] = targets[cardHash(placed.card.id) % targets.length];
+      board[tr][tc] = null;
+    }
+    return;
+  }
+
+  if (placed.card.type === 'outlet') {
+    for (const dir of ['up', 'down'] as Direction[]) {
+      const [dr, dc] = OFFSETS[dir];
+      const nr = row + dr, nc = col + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr, row, col);
+    }
+    triggerRobots(board);
+    triggerLightnings(board, placed.card.id);
+    return;
+  }
+
   // Passive cards — no captures on placement
-  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle') return;
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle' || placed.card.type === 'robot') return;
 
   if (placed.card.type === 'succubus') {
     // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer
@@ -903,6 +978,9 @@ export function placeCard(
       resolveCaptures(newBoard, er, ec, otherPlayer);
     }
   }
+
+  // Robot: flip all 8 touching cells for every robot on the board
+  triggerRobots(newBoard);
 
   // Pending changes: split existing into "resolves this turn" vs "keep"
   const toResolve = state.pendingChanges.filter(p => p.resolveAfterActor === actorNr);
