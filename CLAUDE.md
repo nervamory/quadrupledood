@@ -38,4 +38,6 @@ There is no test suite beyond `test-oni.mjs`. TypeScript strict mode (`tsconfig.
 
 **Canvas dimensions:** 680×700. Board grid origin is at `this.gridY`. Hand layout uses a circular fan with `FAN_RADIUS = 350`, centered at `MY_HAND_CY = 600` (local) and `OPP_HAND_CY = 100` (opponent).
 
+**Card tooltips (`CARD_LABELS` in `Game.ts`):** Describe only the card's *special ability* — never mention its standard capture directions. The direction indicators on the card face already communicate that visually.
+
 **`KNIFE_ANGLES`:** Defined at the top of `Game.ts` as a `Record<Direction, number>`. All card emoji are rendered using these angles via `ctx.rotate(KNIFE_ANGLES[card.direction])`.
