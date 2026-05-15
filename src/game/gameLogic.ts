@@ -724,7 +724,7 @@ function canPlay(board: BoardCell[][], hand: Card[]): boolean {
   });
 }
 
-export function initGame(actor1: number, actor2: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
+export function initGame(actor1: number, actor2: number, firstPlayer: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
   _lastPlayed = {};
   _lastPlayedPos = {};
   const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));
@@ -734,7 +734,7 @@ export function initGame(actor1: number, actor2: number, deck1: DeckType = 'rand
       [actor1]: dealHand(actor1, deck1),
       [actor2]: dealHand(actor2, deck2),
     },
-    currentTurn: Math.random() < 0.5 ? actor1 : actor2,
+    currentTurn: firstPlayer,
     phase: 'playing',
     winner: null,
     blackPlayer: actor1,

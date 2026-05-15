@@ -31,7 +31,8 @@ function tryStartGame() {
     [photon.actorNr]: myDeck,
     [oppNr]: oppDeck,
   };
-  const state = initGame(a1, a2, deckOf[a1], deckOf[a2]);
+  const firstPlayer = Math.random() < 0.5 ? a1 : a2;
+  const state = initGame(a1, a2, firstPlayer, deckOf[a1], deckOf[a2]);
   gameState = state;
   game.setState(state);
   photon.sendGameStart(state);
