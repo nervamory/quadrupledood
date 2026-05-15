@@ -1473,17 +1473,6 @@ export class Game {
       const rm = ctx.measureText('🤖');
       ctx.fillText('🤖', 0, (rm.actualBoundingBoxAscent - rm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      // All 8 direction indicators (flips all touching)
-      ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
-      const mc = 7;
-      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill();
       return;
     }
 
@@ -1496,17 +1485,6 @@ export class Game {
       const lm = ctx.measureText('⚡');
       ctx.fillText('⚡', 0, (lm.actualBoundingBoxAscent - lm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      // All 8 indicators — destroys one random touching card
-      ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
-      const lcmc = 7;
-      ctx.beginPath(); ctx.moveTo(x + lcmc, y + lcmc); ctx.lineTo(x + lcmc + ts * 1.5, y + lcmc); ctx.lineTo(x + lcmc, y + lcmc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - lcmc, y + lcmc); ctx.lineTo(x + CARD - lcmc - ts * 1.5, y + lcmc); ctx.lineTo(x + CARD - lcmc, y + lcmc + ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + lcmc, y + CARD - lcmc); ctx.lineTo(x + lcmc + ts * 1.5, y + CARD - lcmc); ctx.lineTo(x + lcmc, y + CARD - lcmc - ts * 1.5); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x + CARD - lcmc, y + CARD - lcmc); ctx.lineTo(x + CARD - lcmc - ts * 1.5, y + CARD - lcmc); ctx.lineTo(x + CARD - lcmc, y + CARD - lcmc - ts * 1.5); ctx.fill();
       return;
     }
 
