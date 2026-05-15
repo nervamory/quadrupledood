@@ -52,7 +52,7 @@ export class UI {
 
   showMatchOver(opts: { myWins: number; oppWins: number; iWon: boolean }) {
     document.getElementById('matchover-result')!.textContent =
-      opts.iWon ? 'you win the match!' : 'you lose the match.';
+      opts.iWon ? 'sacrifice complete' : 'you have been sacrificed';
     document.getElementById('matchover-score')!.textContent =
       `final score: ${opts.myWins} — ${opts.oppWins}`;
     this.show(this.matchoverScreen);
