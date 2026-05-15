@@ -98,6 +98,7 @@ export class Game {
   private raf = 0;
   private spinAnim: { startTime: number; done: boolean; firstPlayer: number } | null = null;
   private lastHoverIdx: number | null = null;
+  private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
 
   private flipAnims: FlipAnim[] = [];
@@ -153,6 +154,10 @@ export class Game {
   setLocalActor(actorNr: number) {
     this.localNr = actorNr;
     if (!this.raf) this.start();
+  }
+
+  setMatchScore(score: Record<number, number>) {
+    this.matchScore = { ...score };
   }
 
   setState(state: GameState | null) {
@@ -358,6 +363,7 @@ export class Game {
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
+    this.matchScore = {};
     this.ctx.clearRect(0, 0, this.W, this.H);
   }
 
@@ -1595,6 +1601,18 @@ export class Game {
     }
 
     const myIsBlack = this.localNr === state.blackPlayer;
+
+    // match score at top center
+    const oppNrForScore = Object.keys(this.matchScore).map(Number).find(n => n !== this.localNr);
+    if (oppNrForScore !== undefined) {
+      const mw = this.matchScore[this.localNr] ?? 0;
+      const ow = this.matchScore[oppNrForScore] ?? 0;
+      ctx.font = '13px monospace';
+      ctx.fillStyle = '#555';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`match  ${mw} — ${ow}`, W / 2, 22);
+    }
 
     // grid
     for (let row = 0; row < 4; row++) {
