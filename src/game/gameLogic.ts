@@ -142,21 +142,28 @@ function triggerRobots(board: BoardCell[][]): void {
 }
 
 function triggerLightnings(board: BoardCell[][], seedId: string): void {
-  for (let r = 0; r < 4; r++) {
+  // Collect lightnings in row-major order (consistent play-order proxy across both clients)
+  const lightnings: { r: number; c: number; card: Card }[] = [];
+  for (let r = 0; r < 4; r++)
     for (let c = 0; c < 4; c++) {
       const cell = board[r][c];
-      if (!cell || !('card' in cell) || cell.card.type !== 'lightning') continue;
-      const targets: [number, number][] = [];
-      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
-        const nr = r + dr, nc = c + dc;
-        if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
-        const n = board[nr][nc];
-        if (n && !('blood' in n)) targets.push([nr, nc]);
-      }
-      if (targets.length === 0) continue;
-      const [tr, tc] = targets[cardHash(cell.card.id + seedId) % targets.length];
-      board[tr][tc] = null;
+      if (cell && 'card' in cell && cell.card.type === 'lightning') lightnings.push({ r, c, card: cell.card });
     }
+
+  const claimed = new Set<string>();
+  for (const { r, c, card } of lightnings) {
+    const targets: [number, number][] = [];
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
+      if (claimed.has(`${nr},${nc}`)) continue;
+      const n = board[nr][nc];
+      if (n && !('blood' in n)) targets.push([nr, nc]);
+    }
+    if (targets.length === 0) continue;
+    const [tr, tc] = targets[cardHash(card.id + seedId) % targets.length];
+    claimed.add(`${tr},${tc}`);
+    board[tr][tc] = null;
   }
 }
 
