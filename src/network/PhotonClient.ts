@@ -170,8 +170,14 @@ export class PhotonClient {
   }
 
   private doMatchmaking() {
-    (this.lbc as unknown as { joinRandomOrCreateRoom: (a: null, b: null, c: object) => void })
-      .joinRandomOrCreateRoom(null, null, { maxPlayers: 2, playerTTL: 1800000, emptyRoomLiveTime: 1800000 });
+    const rooms = this.lbc.availableRooms();
+    const open = rooms.find(r => r.playerCount === 1);
+    if (open) {
+      this.lbc.joinRoom(open.name, {}, { maxPlayers: 2, playerTTL: 1800000, emptyRoomLiveTime: 1800000 });
+    } else {
+      const roomName = Math.random().toString(36).slice(2, 10);
+      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { maxPlayers: 2, playerTTL: 1800000, emptyRoomLiveTime: 1800000 });
+    }
   }
 
   joinMatchmaking() {
