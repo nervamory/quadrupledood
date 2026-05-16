@@ -38,7 +38,7 @@ export class UI {
     if (opts.lockedDeck !== null) {
       deckSel.value = opts.lockedDeck;
       deckSel.disabled = true;
-      noteEl.textContent = 'winners keep their deck';
+      noteEl.textContent = "winners can't switch";
     } else {
       deckSel.disabled = false;
       noteEl.textContent = '';
