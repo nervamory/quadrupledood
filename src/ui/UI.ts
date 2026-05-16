@@ -1,14 +1,15 @@
 import type { DeckType } from '../game/types';
 
 export class UI {
-  private lobby        = document.getElementById('lobby-screen')!;
-  private gameScreen   = document.getElementById('game-screen')!;
-  private betweenScreen = document.getElementById('between-screen')!;
+  private lobby          = document.getElementById('lobby-screen')!;
+  private gameScreen     = document.getElementById('game-screen')!;
+  private betweenScreen  = document.getElementById('between-screen')!;
   private matchoverScreen = document.getElementById('matchover-screen')!;
-  private status       = document.getElementById('status')!;
+  private settingsScreen = document.getElementById('settings-screen')!;
+  private status         = document.getElementById('status')!;
 
   private allScreens() {
-    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen];
+    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen];
   }
 
   private show(screen: HTMLElement) {
@@ -16,8 +17,9 @@ export class UI {
     screen.classList.add('active');
   }
 
-  showLobby()   { this.show(this.lobby); }
-  showGame()    { this.show(this.gameScreen); }
+  showLobby()    { this.show(this.lobby); }
+  showGame()     { this.show(this.gameScreen); }
+  showSettings() { this.show(this.settingsScreen); }
 
   showBetweenGames(opts: {
     myWins: number;

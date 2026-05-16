@@ -880,42 +880,175 @@ export class Game {
     this.drag = null;
   };
 
+  private foilStyle = Math.min(2, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
+
+  setFoilStyle(n: number) {
+    this.foilStyle = Math.min(2, Math.max(0, n));
+    localStorage.setItem('foilStyle', String(this.foilStyle));
+  }
+
   private drawFoilOverlay(x: number, y: number) {
+    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][this.foilStyle].call(this, x, y);
+  }
+
+  // V1 — original: single rotating rainbow gradient + sheen
+  private drawFoilV1(x: number, y: number) {
     const ctx = this.ctx;
     const now = performance.now();
     const cx = x + CARD / 2;
     const cy = y + CARD / 2;
-
-    // Slowly rotating rainbow gradient
     const angle = (now / 3000) * Math.PI * 2;
     const r = CARD;
-    const grad = ctx.createLinearGradient(
-      cx + Math.cos(angle) * r, cy + Math.sin(angle) * r,
-      cx - Math.cos(angle) * r, cy - Math.sin(angle) * r,
-    );
+    const grad = ctx.createLinearGradient(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, cx - Math.cos(angle) * r, cy - Math.sin(angle) * r);
     grad.addColorStop(0,   'rgba(255,  20, 120, 0.30)');
     grad.addColorStop(0.2, 'rgba(255, 140,   0, 0.30)');
     grad.addColorStop(0.4, 'rgba(200, 255,   0, 0.30)');
     grad.addColorStop(0.6, 'rgba(  0, 255, 160, 0.30)');
     grad.addColorStop(0.8, 'rgba(  0, 140, 255, 0.30)');
     grad.addColorStop(1,   'rgba(180,   0, 255, 0.30)');
-
-    // Sweeping white sheen
     const sheenPos = ((now / 1800) % 1.6) - 0.3;
     const sx = x + sheenPos * CARD;
     const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.45, y);
     sheen.addColorStop(0,   'rgba(255,255,255,0)');
     sheen.addColorStop(0.5, 'rgba(255,255,255,0.18)');
     sheen.addColorStop(1,   'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, CARD, CARD, 6);
+    ctx.clip();
+    ctx.fillStyle = grad; ctx.fillRect(x, y, CARD, CARD);
+    ctx.fillStyle = sheen; ctx.fillRect(x, y, CARD, CARD);
+    ctx.restore();
+  }
+
+  // V2 — dark blues/greens/purples with cross-hatch depth and sparkles
+  private drawFoilV2(x: number, y: number) {
+    const ctx = this.ctx;
+    const now = performance.now();
+    const cx = x + CARD / 2;
+    const cy = y + CARD / 2;
+    const r = CARD * 0.9;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, CARD, CARD, 6);
+    ctx.clip();
+    const a1 = (now / 4000) * Math.PI * 2;
+    const g1 = ctx.createLinearGradient(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cx - Math.cos(a1) * r, cy - Math.sin(a1) * r);
+    g1.addColorStop(0,   'rgba(  0,  40, 180, 0.48)');
+    g1.addColorStop(0.2, 'rgba(  0, 160,  80, 0.48)');
+    g1.addColorStop(0.4, 'rgba( 80,   0, 200, 0.48)');
+    g1.addColorStop(0.6, 'rgba(  0, 100, 220, 0.48)');
+    g1.addColorStop(0.8, 'rgba(180, 160,   0, 0.48)');
+    g1.addColorStop(1,   'rgba( 60,   0, 180, 0.48)');
+    ctx.fillStyle = g1; ctx.fillRect(x, y, CARD, CARD);
+    const a2 = a1 + Math.PI * 0.45;
+    const g2 = ctx.createLinearGradient(cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cx - Math.cos(a2) * r, cy - Math.sin(a2) * r);
+    g2.addColorStop(0,   'rgba(  0, 120, 160, 0.24)');
+    g2.addColorStop(0.4, 'rgba( 40,   0, 180, 0.24)');
+    g2.addColorStop(0.7, 'rgba(  0, 180,  80, 0.24)');
+    g2.addColorStop(1,   'rgba(100,  80, 200, 0.24)');
+    ctx.fillStyle = g2; ctx.fillRect(x, y, CARD, CARD);
+    const SP: [number, number, number, number, number][] = [
+      [0.15, 0.12, 0.0, 1.0, 0.3], [0.82, 0.08, 1.2, 1.5, 1.1],
+      [0.67, 0.18, 0.7, 1.2, 0.0], [0.91, 0.31, 3.1, 1.4, 0.4],
+      [0.12, 0.55, 0.3, 1.0, 1.3], [0.38, 0.62, 1.5, 0.8, 0.7],
+      [0.58, 0.72, 0.9, 1.5, 1.0], [0.85, 0.65, 0.4, 0.9, 1.2],
+      [0.08, 0.90, 3.0, 0.8, 0.8], [0.78, 0.55, 0.2, 1.5, 1.0],
+    ];
+    ctx.lineWidth = 0.8;
+    for (const [fx, fy, phase, sf, rot] of SP) {
+      const alpha = Math.pow(Math.max(0, Math.sin(now / 1800 + phase)), 2);
+      if (alpha < 0.02) continue;
+      const spx = x + fx * CARD; const spy = y + fy * CARD;
+      const sz = (0.8 + sf * 1.4) * alpha;
+      ctx.globalAlpha = alpha; ctx.strokeStyle = 'white';
+      ctx.save(); ctx.translate(spx, spy); ctx.rotate(rot);
+      ctx.beginPath(); ctx.moveTo(-sz, 0); ctx.lineTo(sz, 0); ctx.moveTo(0, -sz); ctx.lineTo(0, sz); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    const sheenPos = ((now / 3500) % 1.6) - 0.3;
+    const sx = x + sheenPos * CARD;
+    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.4, y);
+    sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.5, 'rgba(255,255,255,0.28)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen; ctx.fillRect(x, y, CARD, CARD);
+    ctx.restore();
+  }
+
+  // V3 — Rainbow Rare / VMax: glitter base → hard-light rainbow gradients → fine texture
+  private drawFoilV3(x: number, y: number) {
+    const ctx = this.ctx;
+    const now = performance.now();
+    const cx = x + CARD / 2;
+    const cy = y + CARD / 2;
 
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(x, y, CARD, CARD, 6);
     ctx.clip();
-    ctx.fillStyle = grad;
+
+    // === Layer 1: Dense glitter base — bright dots, 1/3 twinkling ===
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'white';
+    for (let i = 0; i < 60; i++) {
+      const fx = (i * 0.618033) % 1;
+      const fy = (i * 0.381966) % 1;
+      const sz = 0.25 + (i % 4) * 0.18;
+      const twinkle = i % 3 === 0
+        ? Math.abs(Math.sin(now / 900 + i * 1.1))
+        : 0.45 + (i % 7) * 0.08;
+      ctx.globalAlpha = twinkle * 0.9;
+      ctx.beginPath();
+      ctx.arc(x + fx * CARD, y + fy * CARD, sz, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // === Layer 2: Fine diagonal cross-hatch texture ===
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.5;
+    for (let d = -CARD; d < CARD * 2; d += 5) {
+      ctx.beginPath(); ctx.moveTo(x + d, y); ctx.lineTo(x + d + CARD, y + CARD); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + d + CARD, y); ctx.lineTo(x + d, y + CARD); ctx.stroke();
+    }
+
+    // === Layer 3: Rainbow gradients with hard-light blend ===
+    ctx.globalCompositeOperation = 'hard-light';
+
+    const a = (now / 8000) * Math.PI * 2;
+    const r = CARD;
+    const g1 = ctx.createLinearGradient(cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx - Math.cos(a) * r, cy - Math.sin(a) * r);
+    g1.addColorStop(0,    'rgba(255, 100,  90, 0.82)');
+    g1.addColorStop(0.17, 'rgba(255, 200,  60, 0.82)');
+    g1.addColorStop(0.33, 'rgba(140, 255, 100, 0.82)');
+    g1.addColorStop(0.50, 'rgba( 50, 210, 255, 0.82)');
+    g1.addColorStop(0.67, 'rgba( 90, 100, 255, 0.82)');
+    g1.addColorStop(0.83, 'rgba(210,  70, 255, 0.82)');
+    g1.addColorStop(1,    'rgba(255, 100,  90, 0.82)');
+    ctx.fillStyle = g1;
     ctx.fillRect(x, y, CARD, CARD);
+
+    const a2 = a + Math.PI * 0.38;
+    const g2 = ctx.createLinearGradient(cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cx - Math.cos(a2) * r, cy - Math.sin(a2) * r);
+    g2.addColorStop(0,   'rgba(255, 255, 210, 0.50)');
+    g2.addColorStop(0.4, 'rgba(210, 255, 230, 0.50)');
+    g2.addColorStop(0.7, 'rgba(210, 210, 255, 0.50)');
+    g2.addColorStop(1,   'rgba(255, 220, 255, 0.50)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(x, y, CARD, CARD);
+
+    ctx.globalCompositeOperation = 'source-over';
+
+    // === Layer 4: Sheen sweep ===
+    const sheenPos = ((now / 3500) % 1.6) - 0.3;
+    const sx = x + sheenPos * CARD;
+    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.35, y);
+    sheen.addColorStop(0,   'rgba(255,255,255,0)');
+    sheen.addColorStop(0.5, 'rgba(255,255,255,0.20)');
+    sheen.addColorStop(1,   'rgba(255,255,255,0)');
     ctx.fillStyle = sheen;
     ctx.fillRect(x, y, CARD, CARD);
+
     ctx.restore();
   }
 

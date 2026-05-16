@@ -280,6 +280,25 @@ getElement('matchover-leave-btn').addEventListener('click', () => {
   ui.showLobby();
 });
 
+// ── settings ──────────────────────────────────────────────────────────────────
+
+const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
+foilSelect.value = String(Math.min(2, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
+foilSelect.addEventListener('change', () => game.setFoilStyle(parseInt(foilSelect.value, 10)));
+
+const deckSelect    = getElement<HTMLSelectElement>('deck-select');
+const prefDeckSelect = getElement<HTMLSelectElement>('pref-deck-select');
+const savedDeck = localStorage.getItem('deckPref') ?? 'random';
+deckSelect.value = savedDeck;
+prefDeckSelect.value = savedDeck;
+prefDeckSelect.addEventListener('change', () => {
+  localStorage.setItem('deckPref', prefDeckSelect.value);
+  deckSelect.value = prefDeckSelect.value;
+});
+
+getElement('settings-btn').addEventListener('click', () => ui.showSettings());
+getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
+
 // ── debug toggle ──────────────────────────────────────────────────────────────
 
 document.addEventListener('keydown', (e) => {

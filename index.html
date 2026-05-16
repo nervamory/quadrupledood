@@ -62,7 +62,10 @@
           <button id="join-btn">sacrifice</button>
         </div>
         <p id="status">channeling…</p>
-        <p style="margin-top:18px; color:#333; font-size:11px; font-family:monospace;">v5.9</p>
+        <div style="margin-top:60px;">
+          <button id="settings-btn">settings</button>
+        </div>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v6.0</p>
       </div>
       <div id="game-screen" class="screen">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -94,6 +97,38 @@
         <button id="ready-btn">continue sacrifice</button>
         <button id="between-leave-btn">leave room</button>
         <p id="between-status" style="margin-top:10px; color:#555; font-size:13px;"></p>
+      </div>
+      <div id="settings-screen" class="screen">
+        <h2 style="line-height:1.1; margin-bottom:32px;">settings</h2>
+        <div style="margin-bottom:20px;">
+          <label style="color:#555; font-size:13px; margin-right:10px;">foil style</label>
+          <select id="foil-style-select">
+            <option value="0">classic</option>
+            <option value="1">dark holo</option>
+            <option value="2">rainbow rare</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="color:#555; font-size:13px; margin-right:10px;">default deck</label>
+          <select id="pref-deck-select">
+            <option value="random">random deck</option>
+            <option value="vampire">vampire deck</option>
+            <option value="werewolf">werewolf deck</option>
+            <option value="ocean">ocean deck</option>
+            <option value="bones">bones deck</option>
+            <option value="zombie">zombie deck</option>
+            <option value="oni">oni deck</option>
+            <option value="spider">spider deck</option>
+            <option value="knife">knife deck</option>
+            <option value="demon">demon deck</option>
+            <option value="clown">clown deck</option>
+            <option value="succubus">succubus deck</option>
+            <option value="ghost">ghost deck</option>
+            <option value="robot">robot deck</option>
+            <option value="dolphin">dolphin deck</option>
+          </select>
+        </div>
+        <button id="settings-back-btn" style="margin-top:12px;">back</button>
       </div>
       <div id="matchover-screen" class="screen">
         <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>
