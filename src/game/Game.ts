@@ -78,6 +78,7 @@ const CARD_LABELS: Record<CardType, string> = {
   robot:    'flips all touching ownership each turn',
   lightning: 'destroys one random touching card',
   outlet:   'captures up & down; retriggers all lightnings on board',
+  bat:      'spawns a copy in a touching square; becomes blood when captured',
 };
 
 type SwapCardAnim = {
@@ -1548,6 +1549,18 @@ export class Game {
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      return;
+    }
+
+    if (card.type === 'bat') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const bm = ctx.measureText('🦇');
+      ctx.fillText('🦇', 0, (bm.actualBoundingBoxAscent - bm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
       return;
     }
 

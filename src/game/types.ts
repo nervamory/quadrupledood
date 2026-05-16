@@ -1,5 +1,5 @@
 export type Direction = 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right';
-export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien' | 'imp' | 'hellfire' | 'snake' | 'clown' | 'clown-car' | 'balloon' | 'succubus' | 'lipstick' | 'kisses' | 'crystal-ball' | 'candle' | 'robot' | 'lightning' | 'outlet';
+export type CardType = 'knife' | 'heart' | 'eye' | 'tooth' | 'moon' | 'mirror' | 'vampire' | 'bandage' | 'ghost' | 'fog' | 'wolf' | 'squid' | 'mermaid' | 'bubbles' | 'skull' | 'bone' | 'zombie' | 'brain' | 'gravestone' | 'oni' | 'fire' | 'hand' | 'spider' | 'web' | 'egg' | 'troll' | 'dragon' | 'alien' | 'imp' | 'hellfire' | 'snake' | 'clown' | 'clown-car' | 'balloon' | 'succubus' | 'lipstick' | 'kisses' | 'crystal-ball' | 'candle' | 'robot' | 'lightning' | 'outlet' | 'bat';
 
 export type Card = {
   id: string;

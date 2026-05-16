@@ -27,7 +27,7 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle', 'lightning', 'outlet'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle', 'lightning', 'outlet', 'bat'];
 const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus', 'robot'];
 
 function pick(pool: CardType[], n: number): CardType[] {
@@ -41,7 +41,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = ['ghost', 'heart', 'eye', 'mirror', 'bandage', 'fog', 'wolf', 'moon', 'tooth', 'vampire', 'knife', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone', 'oni', 'fire', 'imp', 'hellfire', 'snake', 'clown', 'clown-car', 'balloon', 'succubus', 'lipstick', 'kisses'];
       break;
     case 'vampire':
-      types = ['vampire', 'heart', 'eye', 'eye', 'knife', ...pick(COMMON, 4)];
+      types = ['vampire', 'bat', 'bat', 'eye', 'knife', ...pick(COMMON, 4)];
       break;
     case 'werewolf':
       types = ['wolf', 'wolf', 'moon', 'fog', 'knife', ...pick(COMMON, 4)];
@@ -102,7 +102,7 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       direction = deck === 'bones'
         ? (boneIdx++ % 2 === 0 ? 'up-right' : 'up-left')
         : (Math.random() < 0.5 ? 'up-right' : 'up-left');
-    } else if (type === 'outlet' || type === 'robot') {
+    } else if (type === 'outlet' || type === 'robot' || type === 'bat') {
       direction = 'up';
     } else if (type === 'snake' && deck === 'demon') {
       direction = snakeIdx++ % 2 === 0 ? 'right' : 'up';
@@ -212,7 +212,7 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
     const [dr, dc] = OFFSETS[cell.card.direction];
     if (row + dr === fromRow && col + dc === fromCol) return;
   }
-  if (cell.card.type === 'brain') {
+  if (cell.card.type === 'brain' || cell.card.type === 'bat') {
     board[row][col] = { blood: true };
   } else if (cell.card.type === 'bubbles') {
     bubblesPop(board, row, col, attackerNr);
@@ -701,7 +701,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
   }
 
   // Passive cards — no captures on placement
-  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle' || placed.card.type === 'robot') return;
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle' || placed.card.type === 'robot' || placed.card.type === 'bat') return;
 
   if (placed.card.type === 'succubus') {
     // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer
@@ -986,6 +986,20 @@ export function placeCard(
       const clownCard: Card = { id: `cc-clown-${r}-${c}-${card.id}`, direction: dirs[h % 4], type: 'clown' };
       newBoard[er][ec] = { card: clownCard, owner: otherPlayer };
       resolveCaptures(newBoard, er, ec, otherPlayer);
+    }
+  }
+
+  // Bat: spawn one copy in a random touching empty cell
+  if (card.type === 'bat') {
+    const empty: [number, number][] = [];
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
+      const nr = row + dr, nc = col + dc;
+      if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4 && !newBoard[nr][nc]) empty.push([nr, nc]);
+    }
+    if (empty.length > 0) {
+      const [sr, sc] = empty[cardHash(card.id) % empty.length];
+      const spawnCard: Card = { id: `bat-spawn-${row}-${col}-${card.id}`, direction: 'up', type: 'bat' };
+      newBoard[sr][sc] = { card: spawnCard, owner: actorNr };
     }
   }
 
