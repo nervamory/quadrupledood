@@ -291,6 +291,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       for (let c = 0; c < 4; c++) {
         const cell = board[r][c];
         if (cell && 'blood' in cell) {
+          _vampireBloodCells.push([r, c]);
           const vampCard: Card = { id: `vamp-${r}-${c}`, direction: 'down', type: 'vampire' };
           board[r][c] = { card: vampCard, owner: actorNr };
           resolveCaptures(board, r, c, actorNr);
@@ -798,6 +799,7 @@ let _candleFirePos: [number, number] | null = null;
 let _lightningTargets: [number, number][] = [];
 let _succubusPulls: { fromRow: number; fromCol: number; toRow: number; toCol: number; card: Card }[] = [];
 let _knifeBlocks: [number, number][] = [];
+let _vampireBloodCells: [number, number][] = [];
 let _lastPlayed: Record<number, Card | undefined> = {};
 let _lastPlayedPos: Record<number, [number, number] | undefined> = {};
 
@@ -848,6 +850,7 @@ export function placeCard(
   _lightningTargets = [];
   _succubusPulls = [];
   _knifeBlocks = [];
+  _vampireBloodCells = [];
 
   const hand = state.hands[actorNr] ?? [];
   const cardIdx = hand.findIndex(c => c.id === cardId);
@@ -1075,11 +1078,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, knifeBlocks: _knifeBlocks.length ? [..._knifeBlocks] : undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, knifeBlocks: _knifeBlocks.length ? [..._knifeBlocks] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, knifeBlocks: _knifeBlocks.length ? [..._knifeBlocks] : undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, knifeBlocks: _knifeBlocks.length ? [..._knifeBlocks] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
 }

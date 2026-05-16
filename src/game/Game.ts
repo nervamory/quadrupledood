@@ -136,6 +136,7 @@ export class Game {
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
   private knifeShakeAnims: { row: number; col: number; startTime: number }[] = [];
+  private vampireAnim: { vampX: number; vampY: number; cells: { row: number; col: number; fromX: number; fromY: number }[]; startTime: number; hiddenKeys: Set<string> } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
@@ -176,7 +177,7 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.knifeShakeAnims = []; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.knifeShakeAnims = []; this.vampireAnim = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -188,6 +189,7 @@ export class Game {
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
       this.detectKnifeBlocks(state);
+      this.detectVampireCapture(state);
     }
     this.state = state;
   }
@@ -509,6 +511,41 @@ export class Game {
     ctx.restore();
   }
 
+  private detectVampireCapture(newState: GameState) {
+    const vc = newState.vampireCaptures;
+    if (!vc || vc.bloodCells.length === 0) return;
+    const vampPos = this.cellPos(vc.vampRow, vc.vampCol);
+    const vampX = vampPos.x + CELL / 2;
+    const vampY = vampPos.y + CELL / 2;
+    const cells = vc.bloodCells.map(([row, col]) => {
+      const { x, y } = this.cellPos(row, col);
+      return { row, col, fromX: x + CELL / 2, fromY: y + CELL / 2 };
+    });
+    const hiddenKeys = new Set(vc.bloodCells.map(([r, c]) => `${r},${c}`));
+    this.vampireAnim = { vampX, vampY, cells, startTime: performance.now(), hiddenKeys };
+  }
+
+  private drawVampireAnim(now: number) {
+    if (!this.vampireAnim) return;
+    const DURATION = 380;
+    const t = Math.min((now - this.vampireAnim.startTime) / DURATION, 1);
+    if (t >= 1) { this.vampireAnim = null; return; }
+
+    const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out toward vampire
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.font = '24px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 1 - t;
+    for (const { fromX, fromY } of this.vampireAnim.cells) {
+      const x = fromX + (this.vampireAnim.vampX - fromX) * e;
+      const y = fromY + (this.vampireAnim.vampY - fromY) * e;
+      ctx.fillText('🩸', x, y);
+    }
+    ctx.restore();
+  }
+
   private detectKnifeBlocks(newState: GameState) {
     const blocks = newState.knifeBlocks;
     if (!blocks || blocks.length === 0) return;
@@ -578,6 +615,7 @@ export class Game {
     this.popAnims = [];
     this.mermaidPullAnim = null;
     this.knifeShakeAnims = [];
+    this.vampireAnim = null;
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
@@ -1888,6 +1926,7 @@ export class Game {
         const cell = state.board[row][col];
         if (cell && 'card' in cell && this.mermaidPullAnim?.hiddenCardId === cell.card.id) continue;
         if (cell && 'card' in cell && this.succubusPullAnims.some(a => a.hiddenCardId === cell.card.id)) continue;
+        if (this.vampireAnim?.hiddenKeys.has(`${row},${col}`)) continue;
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
@@ -2143,6 +2182,9 @@ export class Game {
 
     // mermaid pull — card flies from opponent hand fan to board cell
     this.drawMermaidPullAnim(now);
+
+    // vampire drain — blood emojis fly toward vampire before squares become vampires
+    this.drawVampireAnim(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
     if (this.ghostSwapAnim) {
