@@ -132,6 +132,8 @@ export class Game {
   private lightningFlashAnims: { row: number; col: number; startTime: number }[] = [];
   private scoreAnimMy: number | null = null;
   private scoreAnimOpp: number | null = null;
+  private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean }[] = [];
+  private popAnims: { row: number; col: number; startTime: number }[] = [];
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
@@ -172,7 +174,7 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -180,6 +182,8 @@ export class Game {
       this.detectCrystalBallReturn(this.state, state);
       this.detectLightningFlash(state);
       this.detectScoreChange(this.state, state);
+      this.detectSuccubusPull(state);
+      this.detectPops(this.state, state);
     }
     this.state = state;
   }
@@ -250,9 +254,11 @@ export class Game {
     if (this.localNr === 0) return;
     const now = performance.now();
     const FIRE_STAGGER_MS = 150;
+    const MOON_STAGGER_MS = 70;
     const fireChain = newState.fireChain ?? [];
     const candleFirePos = newState.candleFirePos;
     const isCandlePlay = !!candleFirePos;
+    const moonPos = newState.moonPos;
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         const old = oldState.board[r][c];
@@ -261,11 +267,14 @@ export class Game {
           this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
           const isCandleCell = isCandlePlay && candleFirePos![0] === r && candleFirePos![1] === c;
           const chainIdx = fireChain.findIndex(([fr, fc]) => fr === r && fc === c);
+          const moonDist = moonPos ? Math.abs(r - moonPos[0]) + Math.abs(c - moonPos[1]) : -1;
           const delay = isCandleCell
             ? FIRE_STAGGER_MS
             : chainIdx >= 0
               ? (isCandlePlay ? chainIdx + 2 : chainIdx) * FIRE_STAGGER_MS
-              : 0;
+              : moonDist > 0
+                ? (moonDist - 1) * MOON_STAGGER_MS
+                : 0;
           this.flipAnims.push({
             row: r, col: c,
             startTime: now + delay,
@@ -356,6 +365,81 @@ export class Game {
     if (oppNr !== undefined && scoreOf(newState, oppNr) !== scoreOf(oldState, oppNr)) this.scoreAnimOpp = now;
   }
 
+  private detectSuccubusPull(newState: GameState) {
+    const pulls = newState.succubusPulls;
+    if (!pulls || pulls.length === 0) return;
+    const now = performance.now();
+    const pad = (CELL - CARD) / 2;
+    for (const { fromRow, fromCol, toRow, toCol, card } of pulls) {
+      const from = this.cellPos(fromRow, fromCol);
+      const to   = this.cellPos(toRow, toCol);
+      const isBlack = (() => {
+        const cell = newState.board[toRow][toCol];
+        return cell && 'card' in cell ? cell.owner === newState.blackPlayer : false;
+      })();
+      this.succubusPullAnims.push({
+        card,
+        fromX: from.x + pad, fromY: from.y + pad,
+        toX:   to.x   + pad, toY:   to.y   + pad,
+        startTime: now,
+        isBlack,
+      });
+    }
+  }
+
+  private drawSuccubusPullAnims(now: number) {
+    if (this.succubusPullAnims.length === 0) return;
+    const DURATION = 280;
+    const ctx = this.ctx;
+    this.succubusPullAnims = this.succubusPullAnims.filter(a => now - a.startTime < DURATION);
+    for (const { card, fromX, fromY, toX, toY, startTime, isBlack } of this.succubusPullAnims) {
+      const t = Math.min((now - startTime) / DURATION, 1);
+      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+      const x = fromX + (toX - fromX) * e;
+      const y = fromY + (toY - fromY) * e;
+      ctx.save();
+      ctx.globalAlpha = 1 - t * 0.5; // subtle fade
+      this.drawCard(x, y, card, isBlack);
+      ctx.restore();
+    }
+  }
+
+  private detectPops(oldState: GameState, newState: GameState) {
+    const now = performance.now();
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const old = oldState.board[r][c];
+        if (!old || !('card' in old)) continue;
+        if (old.card.type !== 'balloon' && old.card.type !== 'bubbles') continue;
+        const next = newState.board[r][c];
+        const popped = !next || ('blood' in next) || ('card' in next && next.card.type !== old.card.type);
+        if (popped) this.popAnims.push({ row: r, col: c, startTime: now });
+      }
+    }
+  }
+
+  private drawPopAnims(now: number) {
+    if (this.popAnims.length === 0) return;
+    const DURATION = 380;
+    const ctx = this.ctx;
+    this.popAnims = this.popAnims.filter(a => now - a.startTime < DURATION);
+    for (const { row, col, startTime } of this.popAnims) {
+      const t = Math.min((now - startTime) / DURATION, 1);
+      const { x, y } = this.cellPos(row, col);
+      const cx = x + CELL / 2, cy = y + CELL / 2;
+      const radius = CELL * 0.35 + CELL * 0.65 * t;
+      const alpha = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#aaddff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   private detectCrystalBallReturn(_oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const cbr = newState.crystalBallReturn;
@@ -411,6 +495,8 @@ export class Game {
     this.lightningFlashAnims = [];
     this.scoreAnimMy = null;
     this.scoreAnimOpp = null;
+    this.succubusPullAnims = [];
+    this.popAnims = [];
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
@@ -1957,6 +2043,12 @@ export class Game {
 
     // lightning flash — yellow rect over destroyed cells, fades out
     this.drawLightningFlash(now);
+
+    // balloon/bubbles pop — expanding ring
+    this.drawPopAnims(now);
+
+    // succubus pull — ghost card sliding from old to new position
+    this.drawSuccubusPullAnims(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
     if (this.ghostSwapAnim) {
