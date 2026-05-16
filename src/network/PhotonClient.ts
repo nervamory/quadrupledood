@@ -69,7 +69,7 @@ export class PhotonClient {
       if (document.visibilityState === 'visible' && this.gaveUp) {
         this.gaveUp = false;
         this.retryCount = 0;
-        this.cb.onStatusChange('reconnecting…');
+        this.cb.onStatusChange('rechanneling…');
         this.lbc.connectToRegionMaster('us');
       }
     });
@@ -91,7 +91,7 @@ export class PhotonClient {
           this.cb.onDisconnected();
           if (this.retryCount < MAX_RETRIES) {
             this.retryCount++;
-            this.cb.onStatusChange('reconnecting…');
+            this.cb.onStatusChange('rechanneling…');
             setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
           } else {
             this.gaveUp = true;
