@@ -143,6 +143,7 @@ const photon = new PhotonClient({
   },
   onGameStart: (state) => {
     gameState = state;
+    myPlayedDeck = myReadyDeck ?? getSelectedDeck();
     game.setMatchScore(matchScore);
     game.setState(state);
     ui.showGame();
