@@ -132,7 +132,7 @@ export class Game {
   private lightningFlashAnims: { row: number; col: number; startTime: number }[] = [];
   private scoreAnimMy: number | null = null;
   private scoreAnimOpp: number | null = null;
-  private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean }[] = [];
+  private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string } | null = null;
 
@@ -385,6 +385,7 @@ export class Game {
         toX:   to.x   + pad, toY:   to.y   + pad,
         startTime: now,
         isBlack,
+        hiddenCardId: card.id,
       });
     }
   }
@@ -392,17 +393,13 @@ export class Game {
   private drawSuccubusPullAnims(now: number) {
     if (this.succubusPullAnims.length === 0) return;
     const DURATION = 280;
-    const ctx = this.ctx;
     this.succubusPullAnims = this.succubusPullAnims.filter(a => now - a.startTime < DURATION);
     for (const { card, fromX, fromY, toX, toY, startTime, isBlack } of this.succubusPullAnims) {
       const t = Math.min((now - startTime) / DURATION, 1);
       const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
       const x = fromX + (toX - fromX) * e;
       const y = fromY + (toY - fromY) * e;
-      ctx.save();
-      ctx.globalAlpha = 1 - t * 0.5; // subtle fade
       this.drawCard(x, y, card, isBlack);
-      ctx.restore();
     }
   }
 
@@ -422,7 +419,7 @@ export class Game {
 
   private drawPopAnims(now: number) {
     if (this.popAnims.length === 0) return;
-    const DURATION = 380;
+    const DURATION = 190;
     const ctx = this.ctx;
     this.popAnims = this.popAnims.filter(a => now - a.startTime < DURATION);
     for (const { row, col, startTime } of this.popAnims) {
@@ -432,6 +429,9 @@ export class Game {
       const radius = CELL * 0.35 + CELL * 0.65 * t;
       const alpha = Math.max(0, 1 - t);
       ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, CELL, CELL);
+      ctx.clip();
       ctx.globalAlpha = alpha * 0.7;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -1856,6 +1856,7 @@ export class Game {
 
         const cell = state.board[row][col];
         if (cell && 'card' in cell && this.mermaidPullAnim?.hiddenCardId === cell.card.id) continue;
+        if (cell && 'card' in cell && this.succubusPullAnims.some(a => a.hiddenCardId === cell.card.id)) continue;
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
