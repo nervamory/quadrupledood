@@ -495,12 +495,12 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
   if (placed.card.type === 'fire') {
     // Wildfire: transforms the card in the pointing direction into fire (bypasses all capture blocks).
-    // The new fire resolves its own captures, chaining until it hits empty, blood, a friendly, or the edge.
+    // The new fire resolves its own captures, chaining until it hits empty, blood, or the edge.
     const [dr, dc] = OFFSETS[placed.card.direction];
     const nr = row + dr, nc = col + dc;
     if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
       const neighbor = board[nr][nc];
-      if (neighbor && !('blood' in neighbor) && neighbor.owner !== actorNr) {
+      if (neighbor && !('blood' in neighbor)) {
         _fireChain.push([nr, nc]);
         const spreadFire: Card = { id: `fire-${nr}-${nc}-${placed.card.id}`, direction: placed.card.direction, type: 'fire' };
         board[nr][nc] = { card: spreadFire, owner: actorNr };
