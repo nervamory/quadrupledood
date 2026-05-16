@@ -135,6 +135,7 @@ export class Game {
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
+  private knifeShakeAnims: { row: number; col: number; startTime: number }[] = [];
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
@@ -175,7 +176,7 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.knifeShakeAnims = []; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -186,6 +187,7 @@ export class Game {
       this.detectSuccubusPull(this.state, state);
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
+      this.detectKnifeBlocks(state);
     }
     this.state = state;
   }
@@ -507,6 +509,16 @@ export class Game {
     ctx.restore();
   }
 
+  private detectKnifeBlocks(newState: GameState) {
+    const blocks = newState.knifeBlocks;
+    if (!blocks || blocks.length === 0) return;
+    const now = performance.now();
+    for (const [row, col] of blocks) {
+      this.knifeShakeAnims = this.knifeShakeAnims.filter(a => !(a.row === row && a.col === col));
+      this.knifeShakeAnims.push({ row, col, startTime: now });
+    }
+  }
+
   private detectCrystalBallReturn(_oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const cbr = newState.crystalBallReturn;
@@ -565,6 +577,7 @@ export class Game {
     this.succubusPullAnims = [];
     this.popAnims = [];
     this.mermaidPullAnim = null;
+    this.knifeShakeAnims = [];
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
@@ -1894,8 +1907,16 @@ export class Game {
             if (t >= 1) this.flipAnims = this.flipAnims.filter(f => f !== flip);
           } else {
             const fogged = this.isFoggedFor(row, col) && !this.isNearFire(row, col);
-            this.drawCard(x + pad, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
-            if (cell.zombified) this.drawZombifiedOverlay(x + pad, y + pad);
+            const shake = (() => {
+              const sa = this.knifeShakeAnims.find(a => a.row === row && a.col === col);
+              if (!sa) return 0;
+              const SHAKE_DUR = 450;
+              const st = (now - sa.startTime) / SHAKE_DUR;
+              if (st >= 1) { this.knifeShakeAnims = this.knifeShakeAnims.filter(a => a !== sa); return 0; }
+              return Math.sin(st * Math.PI * 4) * 3 * (1 - st);
+            })();
+            this.drawCard(x + pad + shake, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
+            if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad);
           }
         } else if (cell && 'blood' in cell) {
           ctx.font = '36px serif';
