@@ -955,6 +955,7 @@ export function placeCard(
   }
 
   // Mermaid: pull a random opponent hand card onto a random empty board cell
+  let mermaidPull: GameState['mermaidPull'] | undefined;
   if (card.type === 'mermaid') {
     const oppCards = newHands[otherPlayer];
     if (oppCards.length > 0) {
@@ -966,6 +967,7 @@ export function placeCard(
         const h = cardHash(card.id);
         const pullIdx = h % oppCards.length;
         const [er, ec] = emptyCells[(h >>> 8) % emptyCells.length];
+        mermaidPull = { card: oppCards[pullIdx], toRow: er, toCol: ec };
         newBoard[er][ec] = { card: oppCards[pullIdx], owner: actorNr };
         newHands = { ...newHands, [otherPlayer]: oppCards.filter((_, i) => i !== pullIdx) };
       }
@@ -1068,11 +1070,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, currentTurn: nextTurn };
 }

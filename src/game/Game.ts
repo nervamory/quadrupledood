@@ -134,6 +134,7 @@ export class Game {
   private scoreAnimOpp: number | null = null;
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
+  private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
@@ -174,7 +175,7 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -184,6 +185,7 @@ export class Game {
       this.detectScoreChange(this.state, state);
       this.detectSuccubusPull(state);
       this.detectPops(this.state, state);
+      this.detectMermaidPull(this.state, state);
     }
     this.state = state;
   }
@@ -440,6 +442,53 @@ export class Game {
     }
   }
 
+  private detectMermaidPull(oldState: GameState, newState: GameState) {
+    const pull = newState.mermaidPull;
+    if (!pull || this.localNr === 0) return;
+    const playerNrs = Object.keys(newState.hands).map(Number);
+    const oppNr = playerNrs.find(n => n !== this.localNr);
+    if (oppNr === undefined) return;
+
+    // Find the pulled card's position in the opponent's OLD hand fan
+    const oldOppHand = oldState.hands[oppNr] ?? [];
+    const cardIdx = oldOppHand.findIndex(c => c.id === pull.card.id);
+    if (cardIdx === -1) return;
+    const layout = this.computeHandLayout(oldOppHand, false);
+    const { cx, cy, rotation } = layout[cardIdx];
+
+    const pad = (CELL - CARD) / 2;
+    const to = this.cellPos(pull.toRow, pull.toCol);
+    const isBlack = oppNr === newState.blackPlayer;
+
+    this.mermaidPullAnim = {
+      card: pull.card,
+      fromX: cx, fromY: cy, fromRot: rotation,
+      toX: to.x + pad + CARD / 2, toY: to.y + pad + CARD / 2,
+      startTime: performance.now(),
+      isBlack,
+      hiddenCardId: pull.card.id,
+    };
+  }
+
+  private drawMermaidPullAnim(now: number) {
+    if (!this.mermaidPullAnim) return;
+    const DURATION = 380;
+    const { card, fromX, fromY, fromRot, toX, toY, startTime, isBlack } = this.mermaidPullAnim;
+    const t = Math.min((now - startTime) / DURATION, 1);
+    if (t >= 1) { this.mermaidPullAnim = null; return; }
+
+    const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+    const x = fromX + (toX - fromX) * e;
+    const y = fromY + (toY - fromY) * e;
+    const rot = fromRot * (1 - e); // straighten as it arrives
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    this.drawCard(-CARD / 2, -CARD / 2, card, isBlack);
+    ctx.restore();
+  }
+
   private detectCrystalBallReturn(_oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const cbr = newState.crystalBallReturn;
@@ -497,6 +546,7 @@ export class Game {
     this.scoreAnimOpp = null;
     this.succubusPullAnims = [];
     this.popAnims = [];
+    this.mermaidPullAnim = null;
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
@@ -1805,6 +1855,7 @@ export class Game {
         ctx.stroke();
 
         const cell = state.board[row][col];
+        if (cell && 'card' in cell && this.mermaidPullAnim?.hiddenCardId === cell.card.id) continue;
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
@@ -2049,6 +2100,9 @@ export class Game {
 
     // succubus pull — ghost card sliding from old to new position
     this.drawSuccubusPullAnims(now);
+
+    // mermaid pull — card flies from opponent hand fan to board cell
+    this.drawMermaidPullAnim(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
     if (this.ghostSwapAnim) {
