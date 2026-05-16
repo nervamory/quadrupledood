@@ -56,7 +56,7 @@ const CARD_LABELS: Record<CardType, string> = {
   brain:   'becomes blood when captured',
   gravestone: 'become zombie if uncaptured',
   oni:     'summons 2 flanking hand cards',
-  fire:    'wildfire: transforms in direction, chaining',
+  fire:    'wildfire: chains through any card in direction',
   hand:    'captures in finger direction',
   spider:  'captures all 8 touching cells',
   web:     'replaces any played card',
