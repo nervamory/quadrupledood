@@ -134,7 +134,7 @@ export class Game {
   private scoreAnimOpp: number | null = null;
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
-  private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string } | null = null;
+  private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
@@ -458,14 +458,17 @@ export class Game {
 
     const pad = (CELL - CARD) / 2;
     const to = this.cellPos(pull.toRow, pull.toCol);
-    const isBlack = oppNr === newState.blackPlayer;
+    const landCell = newState.board[pull.toRow][pull.toCol];
+    const landIsBlack = landCell && 'card' in landCell ? landCell.owner === newState.blackPlayer : false;
 
     this.mermaidPullAnim = {
       card: pull.card,
       fromX: cx, fromY: cy, fromRot: rotation,
       toX: to.x + pad + CARD / 2, toY: to.y + pad + CARD / 2,
+      toRow: pull.toRow, toCol: pull.toCol,
       startTime: performance.now(),
-      isBlack,
+      pullIsBlack: oppNr === newState.blackPlayer, // opponent's color during flight
+      landIsBlack,                                  // mermaid player's color after landing
       hiddenCardId: pull.card.id,
     };
   }
@@ -473,9 +476,15 @@ export class Game {
   private drawMermaidPullAnim(now: number) {
     if (!this.mermaidPullAnim) return;
     const DURATION = 380;
-    const { card, fromX, fromY, fromRot, toX, toY, startTime, isBlack } = this.mermaidPullAnim;
+    const { card, fromX, fromY, fromRot, toX, toY, toRow, toCol, startTime, pullIsBlack, landIsBlack } = this.mermaidPullAnim;
     const t = Math.min((now - startTime) / DURATION, 1);
-    if (t >= 1) { this.mermaidPullAnim = null; return; }
+    if (t >= 1) {
+      // land: synthesize a flip from opponent color → mermaid player color
+      this.flipAnims = this.flipAnims.filter(f => !(f.row === toRow && f.col === toCol));
+      this.flipAnims.push({ row: toRow, col: toCol, startTime: now, oldCard: card, oldIsBlack: pullIsBlack, newCard: card, newIsBlack: landIsBlack });
+      this.mermaidPullAnim = null;
+      return;
+    }
 
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
     const x = fromX + (toX - fromX) * e;
@@ -485,7 +494,7 @@ export class Game {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rot);
-    this.drawCard(-CARD / 2, -CARD / 2, card, isBlack);
+    this.drawCard(-CARD / 2, -CARD / 2, card, pullIsBlack);
     ctx.restore();
   }
 
