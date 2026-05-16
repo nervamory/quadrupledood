@@ -132,7 +132,7 @@ export class Game {
   private lightningFlashAnims: { row: number; col: number; startTime: number }[] = [];
   private scoreAnimMy: number | null = null;
   private scoreAnimOpp: number | null = null;
-  private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string }[] = [];
+  private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
 
@@ -183,7 +183,7 @@ export class Game {
       this.detectCrystalBallReturn(this.state, state);
       this.detectLightningFlash(state);
       this.detectScoreChange(this.state, state);
-      this.detectSuccubusPull(state);
+      this.detectSuccubusPull(this.state, state);
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
     }
@@ -367,7 +367,7 @@ export class Game {
     if (oppNr !== undefined && scoreOf(newState, oppNr) !== scoreOf(oldState, oppNr)) this.scoreAnimOpp = now;
   }
 
-  private detectSuccubusPull(newState: GameState) {
+  private detectSuccubusPull(oldState: GameState, newState: GameState) {
     const pulls = newState.succubusPulls;
     if (!pulls || pulls.length === 0) return;
     const now = performance.now();
@@ -375,16 +375,18 @@ export class Game {
     for (const { fromRow, fromCol, toRow, toCol, card } of pulls) {
       const from = this.cellPos(fromRow, fromCol);
       const to   = this.cellPos(toRow, toCol);
-      const isBlack = (() => {
-        const cell = newState.board[toRow][toCol];
-        return cell && 'card' in cell ? cell.owner === newState.blackPlayer : false;
-      })();
+      const oldCell = oldState.board[fromRow][fromCol];
+      const pullIsBlack = oldCell && 'card' in oldCell ? oldCell.owner === oldState.blackPlayer : false;
+      const landCell = newState.board[toRow][toCol];
+      const landIsBlack = landCell && 'card' in landCell ? landCell.owner === newState.blackPlayer : false;
       this.succubusPullAnims.push({
         card,
         fromX: from.x + pad, fromY: from.y + pad,
         toX:   to.x   + pad, toY:   to.y   + pad,
+        toRow, toCol,
         startTime: now,
-        isBlack,
+        pullIsBlack,
+        landIsBlack,
         hiddenCardId: card.id,
       });
     }
@@ -393,14 +395,21 @@ export class Game {
   private drawSuccubusPullAnims(now: number) {
     if (this.succubusPullAnims.length === 0) return;
     const DURATION = 280;
-    this.succubusPullAnims = this.succubusPullAnims.filter(a => now - a.startTime < DURATION);
-    for (const { card, fromX, fromY, toX, toY, startTime, isBlack } of this.succubusPullAnims) {
-      const t = Math.min((now - startTime) / DURATION, 1);
-      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
-      const x = fromX + (toX - fromX) * e;
-      const y = fromY + (toY - fromY) * e;
-      this.drawCard(x, y, card, isBlack);
+    const ongoing: typeof this.succubusPullAnims = [];
+    for (const anim of this.succubusPullAnims) {
+      const t = Math.min((now - anim.startTime) / DURATION, 1);
+      if (t >= 1) {
+        this.flipAnims = this.flipAnims.filter(f => !(f.row === anim.toRow && f.col === anim.toCol));
+        this.flipAnims.push({ row: anim.toRow, col: anim.toCol, startTime: now, oldCard: anim.card, oldIsBlack: anim.pullIsBlack, newCard: anim.card, newIsBlack: anim.landIsBlack });
+        continue;
+      }
+      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      const x = anim.fromX + (anim.toX - anim.fromX) * e;
+      const y = anim.fromY + (anim.toY - anim.fromY) * e;
+      this.drawCard(x, y, anim.card, anim.pullIsBlack);
+      ongoing.push(anim);
     }
+    this.succubusPullAnims = ongoing;
   }
 
   private detectPops(oldState: GameState, newState: GameState) {
