@@ -128,6 +128,10 @@ export class Game {
     hiddenId: string;
   } | null = null;
 
+  private lightningFlashAnims: { row: number; col: number; startTime: number }[] = [];
+  private scoreAnimMy: number | null = null;
+  private scoreAnimOpp: number | null = null;
+
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
 
@@ -167,12 +171,14 @@ export class Game {
     if (state && !this.state) {
       this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
       this.detectHellfire(this.state, state);
       this.detectCrystalBallReturn(this.state, state);
+      this.detectLightningFlash(state);
+      this.detectScoreChange(this.state, state);
     }
     this.state = state;
   }
@@ -311,6 +317,44 @@ export class Game {
     if (t > SHOW_MS + FADE_MS) this.hellfireAnim = null;
   }
 
+  private detectLightningFlash(newState: GameState) {
+    const targets = newState.lightningTargets;
+    if (!targets || targets.length === 0) return;
+    const now = performance.now();
+    for (const [row, col] of targets) {
+      this.lightningFlashAnims = this.lightningFlashAnims.filter(a => !(a.row === row && a.col === col));
+      this.lightningFlashAnims.push({ row, col, startTime: now });
+    }
+  }
+
+  private drawLightningFlash(now: number) {
+    if (this.lightningFlashAnims.length === 0) return;
+    const DURATION = 350;
+    const ctx = this.ctx;
+    this.lightningFlashAnims = this.lightningFlashAnims.filter(a => now - a.startTime < DURATION);
+    for (const { row, col, startTime } of this.lightningFlashAnims) {
+      const t = (now - startTime) / DURATION;
+      const alpha = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8; // quick ramp up, slow fade
+      const { x, y } = this.cellPos(row, col);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.75;
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.restore();
+    }
+  }
+
+  private detectScoreChange(oldState: GameState, newState: GameState) {
+    if (this.localNr === 0) return;
+    const playerNrs = Object.keys(newState.hands).map(Number);
+    const oppNr = playerNrs.find(n => n !== this.localNr);
+    const scoreOf = (s: GameState, nr: number) =>
+      s.board.flat().filter(c => c && 'card' in c && c.owner === nr && !c.zombified).length;
+    const now = performance.now();
+    if (scoreOf(newState, this.localNr) !== scoreOf(oldState, this.localNr)) this.scoreAnimMy = now;
+    if (oppNr !== undefined && scoreOf(newState, oppNr) !== scoreOf(oldState, oppNr)) this.scoreAnimOpp = now;
+  }
+
   private detectCrystalBallReturn(_oldState: GameState, newState: GameState) {
     if (this.localNr === 0) return;
     const cbr = newState.crystalBallReturn;
@@ -363,6 +407,9 @@ export class Game {
     this.ghostSwapAnim = null;
     this.hellfireAnim = null;
     this.cbReturnAnim = null;
+    this.lightningFlashAnims = [];
+    this.scoreAnimMy = null;
+    this.scoreAnimOpp = null;
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
@@ -1830,8 +1877,20 @@ export class Game {
 
     ctx.font = '64px Trattatello, Luminari, fantasy';
     ctx.fillStyle = '#cc1111';
-    ctx.fillText(String(scoreMy), leftX, scoreCy - 10);
-    ctx.fillText(String(scoreOpp), rightX, scoreCy - 10);
+    const SCORE_BOUNCE_MS = 220;
+    const scoreScale = (animStart: number | null) => {
+      if (animStart === null) return 1;
+      const t = Math.min((now - animStart) / SCORE_BOUNCE_MS, 1);
+      if (t >= 1) return 1;
+      return 1 + 0.28 * Math.sin(t * Math.PI); // arc: 1 → 1.28 → 1
+    };
+    for (const [cx, score, s] of [[leftX, scoreMy, scoreScale(this.scoreAnimMy)], [rightX, scoreOpp, scoreScale(this.scoreAnimOpp)]] as [number, number, number][]) {
+      ctx.save();
+      ctx.translate(cx, scoreCy - 10);
+      ctx.scale(s, s);
+      ctx.fillText(String(score), 0, 0);
+      ctx.restore();
+    }
 
     ctx.font = '14px monospace';
     ctx.fillStyle = '#aaa';
@@ -1882,6 +1941,9 @@ export class Game {
 
     // hellfire animation — green fire over destroyed cards, then fade
     if (this.hellfireAnim) this.drawHellfireAnim(now);
+
+    // lightning flash — yellow rect over destroyed cells, fades out
+    this.drawLightningFlash(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
     if (this.ghostSwapAnim) {

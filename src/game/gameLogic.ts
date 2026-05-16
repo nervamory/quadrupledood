@@ -163,6 +163,7 @@ function triggerLightnings(board: BoardCell[][], seedId: string): void {
     if (targets.length === 0) continue;
     const [tr, tc] = targets[cardHash(card.id + seedId) % targets.length];
     claimed.add(`${tr},${tc}`);
+    _lightningTargets.push([tr, tc]);
     board[tr][tc] = null;
   }
 }
@@ -679,6 +680,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     }
     if (targets.length > 0) {
       const [tr, tc] = targets[cardHash(placed.card.id) % targets.length];
+      _lightningTargets.push([tr, tc]);
       board[tr][tc] = null;
     }
     return;
@@ -789,6 +791,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
 
 let _fireChain: [number, number][] = [];
 let _candleFirePos: [number, number] | null = null;
+let _lightningTargets: [number, number][] = [];
 let _lastPlayed: Record<number, Card | undefined> = {};
 let _lastPlayedPos: Record<number, [number, number] | undefined> = {};
 
@@ -836,6 +839,7 @@ export function placeCard(
   if (row < 0 || row > 3 || col < 0 || col > 3) return state;
   _fireChain = [];
   _candleFirePos = null;
+  _lightningTargets = [];
 
   const hand = state.hands[actorNr] ?? [];
   const cardIdx = hand.findIndex(c => c.id === cardId);
@@ -1047,11 +1051,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, currentTurn: nextTurn };
 }

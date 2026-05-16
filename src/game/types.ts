@@ -29,5 +29,6 @@ export type GameState = {
   fireChain?: [number, number][];
   hellfirePos?: [number, number];
   candleFirePos?: [number, number];
+  lightningTargets?: [number, number][];
   crystalBallReturn?: { fromRow: number; fromCol: number; card: Card; actorNr: number };
 };

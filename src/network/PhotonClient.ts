@@ -55,6 +55,7 @@ export class PhotonClient {
   private lobbyTimer: ReturnType<typeof setInterval> | null = null;
   private intentionalDisconnect = false;
   private retryCount = 0;
+  private gaveUp = false;
 
   constructor(private cb: NetworkCallbacks) {
     this.lbc = new LoadBalancing.LoadBalancingClient(
@@ -64,6 +65,14 @@ export class PhotonClient {
     );
     this.wire();
     this.lbc.connectToRegionMaster('us');
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.gaveUp) {
+        this.gaveUp = false;
+        this.retryCount = 0;
+        this.cb.onStatusChange('reconnecting…');
+        this.lbc.connectToRegionMaster('us');
+      }
+    });
   }
 
   private wire() {
@@ -85,6 +94,7 @@ export class PhotonClient {
             this.cb.onStatusChange('reconnecting…');
             setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
           } else {
+            this.gaveUp = true;
             this.cb.onStatusChange('connection lost — refresh to reconnect');
           }
         } else {
@@ -96,6 +106,7 @@ export class PhotonClient {
 
       if (state === State.JoinedLobby) {
         this.retryCount = 0;
+        this.gaveUp = false;
       }
 
       if (this.inLobby && !wasInLobby) {
