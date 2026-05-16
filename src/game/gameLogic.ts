@@ -27,8 +27,8 @@ function cardHash(id: string): number {
 }
 
 const COMMON: CardType[] = ['knife'];
-const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle', 'lightning', 'outlet', 'bat'];
-const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus', 'robot'];
+const RARE:   CardType[] = ['heart', 'eye', 'mirror', 'bandage', 'ghost', 'fog', 'wolf', 'mermaid', 'bubbles', 'bone', 'brain', 'gravestone', 'tooth', 'fire', 'web', 'egg', 'troll', 'alien', 'hellfire', 'snake', 'clown-car', 'balloon', 'lipstick', 'kisses', 'crystal-ball', 'candle', 'lightning', 'outlet', 'bat', 'wave', 'anchor'];
+const FOIL:   CardType[] = ['moon', 'vampire', 'squid', 'skull', 'zombie', 'oni', 'spider', 'dragon', 'imp', 'clown', 'succubus', 'robot', 'dolphin'];
 
 function pick(pool: CardType[], n: number): CardType[] {
   return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
@@ -79,6 +79,9 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
     case 'robot':
       types = ['robot', 'lightning', 'lightning', 'outlet', 'knife', ...pick(COMMON, 4)];
       break;
+    case 'dolphin':
+      types = ['dolphin', 'wave', 'anchor', 'anchor', 'knife', ...pick(COMMON, 4)];
+      break;
     default:
       types = ['knife', ...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
   }
@@ -102,8 +105,10 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       direction = deck === 'bones'
         ? (boneIdx++ % 2 === 0 ? 'up-right' : 'up-left')
         : (Math.random() < 0.5 ? 'up-right' : 'up-left');
-    } else if (type === 'outlet' || type === 'robot' || type === 'bat') {
+    } else if (type === 'outlet' || type === 'robot' || type === 'bat' || type === 'anchor') {
       direction = 'up';
+    } else if (type === 'wave') {
+      direction = ORTHOGONAL_DIRS[Math.floor(Math.random() * 4)];
     } else if (type === 'snake' && deck === 'demon') {
       direction = snakeIdx++ % 2 === 0 ? 'right' : 'up';
     } else if (type === 'knife') {
@@ -207,6 +212,7 @@ function captureCell(board: BoardCell[][], row: number, col: number, attackerNr:
   const cell = board[row][col];
   if (!cell || 'blood' in cell) return;
   if (isBoneImmune(board, row, col)) return;
+  if (cell.card.type === 'anchor') return;
   // Knife is immune to capture from the direction it points
   if (cell.card.type === 'knife' && fromRow !== undefined && fromCol !== undefined) {
     const [dr, dc] = OFFSETS[cell.card.direction];
@@ -704,8 +710,43 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
     return;
   }
 
+  if (placed.card.type === 'dolphin') {
+    // Leap: skips the immediate cell in direction, captures the one behind it
+    const [dr, dc] = OFFSETS[placed.card.direction];
+    const fr = row + 2 * dr, fc = col + 2 * dc;
+    if (fr >= 0 && fr < 4 && fc >= 0 && fc < 4) {
+      const target = board[fr][fc];
+      if (target && !('blood' in target) && target.owner !== actorNr) {
+        if (target.card.type === 'heart' || target.card.type === 'eye') {
+          board[fr][fc] = { blood: true };
+        } else if (target.card.type === 'mirror') {
+          board[row][col] = { card: placed.card, owner: target.owner };
+        } else {
+          captureCell(board, fr, fc, actorNr, row, col);
+        }
+      }
+    }
+    return;
+  }
+
+  if (placed.card.type === 'wave') {
+    // Sweep entire row (left/right direction) or column (up/down direction)
+    const isHorizontal = placed.card.direction === 'left' || placed.card.direction === 'right';
+    for (let i = 0; i < 4; i++) {
+      const nr = isHorizontal ? row : i;
+      const nc = isHorizontal ? i : col;
+      if (nr === row && nc === col) continue;
+      const neighbor = board[nr][nc];
+      if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
+      if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
+      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      captureCell(board, nr, nc, actorNr, row, col);
+    }
+    return;
+  }
+
   // Passive cards — no captures on placement
-  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle' || placed.card.type === 'robot' || placed.card.type === 'bat') return;
+  if (placed.card.type === 'eye' || placed.card.type === 'tooth' || placed.card.type === 'moon' || placed.card.type === 'mirror' || placed.card.type === 'bubbles' || placed.card.type === 'gravestone' || placed.card.type === 'oni' || placed.card.type === 'egg' || placed.card.type === 'web' || placed.card.type === 'clown-car' || placed.card.type === 'crystal-ball' || placed.card.type === 'candle' || placed.card.type === 'robot' || placed.card.type === 'bat' || placed.card.type === 'anchor') return;
 
   if (placed.card.type === 'succubus') {
     // Pull: for each cardinal direction, if 2 squares out has an opponent card and 1 square out is empty, slide it closer

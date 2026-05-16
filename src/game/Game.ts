@@ -79,6 +79,9 @@ const CARD_LABELS: Record<CardType, string> = {
   lightning: 'destroys one random touching card',
   outlet:   'captures up & down; retriggers all lightnings on board',
   bat:      'spawns a copy in a touching square; becomes blood when captured',
+  dolphin:  'leaps: skips nearest card to capture the one behind',
+  wave:     'sweeps entire row or column',
+  anchor:   'immune to capture',
 };
 
 type SwapCardAnim = {
@@ -1754,6 +1757,77 @@ export class Game {
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      return;
+    }
+
+    if (card.type === 'dolphin') {
+      this.drawFoilOverlay(x, y);
+      ctx.save();
+      ctx.translate(cx, cy - 6);
+      ctx.font = '24px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const dm = ctx.measureText('🐬');
+      ctx.fillText('🐬', 0, (dm.actualBoundingBoxAscent - dm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(cx, cy + 12);
+      ctx.font = '16px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const moto = ctx.measureText('🏍️');
+      ctx.fillText('🏍️', 0, (moto.actualBoundingBoxAscent - moto.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      switch (card.direction) {
+        case 'up':         ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); break;
+        case 'down':       ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); break;
+        case 'left':       ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); break;
+        case 'right':      ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); break;
+        case 'up-left':    ctx.moveTo(x + m, y + m); ctx.lineTo(x + m + ts * 1.5, y + m); ctx.lineTo(x + m, y + m + ts * 1.5); break;
+        case 'up-right':   ctx.moveTo(x + CARD - m, y + m); ctx.lineTo(x + CARD - m - ts * 1.5, y + m); ctx.lineTo(x + CARD - m, y + m + ts * 1.5); break;
+        case 'down-left':  ctx.moveTo(x + m, y + CARD - m); ctx.lineTo(x + m + ts * 1.5, y + CARD - m); ctx.lineTo(x + m, y + CARD - m - ts * 1.5); break;
+        case 'down-right': ctx.moveTo(x + CARD - m, y + CARD - m); ctx.lineTo(x + CARD - m - ts * 1.5, y + CARD - m); ctx.lineTo(x + CARD - m, y + CARD - m - ts * 1.5); break;
+      }
+      ctx.fill();
+      return;
+    }
+
+    if (card.type === 'wave') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const wvm = ctx.measureText('🌊');
+      ctx.fillText('🌊', 0, (wvm.actualBoundingBoxAscent - wvm.actualBoundingBoxDescent) / 2);
+      ctx.restore();
+      ctx.fillStyle = fg;
+      const isHoriz = card.direction === 'left' || card.direction === 'right';
+      if (isHoriz) {
+        // Left arrow
+        ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
+        // Right arrow
+        ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+      } else {
+        // Up arrow
+        ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
+        // Down arrow
+        ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      }
+      return;
+    }
+
+    if (card.type === 'anchor') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const am = ctx.measureText('⚓');
+      ctx.fillText('⚓', 0, (am.actualBoundingBoxAscent - am.actualBoundingBoxDescent) / 2);
+      ctx.restore();
       return;
     }
 
