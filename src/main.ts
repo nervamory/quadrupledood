@@ -121,6 +121,7 @@ const photon = new PhotonClient({
   onJoined: (actorNr) => {
     inRoom = true;
     game.setLocalActor(actorNr);
+    game.startIdleSpin();
     ui.showGame();
   },
   onPlayerJoined: (_actorNr) => {

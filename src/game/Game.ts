@@ -16,8 +16,9 @@ const KNIFE_ANGLES: Record<Direction, number> = {
 const FAN_RADIUS = 350;
 const FAN_HALF_ANGLE = 28 * Math.PI / 180; // ±28°, 56° total spread
 
-const SPIN_DURATION = 4800; // ms for the knife to spin and settle
-const SPIN_HOLD     = 1100; // ms to hold the result before showing the board
+const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
+const LANDING_DURATION = 3200;           // ms for landing spin
+const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
 
 // Center-card cy for each hand (pivot is FAN_RADIUS away from center)
 // Midpoint between the two hand centers = 350 (canvas center at H=700)
@@ -103,7 +104,10 @@ export class Game {
   private drag: { card: Card; x: number; y: number } | null = null;
   private hoverPos: { x: number; y: number } | null = null;
   private raf = 0;
-  private spinAnim: { startTime: number; done: boolean; firstPlayer: number } | null = null;
+  private spinAnim: (
+    | { mode: 'idle';    startTime: number }
+    | { mode: 'landing'; startTime: number; startAngle: number; totalAngle: number; target: number; done: boolean }
+  ) | null = null;
   private lastHoverIdx: number | null = null;
   private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
@@ -176,9 +180,27 @@ export class Game {
     this.matchScore = { ...score };
   }
 
+  startIdleSpin() {
+    this.spinAnim = { mode: 'idle', startTime: performance.now() };
+  }
+
   setState(state: GameState | null) {
-    if (state && !this.state) {
-      this.spinAnim = { startTime: performance.now(), done: false, firstPlayer: state.currentTurn };
+    if (state && this.spinAnim?.mode === 'idle') {
+      const now = performance.now();
+      const idleAngle = (now - this.spinAnim.startTime) * IDLE_SPEED;
+      const isMyTurn = state.currentTurn === this.localNr;
+      const target = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
+      const normIdle   = ((idleAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const normTarget = ((target   % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const clockwiseDist = ((normTarget - normIdle) + 2 * Math.PI) % (2 * Math.PI);
+      this.spinAnim = {
+        mode: 'landing',
+        startTime: now,
+        startAngle: idleAngle,
+        totalAngle: 3 * 2 * Math.PI + clockwiseDist,
+        target,
+        done: false,
+      };
     }
     if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.knifeShakeAnims = []; this.vampireAnim = null; }
     if (state && this.state) {
@@ -847,7 +869,7 @@ export class Game {
   }
 
   private onMouseDown = (e: MouseEvent) => {
-    if (this.spinAnim && !this.spinAnim.done) return;
+    if (this.spinAnim && (this.spinAnim.mode === 'idle' || !this.spinAnim.done)) return;
     const b = this.canvas.getBoundingClientRect();
     const hit = this.hitHandCard(e.clientX - b.left, e.clientY - b.top);
     if (hit) this.drag = { card: hit.layout.card, x: e.clientX - b.left, y: e.clientY - b.top };
@@ -2023,54 +2045,50 @@ export class Game {
   }
 
   private drawSpin(now: number) {
-    const { ctx, W, H, state, spinAnim } = this;
-    if (!spinAnim || !state) return;
-
-    const elapsed = now - spinAnim.startTime;
-    const t = Math.min(elapsed / SPIN_DURATION, 1);
-    const spinning = t < 1;
+    const { ctx, W, H } = this;
+    const spinAnim = this.spinAnim;
+    if (!spinAnim) return;
 
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
 
-    // 🔪 KNIFE_ANGLES.up (-3π/4) rotates tip to face north (toward opponent at top).
-    // KNIFE_ANGLES.down (π/4) rotates tip to face south (toward "you" at bottom).
-    // going-first player is at bottom, so their target = KNIFE_ANGLES.down.
-    const isMyTurn = spinAnim.firstPlayer === this.localNr;
-    const target   = isMyTurn ? KNIFE_ANGLES.down : KNIFE_ANGLES.up;
-    const wrongDir = isMyTurn ? KNIFE_ANGLES.up   : KNIFE_ANGLES.down;
-
-    // Two-phase animation — avoids false "landed on wrong person" appearance:
-    // Phase 1 (0–75%): constant-speed spin, 4.5 rotations, starts at target, ends at wrongDir
-    // Phase 2 (75–100%): easeOutCubic, clean half-rotation from wrongDir → target
-    // Velocities match at the boundary so there's no jerk.
-    const PHASE1 = 0.75;
     let angle: number;
-    if (spinning) {
-      if (t < PHASE1) {
-        angle = target + 4.5 * 2 * Math.PI * (t / PHASE1);
-      } else {
-        const phaseT = (t - PHASE1) / (1 - PHASE1);
-        const eased = 1 - Math.pow(1 - phaseT, 3);
-        angle = wrongDir + Math.PI * eased;
-      }
+
+    if (spinAnim.mode === 'idle') {
+      angle = (now - spinAnim.startTime) * IDLE_SPEED;
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#555';
+      ctx.fillText('opponent', W / 2, 52);
+      ctx.fillStyle = '#555';
+      ctx.fillText('you', W / 2, H - 52);
     } else {
-      angle = target;
+      const elapsed = now - spinAnim.startTime;
+      const t = Math.min(elapsed / LANDING_DURATION, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const settled = t >= 1;
+
+      // At settlement, derive both the angle and the label from the live
+      // game state so they are definitionally correct regardless of any
+      // timing edge case. During animation, use the baked target.
+      const isMyTurn = settled && this.state
+        ? this.state.currentTurn === this.localNr
+        : spinAnim.target === KNIFE_ANGLES.down;
+      const resolvedTarget = settled && this.state
+        ? (this.state.currentTurn === this.localNr ? KNIFE_ANGLES.down : KNIFE_ANGLES.up)
+        : spinAnim.target;
+      angle = settled ? resolvedTarget : spinAnim.startAngle + spinAnim.totalAngle * eased;
+
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = (settled && !isMyTurn) ? '#eee' : '#555';
+      ctx.fillText((settled && !isMyTurn) ? 'opponent goes first' : 'opponent', W / 2, 52);
+      ctx.fillStyle = (settled && isMyTurn) ? '#eee' : '#555';
+      ctx.fillText((settled && isMyTurn) ? 'you go first' : 'you', W / 2, H - 52);
+
+      if (settled && elapsed - LANDING_DURATION >= SPIN_HOLD) spinAnim.done = true;
     }
 
-    // Labels — dim the side that didn't win
-    const oppBright = !spinning && !isMyTurn;
-    const meBright  = !spinning && isMyTurn;
-    ctx.font = '14px monospace';
-    ctx.textAlign = 'center';
-
-    ctx.fillStyle = oppBright ? '#eee' : spinning ? '#555' : '#333';
-    ctx.fillText(!spinning && !isMyTurn ? 'opponent goes first' : 'opponent', W / 2, 52);
-
-    ctx.fillStyle = meBright ? '#eee' : spinning ? '#555' : '#333';
-    ctx.fillText(!spinning && isMyTurn ? 'you go first' : 'you', W / 2, H - 52);
-
-    // Big knife
     ctx.save();
     ctx.translate(W / 2, H / 2);
     ctx.rotate(angle);
@@ -2079,42 +2097,21 @@ export class Game {
     ctx.textBaseline = 'middle';
     ctx.fillText('🔪', 0, 0);
     ctx.restore();
-
-    // After settling: countdown to board
-    if (!spinning) {
-      const holdElapsed = elapsed - SPIN_DURATION;
-      if (holdElapsed >= SPIN_HOLD) spinAnim.done = true;
-    }
   }
 
   private draw() {
     const now = performance.now();
 
     if (this.spinAnim) {
-      if (!this.spinAnim.done) { this.drawSpin(now); return; }
+      if (this.spinAnim.mode === 'idle' || !this.spinAnim.done) { this.drawSpin(now); return; }
       this.spinAnim = null;
     }
 
     const { ctx, W, H, state } = this;
+    if (!state) return;
 
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
-
-    if (!state) {
-      ctx.save();
-      ctx.translate(W / 2, H / 2);
-      ctx.rotate(now * Math.PI / 600);
-      ctx.font = '160px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🔪', 0, 0);
-      ctx.restore();
-      ctx.font = 'bold 14px monospace';
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText('waiting for opponent', W / 2, 52);
-      return;
-    }
 
     const myIsBlack = this.localNr === state.blackPlayer;
 
