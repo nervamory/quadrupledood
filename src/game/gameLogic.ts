@@ -289,7 +289,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       }
 
       if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner }; // reflect heart
+        reflectByMirror(board, row, col, nr, nc); // reflect heart
         continue;
       }
       captureCell(board, nr, nc, actorNr, row, col);
@@ -321,7 +321,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         continue;
       }
       if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        reflectByMirror(board, row, col, nr, nc);
         continue;
       }
       captureCell(board, nr, nc, actorNr, row, col);
@@ -341,7 +341,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         continue;
       }
       if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        reflectByMirror(board, row, col, nr, nc);
         continue;
       }
       captureCell(board, nr, nc, actorNr, row, col);
@@ -368,7 +368,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         continue;
       }
       if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        reflectByMirror(board, row, col, nr, nc);
         continue;
       }
       captureCell(board, nr, nc, actorNr, row, col);
@@ -393,7 +393,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         const neighbor = board[nr][nc];
         if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-        if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+        if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
         captureCell(board, nr, nc, actorNr, row, col);
       }
     }
@@ -403,7 +403,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -417,7 +417,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
 
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -438,7 +438,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (isBoneImmune(board, nr, nc)) continue;
       if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        reflectByMirror(board, row, col, nr, nc);
         continue;
       }
       board[nr][nc] = { card: neighbor.card, owner: actorNr, zombified: true };
@@ -454,7 +454,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
 
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -468,7 +468,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
 
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -485,7 +485,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
 
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -499,7 +499,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -533,7 +533,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
           board[nr][nc] = { blood: true };
         } else if (neighbor.card.type === 'mirror') {
-          board[row][col] = { card: placed.card, owner: neighbor.owner };
+          reflectByMirror(board, row, col, nr, nc);
         } else {
           captureCell(board, nr, nc, actorNr, row, col);
         }
@@ -548,7 +548,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -580,7 +580,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -597,7 +597,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         resolveCaptures(board, nr, nc, actorNr);
       } else {
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-        if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+        if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
         captureCell(board, nr, nc, actorNr, row, col);
       }
     }
@@ -627,7 +627,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
           if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
             board[nr][nc] = { blood: true };
           } else if (neighbor.card.type === 'mirror') {
-            board[row][col] = { card: placed.card, owner: neighbor.owner };
+            reflectByMirror(board, row, col, nr, nc);
             break;
           } else {
             captureCell(board, nr, nc, actorNr, row, col);
@@ -647,7 +647,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         const neighbor = board[nr][nc];
         if (!neighbor || 'blood' in neighbor || neighbor.owner === owner) continue;
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-        if (neighbor.card.type === 'mirror') { board[r][c] = { card: (board[r][c] as { card: Card; owner: number }).card, owner: neighbor.owner }; continue; }
+        if (neighbor.card.type === 'mirror') { reflectByMirror(board, r, c, nr, nc); continue; }
         captureCell(board, nr, nc, owner, r, c);
       }
       for (const dir of TOUCHING_DIRS) {
@@ -676,7 +676,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
           board[nr][nc] = { blood: true };
         } else if (neighbor.card.type === 'mirror') {
-          board[row][col] = { card: placed.card, owner: neighbor.owner };
+          reflectByMirror(board, row, col, nr, nc);
         } else {
           captureCell(board, nr, nc, actorNr, row, col);
         }
@@ -709,7 +709,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     triggerLightnings(board, placed.card.id);
@@ -726,7 +726,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         if (target.card.type === 'heart' || target.card.type === 'eye') {
           board[fr][fc] = { blood: true };
         } else if (target.card.type === 'mirror') {
-          board[row][col] = { card: placed.card, owner: target.owner };
+          reflectByMirror(board, row, col, fr, fc);
         } else {
           captureCell(board, fr, fc, actorNr, row, col);
         }
@@ -745,7 +745,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -777,7 +777,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       const neighbor = board[nr][nc];
       if (!neighbor || 'blood' in neighbor || neighbor.owner === actorNr) continue;
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') { board[nr][nc] = { blood: true }; continue; }
-      if (neighbor.card.type === 'mirror') { board[row][col] = { card: placed.card, owner: neighbor.owner }; continue; }
+      if (neighbor.card.type === 'mirror') { reflectByMirror(board, row, col, nr, nc); continue; }
       captureCell(board, nr, nc, actorNr, row, col);
     }
     return;
@@ -801,7 +801,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
         if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
           board[nr][nc] = { blood: true };
         } else if (neighbor.card.type === 'mirror') {
-          board[row][col] = { card: placed.card, owner: neighbor.owner };
+          reflectByMirror(board, row, col, nr, nc);
         } else {
           captureCell(board, nr, nc, actorNr, row, col);
         }
@@ -833,7 +833,7 @@ function resolveCaptures(board: BoardCell[][], row: number, col: number, actorNr
       if (neighbor.card.type === 'heart' || neighbor.card.type === 'eye') {
         board[nr][nc] = { blood: true };
       } else if (neighbor.card.type === 'mirror') {
-        board[row][col] = { card: placed.card, owner: neighbor.owner };
+        reflectByMirror(board, row, col, nr, nc);
       } else {
         captureCell(board, nr, nc, actorNr, row, col);
       }
@@ -846,6 +846,15 @@ let _candleFirePos: [number, number] | null = null;
 let _lightningTargets: [number, number][] = [];
 let _succubusPulls: { fromRow: number; fromCol: number; toRow: number; toCol: number; card: Card }[] = [];
 let _captureBlocks: [number, number][] = [];
+let _mirrorFlashes: [number, number][] = [];
+
+function reflectByMirror(board: BoardCell[][], attackRow: number, attackCol: number, mirrorRow: number, mirrorCol: number): void {
+  const mirror = board[mirrorRow][mirrorCol];
+  const attacker = board[attackRow][attackCol];
+  if (!mirror || 'blood' in mirror || !attacker || 'blood' in attacker) return;
+  board[attackRow][attackCol] = { card: attacker.card, owner: mirror.owner };
+  if (!_mirrorFlashes.some(([r, c]) => r === mirrorRow && c === mirrorCol)) _mirrorFlashes.push([mirrorRow, mirrorCol]);
+}
 let _vampireBloodCells: [number, number][] = [];
 let _lastPlayed: Record<number, Card | undefined> = {};
 let _lastPlayedPos: Record<number, [number, number] | undefined> = {};
@@ -897,6 +906,7 @@ export function placeCard(
   _lightningTargets = [];
   _succubusPulls = [];
   _captureBlocks = [];
+  _mirrorFlashes = [];
   _vampireBloodCells = [];
 
   const hand = state.hands[actorNr] ?? [];
@@ -1125,11 +1135,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
 }

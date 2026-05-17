@@ -138,6 +138,7 @@ export class Game {
   } | null = null;
 
   private lightningFlashAnims: { row: number; col: number; startTime: number }[] = [];
+  private mirrorFlashAnims: { row: number; col: number; startTime: number }[] = [];
   private scoreAnimMy: number | null = null;
   private scoreAnimOpp: number | null = null;
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string }[] = [];
@@ -215,6 +216,7 @@ export class Game {
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
       this.detectCaptureBlocks(state);
+      this.detectMirrorFlashes(state);
       this.detectVampireCapture(state);
     }
     this.state = state;
@@ -381,6 +383,41 @@ export class Game {
       ctx.save();
       ctx.globalAlpha = alpha * 0.75;
       ctx.fillStyle = '#ffe066';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.restore();
+    }
+  }
+
+  private detectMirrorFlashes(newState: GameState) {
+    const flashes = newState.mirrorFlashes;
+    if (!flashes || flashes.length === 0) return;
+    const now = performance.now();
+    for (const [row, col] of flashes) {
+      this.mirrorFlashAnims = this.mirrorFlashAnims.filter(a => !(a.row === row && a.col === col));
+      this.mirrorFlashAnims.push({ row, col, startTime: now });
+    }
+  }
+
+  private drawMirrorFlash(now: number) {
+    if (this.mirrorFlashAnims.length === 0) return;
+    const DURATION = 500;
+    const ctx = this.ctx;
+    const pad = (CELL - CARD) / 2;
+    this.mirrorFlashAnims = this.mirrorFlashAnims.filter(a => now - a.startTime < DURATION);
+    for (const { row, col, startTime } of this.mirrorFlashAnims) {
+      const t = (now - startTime) / DURATION;
+      const alpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+      const { x, y } = this.cellPos(row, col);
+      const cx = x + CELL / 2, cy = y + CELL / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x + pad, y + pad, CARD, CARD, 6);
+      ctx.clip();
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, CARD * 0.7);
+      grad.addColorStop(0,   `rgba(220,235,255,${(alpha * 0.95).toFixed(3)})`);
+      grad.addColorStop(0.5, `rgba(180,210,255,${(alpha * 0.65).toFixed(3)})`);
+      grad.addColorStop(1,   'rgba(150,180,255,0)');
+      ctx.fillStyle = grad;
       ctx.fillRect(x, y, CELL, CELL);
       ctx.restore();
     }
@@ -635,6 +672,7 @@ export class Game {
     this.hellfireAnim = null;
     this.cbReturnAnim = null;
     this.lightningFlashAnims = [];
+    this.mirrorFlashAnims = [];
     this.scoreAnimMy = null;
     this.scoreAnimOpp = null;
     this.succubusPullAnims = [];
@@ -1093,13 +1131,14 @@ export class Game {
     ctx.restore();
   }
 
-  private drawZombifiedOverlay(x: number, y: number) {
+  private drawZombifiedOverlay(x: number, y: number, now: number) {
     const ctx = this.ctx;
+    const alpha = 0.42 + 0.18 * Math.sin(now / 750 * Math.PI * 2);
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(x, y, CARD, CARD, 6);
     ctx.clip();
-    ctx.fillStyle = 'rgba(80, 110, 80, 0.60)';
+    ctx.fillStyle = `rgba(80,110,80,${alpha.toFixed(3)})`;
     ctx.fillRect(x, y, CARD, CARD);
     ctx.restore();
   }
@@ -2181,7 +2220,7 @@ export class Game {
               return Math.sin(st * Math.PI * 4) * 3 * (1 - st);
             })();
             this.drawCard(x + pad + shake, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
-            if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad);
+            if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad, now);
           }
         } else if (cell && 'blood' in cell) {
           ctx.font = '36px serif';
@@ -2399,6 +2438,7 @@ export class Game {
 
     // lightning flash — yellow rect over destroyed cells, fades out
     this.drawLightningFlash(now);
+    this.drawMirrorFlash(now);
 
     // balloon/bubbles pop — expanding ring
     this.drawPopAnims(now);

@@ -34,6 +34,7 @@ export type GameState = {
   succubusPulls?: { fromRow: number; fromCol: number; toRow: number; toCol: number; card: Card }[];
   mermaidPull?: { card: Card; toRow: number; toCol: number };
   captureBlocks?: [number, number][];
+  mirrorFlashes?: [number, number][];
   vampireCaptures?: { vampRow: number; vampCol: number; bloodCells: [number, number][] };
   crystalBallReturn?: { fromRow: number; fromCol: number; card: Card; actorNr: number };
 };
