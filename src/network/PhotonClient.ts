@@ -32,6 +32,7 @@ const EV_DECK_PICK  = 3;
 const EV_HOVER      = 4;
 const EV_READY      = 5;
 const EV_FOIL_PICK  = 6;
+const EV_REMATCH    = 7;
 
 export type NetworkCallbacks = {
   onJoined: (actorNr: number) => void;
@@ -46,6 +47,7 @@ export type NetworkCallbacks = {
   onOpponentHover: (idx: number | null) => void;
   onReady: (actorNr: number, deck: DeckType) => void;
   onFoilPick?: (style: number, params: CustomFoilParams) => void;
+  onRematch?: () => void;
 };
 
 const MAX_RETRIES = 3;
@@ -118,7 +120,7 @@ export class PhotonClient {
         if (this.pendingRoom) {
           const room = this.pendingRoom;
           this.pendingRoom = null;
-          this.lbc.joinRoom(room, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 }); // debug path
+          this.lbc.joinRoom(room, { createIfNotExists: true }, { playerTtl: 60000, emptyRoomTtl: 60000 }); // debug path
         } else if (this.pendingMatchmaking) {
           this.pendingMatchmaking = false;
           this.doMatchmaking();
@@ -168,6 +170,8 @@ export class PhotonClient {
       } else if (code === EV_FOIL_PICK) {
         const { style, params } = content as { style: number; params: string };
         this.cb.onFoilPick?.(style, JSON.parse(params) as CustomFoilParams);
+      } else if (code === EV_REMATCH) {
+        this.cb.onRematch?.();
       }
     };
 
@@ -190,10 +194,10 @@ export class PhotonClient {
     const rooms = this.lbc.availableRooms();
     const open = rooms.find(r => r.playerCount === 1);
     if (open) {
-      this.lbc.joinRoom(open.name, {}, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
+      this.lbc.joinRoom(open.name, {}, { playerTtl: 60000, emptyRoomTtl: 60000 });
     } else {
       const roomName = Math.random().toString(36).slice(2, 10);
-      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
+      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 60000, emptyRoomTtl: 60000 });
     }
   }
 
@@ -208,7 +212,7 @@ export class PhotonClient {
   // Debug mode: join a specific named room
   connectAndJoin(roomName: string) {
     if (this.inLobby) {
-      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 1800000, emptyRoomTtl: 1800000 });
+      this.lbc.joinRoom(roomName, { createIfNotExists: true }, { playerTtl: 60000, emptyRoomTtl: 60000 });
     } else {
       this.pendingRoom = roomName;
       this.lbc.connectToRegionMaster('us');
@@ -239,6 +243,10 @@ export class PhotonClient {
     this.lbc.raiseEvent(EV_FOIL_PICK, { style, params: JSON.stringify(params) });
   }
 
+  sendRematch() {
+    this.lbc.raiseEvent(EV_REMATCH, {});
+  }
+
   leave() {
     this.intentionalDisconnect = true;
     this.lbc.leaveRoom();
@@ -258,6 +266,6 @@ export class PhotonClient {
 
   get allActorNrs(): number[] {
     const actors = this.lbc.myRoomActors() as Record<number, { actorNr: number }>;
-    return Object.values(actors).map(a => a.actorNr);
+    return Object.values(actors).map(a => a.actorNr).sort((a, b) => a - b);
   }
 }

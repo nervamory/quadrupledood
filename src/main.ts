@@ -43,6 +43,7 @@ function clearEndTimer() {
 }
 
 function startGame(myDeck: DeckType, oppDeckUsed: DeckType) {
+  if (photon.playerCount !== 2) return;
   const [a1, a2] = photon.allActorNrs;
   const oppNr = photon.allActorNrs.find(n => n !== photon.actorNr)!;
   const deckOf: Record<number, DeckType> = {
@@ -136,7 +137,11 @@ const photon = new PhotonClient({
   onPlayerJoined: (_actorNr) => {
     photon.sendDeckPick(getSelectedDeck());
     photon.sendFoilPick(parseInt(foilSelect.value, 10), workingFoilParams);
-    tryStartGame();
+    if (photon.isMaster && gameState !== null && gameState.phase === 'playing') {
+      photon.sendGameStart(gameState);
+    } else {
+      tryStartGame();
+    }
   },
   onPlayerLeft: (_actorNr) => {
     if (!inRoom) return;
@@ -186,6 +191,13 @@ const photon = new PhotonClient({
   },
   onFoilPick: (style, params) => {
     game.setOppFoilStyle(style, params);
+  },
+  onRematch: () => {
+    matchScore = {};
+    myPlayedDeck = null;
+    myReadyDeck = null;
+    oppReadyDeck = null;
+    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
   },
   onLobbyUpdate: (count) => {
     ui.setStatus(`${count} ${count === 1 ? 'player' : 'players'} currently sacrificing`);
@@ -277,6 +289,7 @@ getElement('between-leave-btn').addEventListener('click', () => {
 // ── match-over buttons ────────────────────────────────────────────────────────
 
 getElement('rematch-btn').addEventListener('click', () => {
+  photon.sendRematch();
   matchScore = {};
   myPlayedDeck = null;
   myReadyDeck = null;
