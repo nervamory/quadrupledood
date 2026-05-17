@@ -297,7 +297,7 @@ export class Game {
       for (let c = 0; c < 4; c++) {
         const old = oldState.board[r][c];
         const next = newState.board[r][c];
-        if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner) {
+        if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner && !next.zombified) {
           this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
           const isCandleCell = isCandlePlay && candleFirePos![0] === r && candleFirePos![1] === c;
           const chainIdx = fireChain.findIndex(([fr, fc]) => fr === r && fc === c);
@@ -1433,17 +1433,6 @@ export class Game {
       const zm = ctx.measureText('🧟');
       ctx.fillText('🧟', 0, (zm.actualBoundingBoxAscent - zm.actualBoundingBoxDescent) / 2);
       ctx.restore();
-      ctx.fillStyle = fg;
-      // All 8 touching indicators
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
-      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill(); // down
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
-      const mc = 7;
-      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
-      ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-left
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-right
       return;
     }
 
