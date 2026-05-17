@@ -2078,16 +2078,8 @@ export class Game {
       const eased = 1 - Math.pow(1 - t, 3);
       const settled = t >= 1;
 
-      // At settlement, derive both the angle and the label from the live
-      // game state so they are definitionally correct regardless of any
-      // timing edge case. During animation, use the baked target.
-      const isMyTurn = settled && this.state
-        ? this.state.currentTurn === this.localNr
-        : spinAnim.target === KNIFE_ANGLES.down;
-      const resolvedTarget = settled && this.state
-        ? (this.state.currentTurn === this.localNr ? KNIFE_ANGLES.down : KNIFE_ANGLES.up)
-        : spinAnim.target;
-      angle = settled ? resolvedTarget : spinAnim.startAngle + spinAnim.totalAngle * eased;
+      const isMyTurn = spinAnim.target === KNIFE_ANGLES.down;
+      angle = settled ? spinAnim.target : spinAnim.startAngle + spinAnim.totalAngle * eased;
 
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
