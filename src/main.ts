@@ -24,6 +24,49 @@ let oppDeck: DeckType | null = null;
 let debugMode = false;
 let inRoom = false;
 let gameStarted = false;
+let reconnectInterval: ReturnType<typeof setInterval> | null = null;
+
+const RECONNECT_SECS = 60;
+
+function doLeave(status?: string) {
+  clearEndTimer();
+  clearReconnectWait();
+  oppDeck = null;
+  oppReadyDeck = null;
+  myReadyDeck = null;
+  gameState = null;
+  matchScore = {};
+  inRoom = false;
+  gameStarted = false;
+  photon.leave();
+  game.reset();
+  ui.showLobby();
+  if (status) ui.setStatus(status);
+}
+
+function startReconnectWait() {
+  if (reconnectInterval !== null) return;
+  let secs = RECONNECT_SECS;
+  const overlay = document.getElementById('reconnect-overlay')!;
+  const msg = document.getElementById('reconnect-msg')!;
+  const update = () => { msg.textContent = `opponent disconnected\nwaiting ${secs}s for reconnect…`; };
+  update();
+  overlay.style.display = 'flex';
+  reconnectInterval = setInterval(() => {
+    secs--;
+    if (secs <= 0) {
+      doLeave('opponent did not reconnect');
+    } else {
+      update();
+    }
+  }, 1000);
+}
+
+function clearReconnectWait() {
+  if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
+  const overlay = document.getElementById('reconnect-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
 
 // Match state
 let matchScore: Record<number, number> = {};
@@ -135,6 +178,7 @@ const photon = new PhotonClient({
     ui.showGame();
   },
   onPlayerJoined: (_actorNr) => {
+    clearReconnectWait();
     photon.sendDeckPick(getSelectedDeck());
     photon.sendFoilPick(parseInt(foilSelect.value, 10), workingFoilParams);
     if (photon.isMaster && gameState !== null && gameState.phase === 'playing') {
@@ -146,17 +190,7 @@ const photon = new PhotonClient({
   onPlayerLeft: (_actorNr) => {
     if (!inRoom) return;
     clearEndTimer();
-    oppDeck = null;
-    oppReadyDeck = null;
-    myReadyDeck = null;
-    gameState = null;
-    matchScore = {};
-    game.reset();
-    inRoom = false;
-    gameStarted = false;
-    photon.leave();
-    ui.showLobby();
-    ui.setStatus('opponent left');
+    startReconnectWait();
   },
   onGameStart: (state) => {
     gameState = state;
@@ -204,16 +238,7 @@ const photon = new PhotonClient({
   },
   onStatusChange: (msg) => ui.setStatus(msg),
   onDisconnected: () => {
-    clearEndTimer();
-    inRoom = false;
-    gameStarted = false;
-    gameState = null;
-    oppDeck = null;
-    oppReadyDeck = null;
-    myReadyDeck = null;
-    matchScore = {};
-    game.reset();
-    ui.showLobby();
+    doLeave();
   },
   onOpponentHover: (idx) => {
     game.setOppHover(idx);
@@ -246,18 +271,7 @@ getElement('join-btn').addEventListener('click', () => {
   }
 });
 
-getElement('leave-btn').addEventListener('click', () => {
-  clearEndTimer();
-  inRoom = false;
-  oppDeck = null;
-  myReadyDeck = null;
-  oppReadyDeck = null;
-  matchScore = {};
-  photon.leave();
-  game.reset();
-  gameState = null;
-  ui.showLobby();
-});
+getElement('leave-btn').addEventListener('click', () => { doLeave(); });
 
 // ── between-games buttons ─────────────────────────────────────────────────────
 
@@ -273,18 +287,7 @@ getElement('ready-btn').addEventListener('click', () => {
   getElement<HTMLButtonElement>('ready-btn').disabled = true;
 });
 
-getElement('between-leave-btn').addEventListener('click', () => {
-  clearEndTimer();
-  inRoom = false;
-  oppDeck = null;
-  myReadyDeck = null;
-  oppReadyDeck = null;
-  matchScore = {};
-  photon.leave();
-  game.reset();
-  gameState = null;
-  ui.showLobby();
-});
+getElement('between-leave-btn').addEventListener('click', () => { doLeave(); });
 
 // ── match-over buttons ────────────────────────────────────────────────────────
 
@@ -297,18 +300,9 @@ getElement('rematch-btn').addEventListener('click', () => {
   ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
 });
 
-getElement('matchover-leave-btn').addEventListener('click', () => {
-  clearEndTimer();
-  inRoom = false;
-  oppDeck = null;
-  myReadyDeck = null;
-  oppReadyDeck = null;
-  matchScore = {};
-  photon.leave();
-  game.reset();
-  gameState = null;
-  ui.showLobby();
-});
+getElement('matchover-leave-btn').addEventListener('click', () => { doLeave(); });
+
+getElement('reconnect-leave-btn').addEventListener('click', () => { doLeave(); });
 
 // ── settings ──────────────────────────────────────────────────────────────────
 

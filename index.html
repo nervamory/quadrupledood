@@ -66,7 +66,7 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v7.2</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v7.3</p>
       </div>
       <div id="game-screen" class="screen">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -249,6 +249,10 @@
         <button id="rematch-btn">rematch</button>
         <button id="matchover-leave-btn">leave room</button>
       </div>
+    </div>
+    <div id="reconnect-overlay" style="display:none; position:fixed; inset:0; background:rgba(10,10,20,0.88); z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+      <p id="reconnect-msg" style="color:#eee; font-size:15px; font-family:monospace; text-align:center; white-space:pre-line; line-height:1.8;"></p>
+      <button id="reconnect-leave-btn">leave now</button>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
