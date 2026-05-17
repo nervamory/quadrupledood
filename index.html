@@ -19,6 +19,7 @@
       canvas { display: block; }
       .screen { display: none; }
       .screen.active { display: block; }
+      #foil-creator-screen.active { display: flex; }
       input, button, select {
         margin: 6px 4px;
         padding: 8px 16px;
@@ -65,7 +66,7 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v6.1</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v6.2</p>
       </div>
       <div id="game-screen" class="screen">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -124,9 +125,84 @@
             <option value="0">classic</option>
             <option value="1">dark holo</option>
             <option value="2">rainbow rare</option>
+            <option value="3">custom</option>
           </select>
         </div>
+        <button id="foil-creator-btn" style="margin-top:8px;">custom foil creator</button>
+        <br>
         <button id="settings-back-btn" style="margin-top:12px;">back</button>
+      </div>
+      <div id="foil-creator-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:#0a0a14;flex-direction:column;align-items:center;padding:40px 20px 60px;">
+        <h2 style="line-height:1.1; margin-bottom:24px;">foil creator</h2>
+        <canvas id="foil-preview" width="204" height="204" style="border:1px solid #333; border-radius:8px; margin-bottom:24px;"></canvas>
+        <div style="display:grid; grid-template-columns:auto 1fr auto; gap:10px 12px; align-items:center; width:100%; max-width:420px; margin-bottom:24px;">
+
+          <span style="color:#444; font-size:11px; grid-column:1/-1; margin-top:4px; text-transform:uppercase; letter-spacing:2px;">glitter</span>
+          <label style="color:#555; font-size:12px; text-align:right;">count</label>
+          <input type="range" id="fc-glitter-count" min="0" max="120" step="1" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-glitter-count-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">twinkle ms</label>
+          <input type="range" id="fc-glitter-period" min="200" max="5000" step="50" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-glitter-period-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">brightness</label>
+          <input type="range" id="fc-glitter-alpha" min="0" max="1" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-glitter-alpha-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <span style="color:#444; font-size:11px; grid-column:1/-1; margin-top:4px; text-transform:uppercase; letter-spacing:2px;">texture</span>
+          <label style="color:#555; font-size:12px; text-align:right;">cross-hatch</label>
+          <input type="checkbox" id="fc-hatch-enabled" style="margin:0; padding:0; background:none; border:none; width:16px; height:16px; justify-self:start;">
+          <span></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">spacing px</label>
+          <input type="range" id="fc-hatch-spacing" min="1" max="20" step="1" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-hatch-spacing-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">opacity</label>
+          <input type="range" id="fc-hatch-opacity" min="0" max="0.30" step="0.005" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-hatch-opacity-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <span style="color:#444; font-size:11px; grid-column:1/-1; margin-top:4px; text-transform:uppercase; letter-spacing:2px;">gradient</span>
+          <label style="color:#555; font-size:12px; text-align:right;">spin ms</label>
+          <input type="range" id="fc-gradient-period" min="1000" max="30000" step="100" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-gradient-period-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">intensity 1</label>
+          <input type="range" id="fc-gradient-op1" min="0" max="1" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-gradient-op1-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">intensity 2</label>
+          <input type="range" id="fc-gradient-op2" min="0" max="1" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-gradient-op2-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">angle offset</label>
+          <input type="range" id="fc-gradient-offset" min="0" max="1" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-gradient-offset-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">hard-light blend</label>
+          <input type="checkbox" id="fc-blend-hardlight" style="margin:0; padding:0; background:none; border:none; width:16px; height:16px; justify-self:start;">
+          <span></span>
+
+          <span style="color:#444; font-size:11px; grid-column:1/-1; margin-top:4px; text-transform:uppercase; letter-spacing:2px;">sheen</span>
+          <label style="color:#555; font-size:12px; text-align:right;">enabled</label>
+          <input type="checkbox" id="fc-sheen-enabled" style="margin:0; padding:0; background:none; border:none; width:16px; height:16px; justify-self:start;">
+          <span></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">sweep ms</label>
+          <input type="range" id="fc-sheen-period" min="500" max="10000" step="100" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-sheen-period-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">width</label>
+          <input type="range" id="fc-sheen-width" min="0.05" max="0.90" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-sheen-width-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+
+          <label style="color:#555; font-size:12px; text-align:right;">brightness</label>
+          <input type="range" id="fc-sheen-brightness" min="0" max="0.60" step="0.01" style="margin:0; padding:0; background:none; border:none;">
+          <span id="fc-sheen-brightness-val" style="color:#888; font-size:12px; min-width:32px; text-align:left;"></span>
+        </div>
+        <button id="foil-save-btn">save as custom</button>
+        <button id="foil-creator-back-btn" style="margin-top:8px;">back</button>
       </div>
       <div id="matchover-screen" class="screen">
         <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>

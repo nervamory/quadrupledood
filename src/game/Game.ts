@@ -1,4 +1,5 @@
 import type { GameState, Card, CardType, Direction } from './types';
+import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams } from '../foil/customFoil';
 
 const CARD = 68;
 const CELL = 72;
@@ -902,15 +903,24 @@ export class Game {
     this.drag = null;
   };
 
-  private foilStyle = Math.min(2, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
+  private foilStyle = Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
+  private customFoilParams: CustomFoilParams = loadCustomFoilParams();
 
   setFoilStyle(n: number) {
-    this.foilStyle = Math.min(2, Math.max(0, n));
+    this.foilStyle = Math.min(3, Math.max(0, n));
     localStorage.setItem('foilStyle', String(this.foilStyle));
   }
 
+  setCustomFoilParams(params: CustomFoilParams) {
+    this.customFoilParams = params;
+  }
+
   private drawFoilOverlay(x: number, y: number) {
-    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][this.foilStyle].call(this, x, y);
+    if (this.foilStyle === 3) {
+      drawCustomFoil(this.ctx, x, y, this.customFoilParams, performance.now());
+      return;
+    }
+    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][this.foilStyle]?.call(this, x, y);
   }
 
   // V1 — original: single rotating rainbow gradient + sheen

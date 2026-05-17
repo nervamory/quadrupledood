@@ -6,10 +6,11 @@ export class UI {
   private betweenScreen  = document.getElementById('between-screen')!;
   private matchoverScreen = document.getElementById('matchover-screen')!;
   private settingsScreen = document.getElementById('settings-screen')!;
+  private foilCreatorScreen = document.getElementById('foil-creator-screen')!;
   private status         = document.getElementById('status')!;
 
   private allScreens() {
-    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen];
+    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.foilCreatorScreen];
   }
 
   private show(screen: HTMLElement) {
@@ -17,9 +18,10 @@ export class UI {
     screen.classList.add('active');
   }
 
-  showLobby()    { this.show(this.lobby); }
-  showGame()     { this.show(this.gameScreen); }
-  showSettings() { this.show(this.settingsScreen); }
+  showLobby()        { this.show(this.lobby); }
+  showGame()         { this.show(this.gameScreen); }
+  showSettings()     { this.show(this.settingsScreen); }
+  showFoilCreator()  { this.show(this.foilCreatorScreen); }
 
   showBetweenGames(opts: {
     myWins: number;

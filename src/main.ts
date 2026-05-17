@@ -3,6 +3,12 @@ import { Game } from './game/Game';
 import { UI } from './ui/UI';
 import { initGame, placeCard } from './game/gameLogic';
 import type { GameState, DeckType } from './game/types';
+import {
+  type CustomFoilParams,
+  drawCustomFoil,
+  loadCustomFoilParams,
+  saveCustomFoilParams,
+} from './foil/customFoil';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -284,7 +290,7 @@ getElement('matchover-leave-btn').addEventListener('click', () => {
 // ── settings ──────────────────────────────────────────────────────────────────
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
-foilSelect.value = String(Math.min(2, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
+foilSelect.value = String(Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
 foilSelect.addEventListener('change', () => game.setFoilStyle(parseInt(foilSelect.value, 10)));
 
 const deckSelect    = getElement<HTMLSelectElement>('deck-select');
@@ -299,6 +305,125 @@ prefDeckSelect.addEventListener('change', () => {
 
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());
 getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
+
+// ── foil creator ──────────────────────────────────────────────────────────────
+
+let workingFoilParams: CustomFoilParams = loadCustomFoilParams();
+let previewRaf = 0;
+
+const previewCanvas = getElement<HTMLCanvasElement>('foil-preview');
+const previewCtx = previewCanvas.getContext('2d')!;
+
+function syncSlidersToParams(p: CustomFoilParams) {
+  (getElement<HTMLInputElement>('fc-glitter-count')).value   = String(p.glitterCount);
+  (getElement<HTMLInputElement>('fc-glitter-period')).value  = String(p.glitterPeriodMs);
+  (getElement<HTMLInputElement>('fc-glitter-alpha')).value   = String(p.glitterAlpha);
+  (getElement<HTMLInputElement>('fc-hatch-enabled')).checked = p.hatchEnabled;
+  (getElement<HTMLInputElement>('fc-hatch-spacing')).value   = String(p.hatchSpacing);
+  (getElement<HTMLInputElement>('fc-hatch-opacity')).value   = String(p.hatchOpacity);
+  (getElement<HTMLInputElement>('fc-gradient-period')).value = String(p.gradientPeriodMs);
+  (getElement<HTMLInputElement>('fc-gradient-op1')).value    = String(p.gradientOpacity1);
+  (getElement<HTMLInputElement>('fc-gradient-op2')).value    = String(p.gradientOpacity2);
+  (getElement<HTMLInputElement>('fc-gradient-offset')).value = String(p.gradientOffset);
+  (getElement<HTMLInputElement>('fc-blend-hardlight')).checked = p.blendHardLight;
+  (getElement<HTMLInputElement>('fc-sheen-enabled')).checked = p.sheenEnabled;
+  (getElement<HTMLInputElement>('fc-sheen-period')).value    = String(p.sheenPeriodMs);
+  (getElement<HTMLInputElement>('fc-sheen-width')).value     = String(p.sheenWidth);
+  (getElement<HTMLInputElement>('fc-sheen-brightness')).value = String(p.sheenBrightness);
+  updateValueLabels();
+}
+
+function updateValueLabels() {
+  const p = workingFoilParams;
+  const set = (id: string, v: string | number) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(v);
+  };
+  set('fc-glitter-count-val',   p.glitterCount);
+  set('fc-glitter-period-val',  p.glitterPeriodMs);
+  set('fc-glitter-alpha-val',   p.glitterAlpha.toFixed(2));
+  set('fc-hatch-spacing-val',   p.hatchSpacing);
+  set('fc-hatch-opacity-val',   p.hatchOpacity.toFixed(3));
+  set('fc-gradient-period-val', p.gradientPeriodMs);
+  set('fc-gradient-op1-val',    p.gradientOpacity1.toFixed(2));
+  set('fc-gradient-op2-val',    p.gradientOpacity2.toFixed(2));
+  set('fc-gradient-offset-val', p.gradientOffset.toFixed(2));
+  set('fc-sheen-period-val',    p.sheenPeriodMs);
+  set('fc-sheen-width-val',     p.sheenWidth.toFixed(2));
+  set('fc-sheen-brightness-val', p.sheenBrightness.toFixed(2));
+}
+
+function readSlidersToParams() {
+  const num = (id: string) => parseFloat((getElement<HTMLInputElement>(id)).value);
+  const chk = (id: string) => (getElement<HTMLInputElement>(id)).checked;
+  workingFoilParams = {
+    glitterCount:     num('fc-glitter-count'),
+    glitterPeriodMs:  num('fc-glitter-period'),
+    glitterAlpha:     num('fc-glitter-alpha'),
+    hatchEnabled:     chk('fc-hatch-enabled'),
+    hatchSpacing:     num('fc-hatch-spacing'),
+    hatchOpacity:     num('fc-hatch-opacity'),
+    gradientPeriodMs: num('fc-gradient-period'),
+    gradientOpacity1: num('fc-gradient-op1'),
+    gradientOpacity2: num('fc-gradient-op2'),
+    gradientOffset:   num('fc-gradient-offset'),
+    blendHardLight:   chk('fc-blend-hardlight'),
+    sheenEnabled:     chk('fc-sheen-enabled'),
+    sheenPeriodMs:    num('fc-sheen-period'),
+    sheenWidth:       num('fc-sheen-width'),
+    sheenBrightness:  num('fc-sheen-brightness'),
+  };
+  updateValueLabels();
+}
+
+function drawPreviewFrame(now: number) {
+  previewCtx.fillStyle = '#1a1a2e';
+  previewCtx.fillRect(0, 0, 204, 204);
+  previewCtx.save();
+  previewCtx.scale(3, 3);
+  drawCustomFoil(previewCtx, 0, 0, workingFoilParams, now);
+  previewCtx.restore();
+  previewRaf = requestAnimationFrame(drawPreviewFrame);
+}
+
+function startFoilPreview() {
+  cancelAnimationFrame(previewRaf);
+  previewRaf = requestAnimationFrame(drawPreviewFrame);
+}
+
+function stopFoilPreview() {
+  cancelAnimationFrame(previewRaf);
+  previewRaf = 0;
+}
+
+for (const id of [
+  'fc-glitter-count','fc-glitter-period','fc-glitter-alpha',
+  'fc-hatch-enabled','fc-hatch-spacing','fc-hatch-opacity',
+  'fc-gradient-period','fc-gradient-op1','fc-gradient-op2','fc-gradient-offset','fc-blend-hardlight',
+  'fc-sheen-enabled','fc-sheen-period','fc-sheen-width','fc-sheen-brightness',
+]) {
+  getElement(id).addEventListener('input', () => { readSlidersToParams(); });
+}
+
+getElement('foil-creator-btn').addEventListener('click', () => {
+  syncSlidersToParams(workingFoilParams);
+  ui.showFoilCreator();
+  startFoilPreview();
+});
+
+getElement('foil-creator-back-btn').addEventListener('click', () => {
+  stopFoilPreview();
+  ui.showSettings();
+});
+
+getElement('foil-save-btn').addEventListener('click', () => {
+  saveCustomFoilParams(workingFoilParams);
+  game.setCustomFoilParams(workingFoilParams);
+  foilSelect.value = '3';
+  game.setFoilStyle(3);
+  stopFoilPreview();
+  ui.showSettings();
+});
 
 // ── debug toggle ──────────────────────────────────────────────────────────────
 
