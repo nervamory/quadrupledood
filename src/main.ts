@@ -306,6 +306,13 @@ prefDeckSelect.addEventListener('change', () => {
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());
 getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
 
+const cardColorDarkEl  = getElement<HTMLInputElement>('card-color-dark');
+const cardColorLightEl = getElement<HTMLInputElement>('card-color-light');
+cardColorDarkEl.value  = localStorage.getItem('cardColorDark')  ?? '#111111';
+cardColorLightEl.value = localStorage.getItem('cardColorLight') ?? '#f0f0f0';
+cardColorDarkEl.addEventListener('input',  () => game.setCardColors(cardColorDarkEl.value, cardColorLightEl.value));
+cardColorLightEl.addEventListener('input', () => game.setCardColors(cardColorDarkEl.value, cardColorLightEl.value));
+
 // ── foil creator ──────────────────────────────────────────────────────────────
 
 let workingFoilParams: CustomFoilParams = loadCustomFoilParams();
