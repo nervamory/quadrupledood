@@ -23,6 +23,7 @@ let gameState: GameState | null = null;
 let oppDeck: DeckType | null = null;
 let debugMode = false;
 let inRoom = false;
+let gameStarted = false;
 
 // Match state
 let matchScore: Record<number, number> = {};
@@ -104,7 +105,8 @@ function handleGameEnd(state: GameState) {
 // ── Photon ────────────────────────────────────────────────────────────────────
 
 function tryStartGame() {
-  if (!photon.isMaster || photon.playerCount !== 2 || oppDeck === null) return;
+  if (gameStarted || !photon.isMaster || photon.playerCount !== 2 || oppDeck === null) return;
+  gameStarted = true;
   const [a1, a2] = photon.allActorNrs;
   const myDeck = getSelectedDeck();
   const oppNr = photon.allActorNrs.find(n => n !== photon.actorNr)!;
@@ -145,6 +147,7 @@ const photon = new PhotonClient({
     matchScore = {};
     game.reset();
     inRoom = false;
+    gameStarted = false;
     photon.leave();
     ui.showLobby();
     ui.setStatus('opponent left');
@@ -189,6 +192,7 @@ const photon = new PhotonClient({
   onDisconnected: () => {
     clearEndTimer();
     inRoom = false;
+    gameStarted = false;
     gameState = null;
     oppDeck = null;
     oppReadyDeck = null;
