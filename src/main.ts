@@ -54,6 +54,7 @@ function startGame(myDeck: DeckType, oppDeckUsed: DeckType) {
   gameState = state;
   myPlayedDeck = myDeck;
   game.setMatchScore(matchScore);
+  game.startIdleSpin();
   game.setState(state);
   photon.sendGameStart(state);
   ui.showGame();
@@ -156,6 +157,7 @@ const photon = new PhotonClient({
     gameState = state;
     myPlayedDeck = myReadyDeck ?? getSelectedDeck();
     game.setMatchScore(matchScore);
+    game.startIdleSpin();
     game.setState(state);
     ui.showGame();
   },

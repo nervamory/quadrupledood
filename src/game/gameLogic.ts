@@ -139,7 +139,7 @@ function triggerRobots(board: BoardCell[][]): void {
         const nr = r + dr, nc = c + dc;
         if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
         const neighbor = board[nr][nc];
-        if (!neighbor || 'blood' in neighbor) continue;
+        if (!neighbor || 'blood' in neighbor || neighbor.zombified) continue;
         board[nr][nc] = { ...neighbor, owner: neighbor.owner === p1 ? p2 : p1 };
       }
     }
