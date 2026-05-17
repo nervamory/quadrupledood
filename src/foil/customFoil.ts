@@ -4,6 +4,7 @@ export interface CustomFoilParams {
   glitterCount:      number;   // 0–120
   glitterPeriodMs:   number;   // 200–5000 ms  (twinkle period)
   glitterAlpha:      number;   // 0–1
+  glitterFullCard:   boolean;
   hatchEnabled:      boolean;
   hatchSpacing:      number;   // 1–20 px
   hatchOpacity:      number;   // 0–0.30
@@ -24,6 +25,7 @@ export const DEFAULT_CUSTOM_FOIL: CustomFoilParams = {
   glitterCount:     60,
   glitterPeriodMs:  900,
   glitterAlpha:     0.9,
+  glitterFullCard:  false,
   hatchEnabled:     true,
   hatchSpacing:     5,
   hatchOpacity:     0.06,
@@ -82,8 +84,8 @@ export function drawCustomFoil(
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = 'white';
   for (let i = 0; i < p.glitterCount; i++) {
-    const fx = (i * 0.618033) % 1;
-    const fy = (i * 0.381966) % 1;
+    const fx = p.glitterFullCard ? (i * 0.7548776662) % 1 : (i * 0.618033) % 1;
+    const fy = p.glitterFullCard ? (i * 0.5698402909) % 1 : (i * 0.381966) % 1;
     const sz = 0.25 + (i % 4) * 0.18;
     const twinkle = i % 3 === 0
       ? Math.abs(Math.sin(now / glitterPeriod * Math.PI * 2 + i * 1.1))

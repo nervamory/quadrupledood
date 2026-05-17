@@ -323,9 +323,10 @@ const previewCanvas = getElement<HTMLCanvasElement>('foil-preview');
 const previewCtx = previewCanvas.getContext('2d')!;
 
 function syncSlidersToParams(p: CustomFoilParams) {
-  (getElement<HTMLInputElement>('fc-glitter-count')).value   = String(p.glitterCount);
-  (getElement<HTMLInputElement>('fc-glitter-period')).value  = String(p.glitterPeriodMs);
-  (getElement<HTMLInputElement>('fc-glitter-alpha')).value   = String(p.glitterAlpha);
+  (getElement<HTMLInputElement>('fc-glitter-count')).value      = String(p.glitterCount);
+  (getElement<HTMLInputElement>('fc-glitter-period')).value     = String(p.glitterPeriodMs);
+  (getElement<HTMLInputElement>('fc-glitter-alpha')).value      = String(p.glitterAlpha);
+  (getElement<HTMLInputElement>('fc-glitter-fullcard')).checked = p.glitterFullCard;
   (getElement<HTMLInputElement>('fc-hatch-enabled')).checked = p.hatchEnabled;
   (getElement<HTMLInputElement>('fc-hatch-spacing')).value   = String(p.hatchSpacing);
   (getElement<HTMLInputElement>('fc-hatch-opacity')).value   = String(p.hatchOpacity);
@@ -371,6 +372,7 @@ function readSlidersToParams() {
     glitterCount:     num('fc-glitter-count'),
     glitterPeriodMs:  num('fc-glitter-period'),
     glitterAlpha:     num('fc-glitter-alpha'),
+    glitterFullCard:  chk('fc-glitter-fullcard'),
     hatchEnabled:     chk('fc-hatch-enabled'),
     hatchSpacing:     num('fc-hatch-spacing'),
     hatchOpacity:     num('fc-hatch-opacity'),
@@ -410,7 +412,7 @@ function stopFoilPreview() {
 }
 
 for (const id of [
-  'fc-glitter-count','fc-glitter-period','fc-glitter-alpha',
+  'fc-glitter-count','fc-glitter-period','fc-glitter-alpha','fc-glitter-fullcard',
   'fc-hatch-enabled','fc-hatch-spacing','fc-hatch-opacity',
   'fc-gradient-period','fc-gradient-op1','fc-gradient-op2','fc-gradient-offset','fc-blend-hardlight',
   'fc-sheen-enabled','fc-sheen-period','fc-sheen-width','fc-sheen-brightness',

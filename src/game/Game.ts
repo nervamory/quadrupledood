@@ -143,7 +143,7 @@ export class Game {
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
-  private knifeShakeAnims: { row: number; col: number; startTime: number }[] = [];
+  private captureShakeAnims: { row: number; col: number; startTime: number }[] = [];
   private vampireAnim: { vampX: number; vampY: number; cells: { row: number; col: number; fromX: number; fromY: number }[]; startTime: number; hiddenKeys: Set<string> } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
@@ -203,7 +203,7 @@ export class Game {
         done: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.knifeShakeAnims = []; this.vampireAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -214,7 +214,7 @@ export class Game {
       this.detectSuccubusPull(this.state, state);
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
-      this.detectKnifeBlocks(state);
+      this.detectCaptureBlocks(state);
       this.detectVampireCapture(state);
     }
     this.state = state;
@@ -572,13 +572,13 @@ export class Game {
     ctx.restore();
   }
 
-  private detectKnifeBlocks(newState: GameState) {
-    const blocks = newState.knifeBlocks;
+  private detectCaptureBlocks(newState: GameState) {
+    const blocks = newState.captureBlocks;
     if (!blocks || blocks.length === 0) return;
     const now = performance.now();
     for (const [row, col] of blocks) {
-      this.knifeShakeAnims = this.knifeShakeAnims.filter(a => !(a.row === row && a.col === col));
-      this.knifeShakeAnims.push({ row, col, startTime: now });
+      this.captureShakeAnims = this.captureShakeAnims.filter(a => !(a.row === row && a.col === col));
+      this.captureShakeAnims.push({ row, col, startTime: now });
     }
   }
 
@@ -640,7 +640,7 @@ export class Game {
     this.succubusPullAnims = [];
     this.popAnims = [];
     this.mermaidPullAnim = null;
-    this.knifeShakeAnims = [];
+    this.captureShakeAnims = [];
     this.vampireAnim = null;
     this.oppHoverIdx = null;
     this.lastHoverIdx = null;
@@ -2173,11 +2173,11 @@ export class Game {
           } else {
             const fogged = this.isFoggedFor(row, col) && !this.isNearFire(row, col);
             const shake = (() => {
-              const sa = this.knifeShakeAnims.find(a => a.row === row && a.col === col);
+              const sa = this.captureShakeAnims.find(a => a.row === row && a.col === col);
               if (!sa) return 0;
               const SHAKE_DUR = 450;
               const st = (now - sa.startTime) / SHAKE_DUR;
-              if (st >= 1) { this.knifeShakeAnims = this.knifeShakeAnims.filter(a => a !== sa); return 0; }
+              if (st >= 1) { this.captureShakeAnims = this.captureShakeAnims.filter(a => a !== sa); return 0; }
               return Math.sin(st * Math.PI * 4) * 3 * (1 - st);
             })();
             this.drawCard(x + pad + shake, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
