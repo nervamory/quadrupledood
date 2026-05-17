@@ -16,6 +16,8 @@ export interface CustomFoilParams {
   sheenPeriodMs:     number;   // 500–10000 ms (sweep period)
   sheenWidth:        number;   // 0.05–0.90  (fraction of card width)
   sheenBrightness:   number;   // 0–0.60
+  gradient1Colors:   [string, string, string, string, string, string];  // 6 hue stops
+  gradient2Colors:   [string, string, string, string];                  // 4 shimmer stops
 }
 
 export const DEFAULT_CUSTOM_FOIL: CustomFoilParams = {
@@ -34,6 +36,8 @@ export const DEFAULT_CUSTOM_FOIL: CustomFoilParams = {
   sheenPeriodMs:    3500,
   sheenWidth:       0.35,
   sheenBrightness:  0.20,
+  gradient1Colors:  ['#ff1478', '#ff8c00', '#8cff64', '#00d2ff', '#5a64ff', '#d246ff'],
+  gradient2Colors:  ['#ffffd2', '#d2ffe6', '#d2d2ff', '#ffdcff'],
 };
 
 export function loadCustomFoilParams(): CustomFoilParams {
@@ -46,6 +50,13 @@ export function loadCustomFoilParams(): CustomFoilParams {
 
 export function saveCustomFoilParams(p: CustomFoilParams): void {
   localStorage.setItem('customFoil', JSON.stringify(p));
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 export function drawCustomFoil(
@@ -103,13 +114,10 @@ export function drawCustomFoil(
     cx + Math.cos(a) * r, cy + Math.sin(a) * r,
     cx - Math.cos(a) * r, cy - Math.sin(a) * r,
   );
-  g1.addColorStop(0,    `rgba(255, 100,  90, ${p.gradientOpacity1})`);
-  g1.addColorStop(0.17, `rgba(255, 200,  60, ${p.gradientOpacity1})`);
-  g1.addColorStop(0.33, `rgba(140, 255, 100, ${p.gradientOpacity1})`);
-  g1.addColorStop(0.50, `rgba( 50, 210, 255, ${p.gradientOpacity1})`);
-  g1.addColorStop(0.67, `rgba( 90, 100, 255, ${p.gradientOpacity1})`);
-  g1.addColorStop(0.83, `rgba(210,  70, 255, ${p.gradientOpacity1})`);
-  g1.addColorStop(1,    `rgba(255, 100,  90, ${p.gradientOpacity1})`);
+  const c1 = p.gradient1Colors;
+  const stops1 = [0, 0.17, 0.33, 0.50, 0.67, 0.83] as const;
+  stops1.forEach((stop, i) => g1.addColorStop(stop, hexToRgba(c1[i], p.gradientOpacity1)));
+  g1.addColorStop(1, hexToRgba(c1[0], p.gradientOpacity1));
   ctx.fillStyle = g1;
   ctx.fillRect(x, y, CARD, CARD);
 
@@ -118,10 +126,11 @@ export function drawCustomFoil(
     cx + Math.cos(a2) * r, cy + Math.sin(a2) * r,
     cx - Math.cos(a2) * r, cy - Math.sin(a2) * r,
   );
-  g2.addColorStop(0,   `rgba(255, 255, 210, ${p.gradientOpacity2})`);
-  g2.addColorStop(0.4, `rgba(210, 255, 230, ${p.gradientOpacity2})`);
-  g2.addColorStop(0.7, `rgba(210, 210, 255, ${p.gradientOpacity2})`);
-  g2.addColorStop(1,   `rgba(255, 220, 255, ${p.gradientOpacity2})`);
+  const c2 = p.gradient2Colors;
+  g2.addColorStop(0,   hexToRgba(c2[0], p.gradientOpacity2));
+  g2.addColorStop(0.4, hexToRgba(c2[1], p.gradientOpacity2));
+  g2.addColorStop(0.7, hexToRgba(c2[2], p.gradientOpacity2));
+  g2.addColorStop(1,   hexToRgba(c2[3], p.gradientOpacity2));
   ctx.fillStyle = g2;
   ctx.fillRect(x, y, CARD, CARD);
 

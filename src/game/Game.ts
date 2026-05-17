@@ -906,16 +906,6 @@ export class Game {
   private foilStyle = Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
   private customFoilParams: CustomFoilParams = loadCustomFoilParams();
 
-  private cardColorDark  = localStorage.getItem('cardColorDark')  ?? '#111111';
-  private cardColorLight = localStorage.getItem('cardColorLight') ?? '#f0f0f0';
-
-  setCardColors(dark: string, light: string) {
-    this.cardColorDark  = dark;
-    this.cardColorLight = light;
-    localStorage.setItem('cardColorDark',  dark);
-    localStorage.setItem('cardColorLight', light);
-  }
-
   setFoilStyle(n: number) {
     this.foilStyle = Math.min(3, Math.max(0, n));
     localStorage.setItem('foilStyle', String(this.foilStyle));
@@ -1145,19 +1135,6 @@ export class Game {
     }
   }
 
-  private cardFgAndBorder(hex: string): { fg: string; border: string } {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    const fg = luminance > 0.45 ? '#111111' : '#eeeeee';
-    const blend = (c: number) => luminance > 0.45
-      ? Math.round(c * 0.75).toString(16).padStart(2, '0')
-      : Math.round(c + (255 - c) * 0.20).toString(16).padStart(2, '0');
-    const border = `#${blend(r)}${blend(g)}${blend(b)}`;
-    return { fg, border };
-  }
-
   private drawCard(x: number, y: number, card: Card, isBlack: boolean, faceDown = false) {
     const ctx = this.ctx;
 
@@ -1185,8 +1162,9 @@ export class Game {
       return;
     }
 
-    const bg = isBlack ? this.cardColorDark : this.cardColorLight;
-    const { fg, border } = this.cardFgAndBorder(bg);
+    const bg = isBlack ? '#111111' : '#f0f0f0';
+    const fg = isBlack ? '#eeeeee' : '#111111';
+    const border = isBlack ? '#333333' : '#cccccc';
 
     ctx.beginPath();
     ctx.roundRect(x, y, CARD, CARD, 6);

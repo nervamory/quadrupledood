@@ -306,13 +306,6 @@ prefDeckSelect.addEventListener('change', () => {
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());
 getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
 
-const cardColorDarkEl  = getElement<HTMLInputElement>('card-color-dark');
-const cardColorLightEl = getElement<HTMLInputElement>('card-color-light');
-cardColorDarkEl.value  = localStorage.getItem('cardColorDark')  ?? '#111111';
-cardColorLightEl.value = localStorage.getItem('cardColorLight') ?? '#f0f0f0';
-cardColorDarkEl.addEventListener('input',  () => game.setCardColors(cardColorDarkEl.value, cardColorLightEl.value));
-cardColorLightEl.addEventListener('input', () => game.setCardColors(cardColorDarkEl.value, cardColorLightEl.value));
-
 // ── foil creator ──────────────────────────────────────────────────────────────
 
 let workingFoilParams: CustomFoilParams = loadCustomFoilParams();
@@ -337,6 +330,8 @@ function syncSlidersToParams(p: CustomFoilParams) {
   (getElement<HTMLInputElement>('fc-sheen-period')).value    = String(p.sheenPeriodMs);
   (getElement<HTMLInputElement>('fc-sheen-width')).value     = String(p.sheenWidth);
   (getElement<HTMLInputElement>('fc-sheen-brightness')).value = String(p.sheenBrightness);
+  p.gradient1Colors.forEach((c, i) => { (getElement<HTMLInputElement>(`fc-g1-${i}`)).value = c; });
+  p.gradient2Colors.forEach((c, i) => { (getElement<HTMLInputElement>(`fc-g2-${i}`)).value = c; });
   updateValueLabels();
 }
 
@@ -363,6 +358,7 @@ function updateValueLabels() {
 function readSlidersToParams() {
   const num = (id: string) => parseFloat((getElement<HTMLInputElement>(id)).value);
   const chk = (id: string) => (getElement<HTMLInputElement>(id)).checked;
+  const col = (id: string) => (getElement<HTMLInputElement>(id)).value;
   workingFoilParams = {
     glitterCount:     num('fc-glitter-count'),
     glitterPeriodMs:  num('fc-glitter-period'),
@@ -379,6 +375,8 @@ function readSlidersToParams() {
     sheenPeriodMs:    num('fc-sheen-period'),
     sheenWidth:       num('fc-sheen-width'),
     sheenBrightness:  num('fc-sheen-brightness'),
+    gradient1Colors:  [col('fc-g1-0'), col('fc-g1-1'), col('fc-g1-2'), col('fc-g1-3'), col('fc-g1-4'), col('fc-g1-5')],
+    gradient2Colors:  [col('fc-g2-0'), col('fc-g2-1'), col('fc-g2-2'), col('fc-g2-3')],
   };
   updateValueLabels();
 }
@@ -408,6 +406,8 @@ for (const id of [
   'fc-hatch-enabled','fc-hatch-spacing','fc-hatch-opacity',
   'fc-gradient-period','fc-gradient-op1','fc-gradient-op2','fc-gradient-offset','fc-blend-hardlight',
   'fc-sheen-enabled','fc-sheen-period','fc-sheen-width','fc-sheen-brightness',
+  'fc-g1-0','fc-g1-1','fc-g1-2','fc-g1-3','fc-g1-4','fc-g1-5',
+  'fc-g2-0','fc-g2-1','fc-g2-2','fc-g2-3',
 ]) {
   getElement(id).addEventListener('input', () => { readSlidersToParams(); });
 }
