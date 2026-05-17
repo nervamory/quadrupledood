@@ -1,5 +1,6 @@
 import { ConnectionProtocol, LoadBalancing, PhotonPeer } from 'photon-realtime';
 import type { GameState, DeckType } from '../game/types';
+import type { CustomFoilParams } from '../foil/customFoil';
 
 class BrowserSocket {
   private socket: WebSocket;
@@ -30,6 +31,7 @@ const EV_PLACE_CARD = 2;
 const EV_DECK_PICK  = 3;
 const EV_HOVER      = 4;
 const EV_READY      = 5;
+const EV_FOIL_PICK  = 6;
 
 export type NetworkCallbacks = {
   onJoined: (actorNr: number) => void;
@@ -43,6 +45,7 @@ export type NetworkCallbacks = {
   onDisconnected: () => void;
   onOpponentHover: (idx: number | null) => void;
   onReady: (actorNr: number, deck: DeckType) => void;
+  onFoilPick?: (style: number, params: CustomFoilParams) => void;
 };
 
 const MAX_RETRIES = 3;
@@ -162,6 +165,9 @@ export class PhotonClient {
       } else if (code === EV_READY) {
         const { deck } = content as { deck: DeckType };
         this.cb.onReady(actorNr, deck);
+      } else if (code === EV_FOIL_PICK) {
+        const { style, params } = content as { style: number; params: string };
+        this.cb.onFoilPick?.(style, JSON.parse(params) as CustomFoilParams);
       }
     };
 
@@ -227,6 +233,10 @@ export class PhotonClient {
 
   sendReady(deck: DeckType) {
     this.lbc.raiseEvent(EV_READY, { deck });
+  }
+
+  sendFoilPick(style: number, params: CustomFoilParams) {
+    this.lbc.raiseEvent(EV_FOIL_PICK, { style, params: JSON.stringify(params) });
   }
 
   leave() {

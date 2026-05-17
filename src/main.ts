@@ -132,6 +132,7 @@ const photon = new PhotonClient({
   },
   onPlayerJoined: (_actorNr) => {
     photon.sendDeckPick(getSelectedDeck());
+    photon.sendFoilPick(parseInt(foilSelect.value, 10), workingFoilParams);
     tryStartGame();
   },
   onPlayerLeft: (_actorNr) => {
@@ -177,6 +178,9 @@ const photon = new PhotonClient({
       }
       tryNextGame();
     }
+  },
+  onFoilPick: (style, params) => {
+    game.setOppFoilStyle(style, params);
   },
   onLobbyUpdate: (count) => {
     ui.setStatus(`${count} ${count === 1 ? 'player' : 'players'} currently sacrificing`);
@@ -291,7 +295,11 @@ getElement('matchover-leave-btn').addEventListener('click', () => {
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
 foilSelect.value = String(Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
-foilSelect.addEventListener('change', () => game.setFoilStyle(parseInt(foilSelect.value, 10)));
+foilSelect.addEventListener('change', () => {
+  const style = parseInt(foilSelect.value, 10);
+  game.setFoilStyle(style);
+  if (inRoom) photon.sendFoilPick(style, workingFoilParams);
+});
 
 const deckSelect    = getElement<HTMLSelectElement>('deck-select');
 const prefDeckSelect = getElement<HTMLSelectElement>('pref-deck-select');
@@ -428,6 +436,7 @@ getElement('foil-save-btn').addEventListener('click', () => {
   game.setCustomFoilParams(workingFoilParams);
   foilSelect.value = '3';
   game.setFoilStyle(3);
+  if (inRoom) photon.sendFoilPick(3, workingFoilParams);
   stopFoilPreview();
   ui.showSettings();
 });

@@ -1,5 +1,5 @@
 import type { GameState, Card, CardType, Direction } from './types';
-import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams } from '../foil/customFoil';
+import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
 
 const CARD = 68;
 const CELL = 72;
@@ -905,6 +905,8 @@ export class Game {
 
   private foilStyle = Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
   private customFoilParams: CustomFoilParams = loadCustomFoilParams();
+  private oppFoilStyle = 2;
+  private oppCustomFoilParams: CustomFoilParams = { ...DEFAULT_CUSTOM_FOIL };
 
   setFoilStyle(n: number) {
     this.foilStyle = Math.min(3, Math.max(0, n));
@@ -915,12 +917,19 @@ export class Game {
     this.customFoilParams = params;
   }
 
-  private drawFoilOverlay(x: number, y: number) {
-    if (this.foilStyle === 3) {
-      drawCustomFoil(this.ctx, x, y, this.customFoilParams, performance.now());
+  setOppFoilStyle(style: number, params: CustomFoilParams) {
+    this.oppFoilStyle = Math.min(3, Math.max(0, style));
+    this.oppCustomFoilParams = params;
+  }
+
+  private drawFoilOverlay(x: number, y: number, isOpp = false) {
+    const style = isOpp ? this.oppFoilStyle : this.foilStyle;
+    const params = isOpp ? this.oppCustomFoilParams : this.customFoilParams;
+    if (style === 3) {
+      drawCustomFoil(this.ctx, x, y, params, performance.now());
       return;
     }
-    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][this.foilStyle]?.call(this, x, y);
+    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][style]?.call(this, x, y);
   }
 
   // V1 — original: single rotating rainbow gradient + sheen
@@ -1162,6 +1171,9 @@ export class Game {
       return;
     }
 
+    const myIsBlack = this.localNr !== 0 && this.state !== null && this.localNr === this.state.blackPlayer;
+    const isOpp = this.state !== null && (isBlack !== myIsBlack);
+
     const bg = isBlack ? '#111111' : '#f0f0f0';
     const fg = isBlack ? '#eeeeee' : '#111111';
     const border = isBlack ? '#333333' : '#cccccc';
@@ -1222,7 +1234,7 @@ export class Game {
     }
 
     if (card.type === 'moon') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1272,7 +1284,7 @@ export class Game {
     }
 
     if (card.type === 'vampire') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1299,7 +1311,7 @@ export class Game {
 
     if (card.type === 'wolf') {
       const moonIsOut = this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
-      if (moonIsOut) this.drawFoilOverlay(x, y);
+      if (moonIsOut) this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1327,7 +1339,7 @@ export class Game {
     }
 
     if (card.type === 'squid') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1373,7 +1385,7 @@ export class Game {
     }
 
     if (card.type === 'zombie') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1425,7 +1437,7 @@ export class Game {
     }
 
     if (card.type === 'skull') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1508,7 +1520,7 @@ export class Game {
     }
 
     if (card.type === 'dragon') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1566,7 +1578,7 @@ export class Game {
     }
 
     if (card.type === 'alien') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1590,7 +1602,7 @@ export class Game {
     }
 
     if (card.type === 'imp') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1673,7 +1685,7 @@ export class Game {
     }
 
     if (card.type === 'clown') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1715,7 +1727,7 @@ export class Game {
     }
 
     if (card.type === 'succubus') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1757,7 +1769,7 @@ export class Game {
     }
 
     if (card.type === 'spider') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1805,7 +1817,7 @@ export class Game {
     }
 
     if (card.type === 'oni') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1885,7 +1897,7 @@ export class Game {
     }
 
     if (card.type === 'robot') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1926,7 +1938,7 @@ export class Game {
     }
 
     if (card.type === 'dolphin') {
-      this.drawFoilOverlay(x, y);
+      this.drawFoilOverlay(x, y, isOpp);
       ctx.save();
       ctx.translate(cx, cy - 6);
       ctx.font = '24px serif';
@@ -2078,8 +2090,16 @@ export class Game {
       const eased = 1 - Math.pow(1 - t, 3);
       const settled = t >= 1;
 
-      const isMyTurn = spinAnim.target === KNIFE_ANGLES.down;
-      angle = settled ? spinAnim.target : spinAnim.startAngle + spinAnim.totalAngle * eased;
+      // At settlement, derive both the angle and the label from the live
+      // game state so they are definitionally correct regardless of any
+      // timing edge case. During animation, use the baked target.
+      const isMyTurn = settled && this.state
+        ? this.state.currentTurn === this.localNr
+        : spinAnim.target === KNIFE_ANGLES.down;
+      const resolvedTarget = settled && this.state
+        ? (this.state.currentTurn === this.localNr ? KNIFE_ANGLES.down : KNIFE_ANGLES.up)
+        : spinAnim.target;
+      angle = settled ? resolvedTarget : spinAnim.startAngle + spinAnim.totalAngle * eased;
 
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
