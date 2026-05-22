@@ -174,8 +174,11 @@ const photon = new PhotonClient({
   onJoined: (actorNr) => {
     inRoom = true;
     game.setLocalActor(actorNr);
-    game.startIdleSpin();
-    ui.showGame();
+    clearReconnectWait();
+    if (gameState === null) {
+      game.startIdleSpin();
+      ui.showGame();
+    }
   },
   onPlayerJoined: (_actorNr) => {
     clearReconnectWait();
@@ -193,10 +196,13 @@ const photon = new PhotonClient({
     startReconnectWait();
   },
   onGameStart: (state) => {
+    const isResync = gameState !== null;
     gameState = state;
     myPlayedDeck = myReadyDeck ?? getSelectedDeck();
     game.setMatchScore(matchScore);
-    game.startIdleSpin();
+    if (!isResync) {
+      game.startIdleSpin();
+    }
     game.setState(state);
     ui.showGame();
   },
@@ -238,7 +244,14 @@ const photon = new PhotonClient({
   },
   onStatusChange: (msg) => ui.setStatus(msg),
   onDisconnected: () => {
-    doLeave();
+    if (gameState !== null && gameState.phase === 'playing') {
+      const overlay = document.getElementById('reconnect-overlay')!;
+      const msg = document.getElementById('reconnect-msg')!;
+      msg.textContent = 'connection lost\nreconnecting…';
+      overlay.style.display = 'flex';
+    } else {
+      doLeave();
+    }
   },
   onOpponentHover: (idx) => {
     game.setOppHover(idx);
@@ -322,6 +335,14 @@ prefDeckSelect.value = savedDeck;
 prefDeckSelect.addEventListener('change', () => {
   localStorage.setItem('deckPref', prefDeckSelect.value);
   deckSelect.value = prefDeckSelect.value;
+});
+
+const colorblindToggle = getElement<HTMLInputElement>('colorblind-toggle');
+colorblindToggle.checked = localStorage.getItem('colorblindMode') === 'true';
+game.setColorblindMode(colorblindToggle.checked);
+colorblindToggle.addEventListener('change', () => {
+  game.setColorblindMode(colorblindToggle.checked);
+  localStorage.setItem('colorblindMode', String(colorblindToggle.checked));
 });
 
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());

@@ -112,6 +112,7 @@ export class Game {
   private lastHoverIdx: number | null = null;
   private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
+  colorblindMode = false;
 
   private flipAnims: FlipAnim[] = [];
 
@@ -177,6 +178,8 @@ export class Game {
     this.localNr = actorNr;
     if (!this.raf) this.start();
   }
+
+  setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
 
   setMatchScore(score: Record<number, number>) {
     this.matchScore = { ...score };
@@ -1213,9 +1216,9 @@ export class Game {
     const myIsBlack = this.localNr !== 0 && this.state !== null && this.localNr === this.state.blackPlayer;
     const isOpp = this.state !== null && (isBlack !== myIsBlack);
 
-    const bg = isBlack ? '#111111' : '#f0f0f0';
-    const fg = isBlack ? '#eeeeee' : '#111111';
-    const border = isBlack ? '#333333' : '#cccccc';
+    const bg     = isBlack ? (this.colorblindMode ? '#0d2652' : '#111111') : (this.colorblindMode ? '#f5921a' : '#f0f0f0');
+    const fg     = isBlack ? (this.colorblindMode ? '#c8e0ff' : '#eeeeee') : (this.colorblindMode ? '#1a0800' : '#111111');
+    const border = isBlack ? (this.colorblindMode ? '#1a3870' : '#333333') : (this.colorblindMode ? '#c06010' : '#cccccc');
 
     ctx.beginPath();
     ctx.roundRect(x, y, CARD, CARD, 6);
