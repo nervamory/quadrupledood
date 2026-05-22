@@ -79,6 +79,130 @@ function getSelectedDeck(): DeckType {
   return getElement<HTMLSelectElement>('deck-select').value as DeckType;
 }
 
+// ── CPU opponent ───────────────────────────────────────────────────────────────
+
+const CPU_LOCAL_NR = 1;
+const CPU_OPP_NR   = 2;
+const CPU_DECKS: DeckType[] = ['vampire','werewolf','ocean','bones','zombie','oni','spider','knife','demon','clown','succubus','ghost','robot','dolphin'];
+
+let cpuMode = false;
+let cpuMoveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const CPU_DIR_OFFSETS: Record<string, [number, number]> = {
+  up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1],
+  'up-left': [-1, -1], 'up-right': [-1, 1], 'down-left': [1, -1], 'down-right': [1, 1],
+};
+
+function getCpuMove(state: GameState): { cardId: string; row: number; col: number } | null {
+  const hand = state.hands[CPU_OPP_NR] ?? [];
+  if (hand.length === 0) return null;
+  const board = state.board;
+
+  const isOppCard = (r: number, c: number) => {
+    if (r < 0 || r > 3 || c < 0 || c > 3) return false;
+    const cell = board[r][c];
+    return cell !== null && 'card' in cell && cell.owner !== CPU_OPP_NR;
+  };
+
+  const scoreCard = (card: typeof hand[0], row: number, col: number): number => {
+    const t = card.type;
+    if (t === 'spider' || t === 'moon') {
+      let s = 0;
+      for (const [dr, dc] of Object.values(CPU_DIR_OFFSETS)) if (isOppCard(row + dr, col + dc)) s++;
+      return s;
+    }
+    if (t === 'troll' || t === 'heart') {
+      let s = 0;
+      for (const dir of ['up','down','left','right'] as const) {
+        const [dr, dc] = CPU_DIR_OFFSETS[dir]; if (isOppCard(row + dr, col + dc)) s++;
+      }
+      return s;
+    }
+    const [dr, dc] = CPU_DIR_OFFSETS[card.direction];
+    return isOppCard(row + dr, col + dc) ? 1 : 0;
+  };
+
+  const moves: { cardId: string; row: number; col: number; score: number }[] = [];
+  for (const card of hand) {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cell = board[r][c];
+        const valid = cell === null
+          || ('blood' in cell && card.type === 'bandage')
+          || ('card'  in cell && card.type === 'web');
+        if (!valid) continue;
+        moves.push({ cardId: card.id, row: r, col: c, score: scoreCard(card, r, c) });
+      }
+    }
+  }
+  if (moves.length === 0) return null;
+  const best = Math.max(...moves.map(m => m.score));
+  const top  = moves.filter(m => m.score === best);
+  return top[Math.floor(Math.random() * top.length)];
+}
+
+function scheduleCpuMove() {
+  if (cpuMoveTimer !== null) return;
+  cpuMoveTimer = setTimeout(() => {
+    cpuMoveTimer = null;
+    if (!gameState || gameState.currentTurn !== CPU_OPP_NR || gameState.phase !== 'playing') return;
+    const move = getCpuMove(gameState);
+    if (!move) return;
+    gameState = placeCard(gameState, CPU_OPP_NR, move.cardId, move.row, move.col);
+    game.setState(gameState);
+    if (gameState.phase === 'finished') handleCpuGameEnd(gameState);
+  }, 600);
+}
+
+function startCpuGame(myDeck: DeckType) {
+  if (cpuMoveTimer !== null) { clearTimeout(cpuMoveTimer); cpuMoveTimer = null; }
+  const cpuDeck = CPU_DECKS[Math.floor(Math.random() * CPU_DECKS.length)];
+  const firstPlayer = Math.random() < 0.5 ? CPU_LOCAL_NR : CPU_OPP_NR;
+  const state = initGame(CPU_LOCAL_NR, CPU_OPP_NR, firstPlayer, myDeck, cpuDeck);
+  gameState = state;
+  myPlayedDeck = myDeck;
+  game.setLocalActor(CPU_LOCAL_NR);
+  game.setMatchScore(matchScore);
+  game.startIdleSpin();
+  game.setState(state);
+  ui.showGame();
+  if (state.currentTurn === CPU_OPP_NR) scheduleCpuMove();
+}
+
+function handleCpuGameEnd(state: GameState) {
+  if (state.winner !== null) {
+    matchScore[state.winner] = (matchScore[state.winner] ?? 0) + 1;
+  }
+  const myWins  = matchScore[CPU_LOCAL_NR] ?? 0;
+  const oppWins = matchScore[CPU_OPP_NR]   ?? 0;
+  clearEndTimer();
+  endTransitionTimer = setTimeout(() => {
+    endTransitionTimer = null;
+    if (myWins >= 2 || oppWins >= 2) {
+      ui.showMatchOver({ myWins, oppWins, iWon: myWins >= 2 });
+      return;
+    }
+    const lastResult: 'win' | 'loss' | 'draw' =
+      state.winner === null ? 'draw'
+      : state.winner === CPU_LOCAL_NR ? 'win' : 'loss';
+    const lockedDeck = state.winner === CPU_LOCAL_NR ? myPlayedDeck : null;
+    ui.showBetweenGames({ myWins, oppWins, lastResult, lockedDeck });
+  }, 2000);
+}
+
+function doCpuLeave() {
+  if (cpuMoveTimer !== null) { clearTimeout(cpuMoveTimer); cpuMoveTimer = null; }
+  clearEndTimer();
+  cpuMode = false;
+  gameState = null;
+  matchScore = {};
+  myPlayedDeck = null;
+  myReadyDeck = null;
+  oppReadyDeck = null;
+  game.reset();
+  ui.showLobby();
+}
+
 // ── match helpers ─────────────────────────────────────────────────────────────
 
 function clearEndTimer() {
@@ -266,16 +390,29 @@ game.onHoverChange = (idx) => {
 
 game.onPlaceCard = (cardId, row, col) => {
   if (!gameState) return;
-  gameState = placeCard(gameState, photon.actorNr, cardId, row, col);
-  game.setState(gameState);
-  photon.sendPlaceCard(cardId, row, col);
-  if (gameState.phase === 'finished') handleGameEnd(gameState);
+  if (cpuMode) {
+    gameState = placeCard(gameState, CPU_LOCAL_NR, cardId, row, col);
+    game.setState(gameState);
+    if (gameState.phase === 'finished') handleCpuGameEnd(gameState);
+    else if (gameState.currentTurn === CPU_OPP_NR) scheduleCpuMove();
+  } else {
+    gameState = placeCard(gameState, photon.actorNr, cardId, row, col);
+    game.setState(gameState);
+    photon.sendPlaceCard(cardId, row, col);
+    if (gameState.phase === 'finished') handleGameEnd(gameState);
+  }
 };
 
 // ── lobby button ──────────────────────────────────────────────────────────────
 
 getElement('join-btn').addEventListener('click', () => {
   if (debugMode) {
+    if (getElement<HTMLInputElement>('cpu-check').checked) {
+      cpuMode = true;
+      matchScore = {};
+      startCpuGame(getSelectedDeck());
+      return;
+    }
     const roomName = getElement<HTMLInputElement>('room-name').value.trim();
     if (!roomName) return;
     photon.connectAndJoin(roomName);
@@ -284,11 +421,15 @@ getElement('join-btn').addEventListener('click', () => {
   }
 });
 
-getElement('leave-btn').addEventListener('click', () => { doLeave(); });
+getElement('leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
 
 // ── between-games buttons ─────────────────────────────────────────────────────
 
 getElement('ready-btn').addEventListener('click', () => {
+  if (cpuMode) {
+    startCpuGame(ui.getBetweenDeck());
+    return;
+  }
   const deck = ui.getBetweenDeck();
   myReadyDeck = deck;
   photon.sendReady(deck);
@@ -300,22 +441,26 @@ getElement('ready-btn').addEventListener('click', () => {
   getElement<HTMLButtonElement>('ready-btn').disabled = true;
 });
 
-getElement('between-leave-btn').addEventListener('click', () => { doLeave(); });
+getElement('between-leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
 
 // ── match-over buttons ────────────────────────────────────────────────────────
 
 getElement('rematch-btn').addEventListener('click', () => {
-  photon.sendRematch();
   matchScore = {};
   myPlayedDeck = null;
   myReadyDeck = null;
   oppReadyDeck = null;
+  if (cpuMode) {
+    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
+    return;
+  }
+  photon.sendRematch();
   ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
 });
 
-getElement('matchover-leave-btn').addEventListener('click', () => { doLeave(); });
+getElement('matchover-leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
 
-getElement('reconnect-leave-btn').addEventListener('click', () => { doLeave(); });
+getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
 
 // ── settings ──────────────────────────────────────────────────────────────────
 
@@ -483,4 +628,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== '`') return;
   debugMode = !debugMode;
   getElement<HTMLInputElement>('room-name').style.display = debugMode ? '' : 'none';
+  getElement<HTMLInputElement>('cpu-check').style.display = debugMode ? '' : 'none';
+  getElement('cpu-label').style.display = debugMode ? '' : 'none';
 });
