@@ -406,13 +406,12 @@ game.onPlaceCard = (cardId, row, col) => {
 // ── lobby button ──────────────────────────────────────────────────────────────
 
 getElement('join-btn').addEventListener('click', () => {
+  if (cpuMode) {
+    matchScore = {};
+    startCpuGame(getSelectedDeck());
+    return;
+  }
   if (debugMode) {
-    if (getElement<HTMLInputElement>('cpu-check').checked) {
-      cpuMode = true;
-      matchScore = {};
-      startCpuGame(getSelectedDeck());
-      return;
-    }
     const roomName = getElement<HTMLInputElement>('room-name').value.trim();
     if (!roomName) return;
     photon.connectAndJoin(roomName);
@@ -488,6 +487,14 @@ game.setColorblindMode(colorblindToggle.checked);
 colorblindToggle.addEventListener('change', () => {
   game.setColorblindMode(colorblindToggle.checked);
   localStorage.setItem('colorblindMode', String(colorblindToggle.checked));
+});
+
+const cpuCheck = getElement<HTMLInputElement>('cpu-check');
+cpuCheck.checked = localStorage.getItem('cpuMode') === 'true';
+cpuMode = cpuCheck.checked;
+cpuCheck.addEventListener('change', () => {
+  cpuMode = cpuCheck.checked;
+  localStorage.setItem('cpuMode', String(cpuCheck.checked));
 });
 
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());
@@ -628,6 +635,4 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== '`') return;
   debugMode = !debugMode;
   getElement<HTMLInputElement>('room-name').style.display = debugMode ? '' : 'none';
-  getElement<HTMLInputElement>('cpu-check').style.display = debugMode ? '' : 'none';
-  getElement('cpu-label').style.display = debugMode ? '' : 'none';
 });
