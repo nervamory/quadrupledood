@@ -193,7 +193,6 @@ function handleCpuGameEnd(state: GameState) {
 function doCpuLeave() {
   if (cpuMoveTimer !== null) { clearTimeout(cpuMoveTimer); cpuMoveTimer = null; }
   clearEndTimer();
-  cpuMode = false;
   gameState = null;
   matchScore = {};
   myPlayedDeck = null;
