@@ -66,7 +66,7 @@ const CARD_LABELS: Record<CardType, string> = {
   troll:   'captures 4 orthogonal neighbors',
   dragon:  'pierces line, ignores mirrors',
   alien:   'captures all knight-move positions',
-  imp:      'retriggers captured ally',
+  imp:      'retriggers captured owned card',
   hellfire: 'destroys all touching; self-destructs',
   snake:    'multi-square capture',
   clown:    'retriggers touching clowns',
