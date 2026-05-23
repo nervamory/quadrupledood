@@ -360,6 +360,7 @@ const photon = new PhotonClient({
     myPlayedDeck = null;
     myReadyDeck = null;
     oppReadyDeck = null;
+    getElement<HTMLButtonElement>('ready-btn').disabled = false;
     ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
   },
   onLobbyUpdate: (count) => {
@@ -453,6 +454,7 @@ getElement('rematch-btn').addEventListener('click', () => {
     return;
   }
   photon.sendRematch();
+  getElement<HTMLButtonElement>('ready-btn').disabled = true;
   ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
 });
 
