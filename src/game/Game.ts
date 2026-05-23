@@ -56,7 +56,7 @@ const CARD_LABELS: Record<CardType, string> = {
   bone:    'immune when touching bone',
   zombie:  'zombifies touching; converts next turn',
   brain:   'becomes blood when captured',
-  gravestone: 'become zombie if uncaptured',
+  gravestone: 'becomes zombie after one turn for owner',
   oni:     'summons 2 flanking hand cards',
   fire:    'wildfire: chain transforms in capture direction',
   hand:    'captures in finger direction',
