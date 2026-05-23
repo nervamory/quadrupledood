@@ -963,14 +963,22 @@ export class Game {
     this.oppCustomFoilParams = params;
   }
 
-  private drawFoilOverlay(x: number, y: number, isOpp = false) {
+  private drawFoilOverlay(x: number, y: number, isOpp = false, solidBorder?: string) {
     const style = isOpp ? this.oppFoilStyle : this.foilStyle;
     const params = isOpp ? this.oppCustomFoilParams : this.customFoilParams;
     if (style === 3) {
       drawCustomFoil(this.ctx, x, y, params, performance.now());
-      return;
+    } else {
+      [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][style]?.call(this, x, y);
     }
-    [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][style]?.call(this, x, y);
+    if (solidBorder) {
+      const ctx = this.ctx;
+      ctx.beginPath();
+      ctx.roundRect(x, y, CARD, CARD, 6);
+      ctx.strokeStyle = solidBorder;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 
   // V1 — original: single rotating rainbow gradient + sheen
@@ -1276,7 +1284,7 @@ export class Game {
     }
 
     if (card.type === 'moon') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1326,7 +1334,7 @@ export class Game {
     }
 
     if (card.type === 'vampire') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1353,7 +1361,7 @@ export class Game {
 
     if (card.type === 'wolf') {
       const moonIsOut = this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
-      if (moonIsOut) this.drawFoilOverlay(x, y, isOpp);
+      if (moonIsOut) this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1381,7 +1389,7 @@ export class Game {
     }
 
     if (card.type === 'squid') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1427,7 +1435,7 @@ export class Game {
     }
 
     if (card.type === 'zombie') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1468,7 +1476,7 @@ export class Game {
     }
 
     if (card.type === 'skull') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1551,7 +1559,7 @@ export class Game {
     }
 
     if (card.type === 'dragon') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1609,7 +1617,7 @@ export class Game {
     }
 
     if (card.type === 'alien') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1633,7 +1641,7 @@ export class Game {
     }
 
     if (card.type === 'imp') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1705,7 +1713,7 @@ export class Game {
     }
 
     if (card.type === 'clown') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1747,7 +1755,7 @@ export class Game {
     }
 
     if (card.type === 'succubus') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1789,7 +1797,7 @@ export class Game {
     }
 
     if (card.type === 'spider') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1837,7 +1845,7 @@ export class Game {
     }
 
     if (card.type === 'oni') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1917,7 +1925,7 @@ export class Game {
     }
 
     if (card.type === 'robot') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.font = '28px serif';
@@ -1958,7 +1966,7 @@ export class Game {
     }
 
     if (card.type === 'dolphin') {
-      this.drawFoilOverlay(x, y, isOpp);
+      this.drawFoilOverlay(x, y, isOpp, border);
       ctx.save();
       ctx.translate(cx, cy - 6);
       ctx.font = '24px serif';
