@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #0a0a14; display: flex; flex-direction: column; align-items: center; padding: 40px; font-family: monospace; color: #aaa; gap: 0; }
+    h2 { color: #888; margin-bottom: 32px; font-size: 14px; letter-spacing: 2px; font-weight: normal; }
+    table { border-collapse: separate; border-spacing: 16px; }
+    th { font-size: 11px; color: #444; font-weight: normal; padding-bottom: 4px; }
+    td { vertical-align: middle; }
+    .row-label { font-size: 11px; color: #444; text-align: right; padding-right: 4px; white-space: nowrap; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <h2>knife asset preview</h2>
+  <table id="grid"></table>
+  <script>
+    const CARD = 68;
+    const SCALE = 3;
+    const S = CARD * SCALE;
+
+    const images = [
+      { src: 'knife.png',              label: '#1 — white bg' },
+      { src: 'knife_canvas_light.png', label: '#2 — canvas light' },
+      { src: 'knife_canvas_dark.png',  label: '#3 — canvas dark' },
+    ];
+
+    // card styles × blend modes to show
+    const rows = [
+      { label: 'black card\nsource-over', bg: '#111111', border: '#333333', blend: 'source-over' },
+      { label: 'black card\nscreen',      bg: '#111111', border: '#333333', blend: 'screen' },
+      { label: 'white card\nsource-over', bg: '#f0f0f0', border: '#cccccc', blend: 'source-over' },
+      { label: 'white card\nmultiply',    bg: '#f0f0f0', border: '#cccccc', blend: 'multiply' },
+    ];
+
+    function drawCard(canvas, bg, border, img, blend) {
+      const ctx = canvas.getContext('2d');
+      // card bg + border
+      ctx.beginPath();
+      ctx.roundRect(0, 0, S, S, 6 * SCALE);
+      ctx.fillStyle = bg;
+      ctx.fill();
+
+      // image clipped to card
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(0, 0, S, S, 6 * SCALE);
+      ctx.clip();
+      if (img) {
+        ctx.globalCompositeOperation = blend;
+        ctx.drawImage(img, 0, 0, S, S);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
+
+      // border on top
+      ctx.beginPath();
+      ctx.roundRect(0, 0, S, S, 6 * SCALE);
+      ctx.strokeStyle = border;
+      ctx.lineWidth = SCALE;
+      ctx.stroke();
+    }
+
+    const loaded = {};
+    let pending = images.length;
+
+    function build() {
+      const table = document.getElementById('grid');
+
+      // header row
+      const thead = document.createElement('tr');
+      const th0 = document.createElement('th');
+      thead.appendChild(th0);
+      for (const img of images) {
+        const th = document.createElement('th');
+        th.textContent = img.label;
+        thead.appendChild(th);
+      }
+      table.appendChild(thead);
+
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+
+        const labelTd = document.createElement('td');
+        labelTd.className = 'row-label';
+        labelTd.style.whiteSpace = 'pre';
+        labelTd.textContent = row.label;
+        tr.appendChild(labelTd);
+
+        for (const imgDef of images) {
+          const td = document.createElement('td');
+          const canvas = document.createElement('canvas');
+          canvas.width = S;
+          canvas.height = S;
+          drawCard(canvas, row.bg, row.border, loaded[imgDef.src], row.blend);
+          td.appendChild(canvas);
+          tr.appendChild(td);
+        }
+        table.appendChild(tr);
+      }
+    }
+
+    for (const imgDef of images) {
+      const img = new Image();
+      img.onload = () => { loaded[imgDef.src] = img; if (--pending === 0) build(); };
+      img.onerror = () => { if (--pending === 0) build(); };
+      img.src = imgDef.src;
+    }
+  </script>
+</body>
+</html>
