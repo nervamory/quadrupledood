@@ -976,7 +976,7 @@ export class Game {
       ctx.beginPath();
       ctx.roundRect(x, y, CARD, CARD, 6);
       ctx.strokeStyle = solidBorder;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 3;
       ctx.stroke();
     }
   }
