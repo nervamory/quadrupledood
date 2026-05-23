@@ -62,7 +62,7 @@ const CARD_LABELS: Record<CardType, string> = {
   hand:    'captures in finger direction',
   spider:  'captures all 8 touching cells',
   web:     'replaces any played card',
-  egg:     'hatches a spider if captured',
+  egg:     'hatches capturing spider when attacked',
   troll:   'captures 4 orthogonal neighbors',
   dragon:  'pierces line, ignores mirrors',
   alien:   'captures all knight-move positions',
