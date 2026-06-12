@@ -2,8 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Quadruple Dood</title>
+    <meta name="theme-color" content="#0a0a14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Quad Dood">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
@@ -13,16 +19,25 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 100vh;
+        min-height: 100vh;
+        min-height: 100dvh;
       }
-      #app { text-align: center; }
+      #app { text-align: center; width: 100%; max-width: 680px; }
       canvas { display: block; }
+      #game-canvas {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 680 / 700;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
       .screen { display: none; }
       .screen.active { display: block; }
       #foil-creator-screen.active { display: flex; }
       input, button, select {
         margin: 6px 4px;
-        padding: 8px 16px;
+        padding: 10px 20px;
         font-family: monospace;
         font-size: 14px;
         background: #1a1a2e;
@@ -31,9 +46,29 @@
         cursor: pointer;
       }
       button:hover { background: #222240; }
+      @media (hover: none) { button:hover { background: #1a1a2e; } }
       #status { margin-top: 10px; color: #555; font-size: 13px; }
-      h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: Trattatello, Luminari, fantasy; font-size: 58px; font-weight: normal; }
+      h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: Trattatello, Luminari, fantasy; font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
       #leave-btn { margin-top: 10px; }
+      #rotate-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 10, 20, 0.96);
+        z-index: 300;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #eee;
+        font-size: 16px;
+        font-family: monospace;
+        text-align: center;
+        padding: 20px;
+      }
+      @media screen and (orientation: landscape) and (max-height: 450px) {
+        #rotate-overlay { display: flex; }
+      }
     </style>
   </head>
   <body>
@@ -66,7 +101,7 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v7.8</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v7.9</p>
       </div>
       <div id="game-screen" class="screen">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -259,6 +294,11 @@
     <div id="reconnect-overlay" style="display:none; position:fixed; inset:0; background:rgba(10,10,20,0.88); z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
       <p id="reconnect-msg" style="color:#eee; font-size:15px; font-family:monospace; text-align:center; white-space:pre-line; line-height:1.8;"></p>
       <button id="reconnect-leave-btn">leave now</button>
+    </div>
+    <div id="rotate-overlay">
+      <p style="font-size:22px;">↺</p>
+      <p>rotate your device</p>
+      <p style="font-size:11px; color:#555;">this game plays best in portrait</p>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -130,6 +130,9 @@ export class Game {
   colorblindMode = false;
   cardArtMode = false;
   private cardImages: Record<string, HTMLImageElement> = {};
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private touchStartClientPos: { x: number; y: number } | null = null;
+  private inLongPress = false;
 
   private flipAnims: FlipAnim[] = [];
 
@@ -195,6 +198,10 @@ export class Game {
         this.onHoverChange?.(null);
       }
     });
+    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', this.onTouchEnd);
+    canvas.addEventListener('touchcancel', this.onTouchCancel);
   }
 
   setLocalActor(actorNr: number) {
@@ -204,6 +211,12 @@ export class Game {
 
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
   setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
+
+  private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
+    const b = this.canvas.getBoundingClientRect();
+    const scale = b.width / this.W;
+    return { x: (clientX - b.left) / scale, y: (clientY - b.top) / scale };
+  }
 
   private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
     const img = this.cardImages[key];
@@ -952,17 +965,15 @@ export class Game {
 
   private onMouseDown = (e: MouseEvent) => {
     if (this.spinAnim && (this.spinAnim.mode === 'idle' || !this.spinAnim.done)) return;
-    const b = this.canvas.getBoundingClientRect();
-    const hit = this.hitHandCard(e.clientX - b.left, e.clientY - b.top);
-    if (hit) this.drag = { card: hit.layout.card, x: e.clientX - b.left, y: e.clientY - b.top };
+    const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
+    const hit = this.hitHandCard(x, y);
+    if (hit) this.drag = { card: hit.layout.card, x, y };
   };
 
   private onMouseMove = (e: MouseEvent) => {
-    const b = this.canvas.getBoundingClientRect();
-    const mx = e.clientX - b.left;
-    const my = e.clientY - b.top;
-    this.hoverPos = { x: mx, y: my };
-    if (this.drag) { this.drag.x = mx; this.drag.y = my; }
+    const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
+    this.hoverPos = { x, y };
+    if (this.drag) { this.drag.x = x; this.drag.y = y; }
     const idx = this.hoveredHandCardIdx();
     if (idx !== this.lastHoverIdx) {
       this.lastHoverIdx = idx;
@@ -972,8 +983,8 @@ export class Game {
 
   private onMouseUp = (e: MouseEvent) => {
     if (!this.drag || !this.state) { this.drag = null; return; }
-    const b = this.canvas.getBoundingClientRect();
-    const cell = this.hitCell(e.clientX - b.left, e.clientY - b.top);
+    const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
+    const cell = this.hitCell(x, y);
     if (cell) {
       const target = this.state.board[cell.row][cell.col];
       const isBlood = target !== null && 'blood' in target;
@@ -982,6 +993,95 @@ export class Game {
       if (validDrop) this.onPlaceCard?.(this.drag.card.id, cell.row, cell.col);
     }
     this.drag = null;
+  };
+
+  private onTouchStart = (e: TouchEvent) => {
+    if (this.spinAnim && (this.spinAnim.mode === 'idle' || !this.spinAnim.done)) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
+    this.touchStartClientPos = { x: touch.clientX, y: touch.clientY };
+    this.inLongPress = false;
+    const hit = this.hitHandCard(x, y);
+    if (hit) {
+      e.preventDefault();
+      this.drag = { card: hit.layout.card, x, y };
+      // Long press (400ms, no movement) cancels drag and shows tooltip instead
+      this.longPressTimer = setTimeout(() => {
+        this.longPressTimer = null;
+        this.inLongPress = true;
+        this.drag = null;
+        this.hoverPos = { x, y };
+      }, 400);
+    } else {
+      // Long press anywhere else shows board-cell tooltip
+      e.preventDefault();
+      this.longPressTimer = setTimeout(() => {
+        this.longPressTimer = null;
+        this.inLongPress = true;
+        this.hoverPos = { x, y };
+      }, 400);
+    }
+  };
+
+  private onTouchMove = (e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    const movedFar = this.touchStartClientPos !== null && (
+      Math.abs(touch.clientX - this.touchStartClientPos.x) > 8 ||
+      Math.abs(touch.clientY - this.touchStartClientPos.y) > 8
+    );
+    if (movedFar && this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    if (this.drag) {
+      e.preventDefault();
+      const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
+      this.hoverPos = { x, y };
+      this.drag.x = x;
+      this.drag.y = y;
+    } else if (this.inLongPress && movedFar) {
+      // Moved out of tooltip — dismiss and try to start a drag
+      e.preventDefault();
+      this.inLongPress = false;
+      this.hoverPos = null;
+      const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
+      const hit = this.hitHandCard(x, y);
+      if (hit) this.drag = { card: hit.layout.card, x, y };
+    }
+  };
+
+  private onTouchEnd = (e: TouchEvent) => {
+    if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+    this.inLongPress = false;
+    this.touchStartClientPos = null;
+    if (this.drag && this.state) {
+      const touch = e.changedTouches[0];
+      if (touch) {
+        const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
+        const cell = this.hitCell(x, y);
+        if (cell) {
+          const target = this.state.board[cell.row][cell.col];
+          const isBlood = target !== null && 'blood' in target;
+          const isCard = target !== null && !isBlood;
+          const validDrop = target === null || (this.drag.card.type === 'bandage' && isBlood) || (this.drag.card.type === 'web' && isCard);
+          if (validDrop) this.onPlaceCard?.(this.drag.card.id, cell.row, cell.col);
+        }
+      }
+    }
+    this.drag = null;
+    this.hoverPos = null;
+    if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
+  };
+
+  private onTouchCancel = () => {
+    if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+    this.inLongPress = false;
+    this.touchStartClientPos = null;
+    this.drag = null;
+    this.hoverPos = null;
+    if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
   };
 
   private foilStyle = Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
