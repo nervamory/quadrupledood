@@ -205,13 +205,18 @@ export class Game {
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
   setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
 
-  private drawCardImage(x: number, y: number, key: string) {
+  private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
     const img = this.cardImages[key];
     if (!img?.complete || img.naturalWidth === 0) return;
     const pad = 6;
     const ctx = this.ctx;
     ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
+    if (isBlack) {
+      ctx.filter = 'invert(1)';
+      ctx.globalCompositeOperation = 'screen';
+    } else {
+      ctx.globalCompositeOperation = 'multiply';
+    }
     ctx.drawImage(img, x + pad, y + pad, CARD - pad * 2, CARD - pad * 2);
     ctx.restore();
   }
@@ -1278,7 +1283,7 @@ export class Game {
 
     if (card.type === 'heart') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'heart');
+        this.drawCardImage(x, y, isBlack, 'heart');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1300,7 +1305,7 @@ export class Game {
 
     if (card.type === 'eye') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'eye');
+        this.drawCardImage(x, y, isBlack, 'eye');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1316,7 +1321,7 @@ export class Game {
 
     if (card.type === 'tooth') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'tooth');
+        this.drawCardImage(x, y, isBlack, 'tooth');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1333,7 +1338,7 @@ export class Game {
     if (card.type === 'moon') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'moon');
+        this.drawCardImage(x, y, isBlack, 'moon');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1349,7 +1354,7 @@ export class Game {
 
     if (card.type === 'mirror') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'mirror');
+        this.drawCardImage(x, y, isBlack, 'mirror');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1365,7 +1370,7 @@ export class Game {
 
     if (card.type === 'bandage') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'bandage');
+        this.drawCardImage(x, y, isBlack, 'bandage');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1395,7 +1400,7 @@ export class Game {
     if (card.type === 'vampire') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'vampire');
+        this.drawCardImage(x, y, isBlack, 'vampire');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1426,7 +1431,7 @@ export class Game {
       const moonIsOut = this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
       if (moonIsOut) this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, moonIsOut ? 'werewolf' : 'wolf');
+        this.drawCardImage(x, y, isBlack, moonIsOut ? 'werewolf' : 'wolf');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1458,7 +1463,7 @@ export class Game {
     if (card.type === 'squid') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'squid');
+        this.drawCardImage(x, y, isBlack, 'squid');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1479,7 +1484,7 @@ export class Game {
 
     if (card.type === 'mermaid') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'mermaid');
+        this.drawCardImage(x, y, isBlack, 'mermaid');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1499,7 +1504,7 @@ export class Game {
 
     if (card.type === 'bubbles') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'bubbles');
+        this.drawCardImage(x, y, isBlack, 'bubbles');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1516,7 +1521,7 @@ export class Game {
     if (card.type === 'zombie') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'zombie');
+        this.drawCardImage(x, y, isBlack, 'zombie');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1532,7 +1537,7 @@ export class Game {
 
     if (card.type === 'brain') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'brain');
+        this.drawCardImage(x, y, isBlack, 'brain');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1552,7 +1557,7 @@ export class Game {
 
     if (card.type === 'gravestone') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'gravestone');
+        this.drawCardImage(x, y, isBlack, 'gravestone');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1569,7 +1574,7 @@ export class Game {
     if (card.type === 'skull') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'skull');
+        this.drawCardImage(x, y, isBlack, 'skull');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1589,7 +1594,7 @@ export class Game {
 
     if (card.type === 'bone') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'bone');
+        this.drawCardImage(x, y, isBlack, 'bone');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1615,7 +1620,7 @@ export class Game {
 
     if (card.type === 'hand') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, card.summonedHand?.emoji === '🫳' ? 'hand2' : 'hand');
+        this.drawCardImage(x, y, isBlack, card.summonedHand?.emoji === '🫳' ? 'hand2' : 'hand');
       } else {
         const emoji = card.summonedHand?.emoji ?? '🫴';
         ctx.save();
@@ -1646,7 +1651,7 @@ export class Game {
 
     if (card.type === 'troll') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'troll');
+        this.drawCardImage(x, y, isBlack, 'troll');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1668,7 +1673,7 @@ export class Game {
     if (card.type === 'dragon') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'dragon');
+        this.drawCardImage(x, y, isBlack, 'dragon');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1730,7 +1735,7 @@ export class Game {
     if (card.type === 'alien') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'alien');
+        this.drawCardImage(x, y, isBlack, 'alien');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1758,7 +1763,7 @@ export class Game {
     if (card.type === 'imp') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'imp');
+        this.drawCardImage(x, y, isBlack, 'imp');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1779,7 +1784,7 @@ export class Game {
 
     if (card.type === 'hellfire') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'hellfire');
+        this.drawCardImage(x, y, isBlack, 'hellfire');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1796,7 +1801,7 @@ export class Game {
 
     if (card.type === 'snake') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'snake');
+        this.drawCardImage(x, y, isBlack, 'snake');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1842,7 +1847,7 @@ export class Game {
     if (card.type === 'clown') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'clown');
+        this.drawCardImage(x, y, isBlack, 'clown');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1861,7 +1866,7 @@ export class Game {
 
     if (card.type === 'clown-car') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'clown-car');
+        this.drawCardImage(x, y, isBlack, 'clown-car');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1877,7 +1882,7 @@ export class Game {
 
     if (card.type === 'balloon') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'balloon');
+        this.drawCardImage(x, y, isBlack, 'balloon');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1896,7 +1901,7 @@ export class Game {
     if (card.type === 'succubus') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'succubus');
+        this.drawCardImage(x, y, isBlack, 'succubus');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1917,7 +1922,7 @@ export class Game {
 
     if (card.type === 'lipstick') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'lipstick');
+        this.drawCardImage(x, y, isBlack, 'lipstick');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1933,7 +1938,7 @@ export class Game {
 
     if (card.type === 'kisses') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'kiss');
+        this.drawCardImage(x, y, isBlack, 'kiss');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1950,7 +1955,7 @@ export class Game {
     if (card.type === 'spider') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'spider');
+        this.drawCardImage(x, y, isBlack, 'spider');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1977,7 +1982,7 @@ export class Game {
 
     if (card.type === 'web') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'web');
+        this.drawCardImage(x, y, isBlack, 'web');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -1993,7 +1998,7 @@ export class Game {
 
     if (card.type === 'egg') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'egg');
+        this.drawCardImage(x, y, isBlack, 'egg');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2010,7 +2015,7 @@ export class Game {
     if (card.type === 'oni') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'oni');
+        this.drawCardImage(x, y, isBlack, 'oni');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2026,7 +2031,7 @@ export class Game {
 
     if (card.type === 'fire') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'fire');
+        this.drawCardImage(x, y, isBlack, 'fire');
       } else {
         const FIRE_ANGLE: Record<Direction, number> = {
           up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2,
@@ -2061,7 +2066,7 @@ export class Game {
 
     if (card.type === 'fog') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'fog');
+        this.drawCardImage(x, y, isBlack, 'fog');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2077,7 +2082,7 @@ export class Game {
 
     if (card.type === 'ghost') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'ghost');
+        this.drawCardImage(x, y, isBlack, 'ghost');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2093,7 +2098,7 @@ export class Game {
 
     if (card.type === 'crystal-ball') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'crystal-ball');
+        this.drawCardImage(x, y, isBlack, 'crystal-ball');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2110,7 +2115,7 @@ export class Game {
     if (card.type === 'robot') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'robot');
+        this.drawCardImage(x, y, isBlack, 'robot');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2126,7 +2131,7 @@ export class Game {
 
     if (card.type === 'lightning') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'lightning');
+        this.drawCardImage(x, y, isBlack, 'lightning');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2142,7 +2147,7 @@ export class Game {
 
     if (card.type === 'outlet') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'outlet');
+        this.drawCardImage(x, y, isBlack, 'outlet');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2163,7 +2168,7 @@ export class Game {
     if (card.type === 'dolphin') {
       this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'dolphin');
+        this.drawCardImage(x, y, isBlack, 'dolphin');
       } else {
         ctx.save();
         ctx.translate(cx, cy - 6);
@@ -2200,7 +2205,7 @@ export class Game {
 
     if (card.type === 'wave') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'wave');
+        this.drawCardImage(x, y, isBlack, 'wave');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2229,7 +2234,7 @@ export class Game {
 
     if (card.type === 'anchor') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'anchor');
+        this.drawCardImage(x, y, isBlack, 'anchor');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2245,7 +2250,7 @@ export class Game {
 
     if (card.type === 'bat') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'bat');
+        this.drawCardImage(x, y, isBlack, 'bat');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2261,7 +2266,7 @@ export class Game {
 
     if (card.type === 'candle') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, 'candle');
+        this.drawCardImage(x, y, isBlack, 'candle');
       } else {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2277,7 +2282,7 @@ export class Game {
 
     // Knife card
     if (this.cardArtMode) {
-      this.drawCardImage(x, y, `knife_${KNIFE_DIR_SUFFIX[card.direction]}`);
+      this.drawCardImage(x, y, isBlack, `knife_${KNIFE_DIR_SUFFIX[card.direction]}`);
     } else {
       ctx.save();
       ctx.translate(cx, cy);
