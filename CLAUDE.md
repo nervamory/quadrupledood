@@ -14,6 +14,10 @@ node test-oni.mjs # Standalone test for oni hand placement fallback logic
 
 There is no test suite beyond `test-oni.mjs`. TypeScript strict mode (`tsconfig.json`) acts as the primary correctness gate — always run `npm run build` after changes.
 
+## Versioning
+
+The version string is displayed in the lobby (`index.html` line ~69). **Always bump it before committing.** Use patch increments (+0.1) for fixes and polish; minor increments (+1.0) for new features. The commit message subject should lead with the new version, e.g. `v7.9: fix foo`.
+
 ## Architecture
 
 **Layer separation is strict:**
