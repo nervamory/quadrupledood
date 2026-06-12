@@ -1103,10 +1103,10 @@ export function placeCard(
       }
     } else if (change.type === 'gravestone-transform') {
       const cell = newBoard[change.row][change.col];
-      if (cell && 'card' in cell && cell.card.type === 'gravestone' && cell.owner === change.owner) {
+      if (cell && 'card' in cell && cell.card.type === 'gravestone') {
         const zombieCard: Card = { id: `gz-${change.row}-${change.col}`, direction: 'up', type: 'zombie' };
-        newBoard[change.row][change.col] = { card: zombieCard, owner: change.owner };
-        resolveCaptures(newBoard, change.row, change.col, change.owner);
+        newBoard[change.row][change.col] = { card: zombieCard, owner: cell.owner };
+        resolveCaptures(newBoard, change.row, change.col, cell.owner);
       }
     }
   }

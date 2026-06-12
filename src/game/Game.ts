@@ -13,6 +13,21 @@ const KNIFE_ANGLES: Record<Direction, number> = {
   'down-left':   Math.PI / 2, 'up-left':    Math.PI,
 };
 
+const KNIFE_DIR_SUFFIX: Record<Direction, string> = {
+  up: 'n', down: 's', left: 'w', right: 'e',
+  'up-left': 'nw', 'up-right': 'ne', 'down-left': 'sw', 'down-right': 'se',
+};
+
+const CARD_ART_KEYS = [
+  'heart','eye','tooth','moon','mirror','vampire','bandage','ghost','fog',
+  'wolf','werewolf','squid','mermaid','bubbles','skull','bone','zombie',
+  'brain','gravestone','oni','fire','hand','hand2','spider','web','egg',
+  'troll','dragon','alien','imp','hellfire','snake','clown','clown-car',
+  'balloon','succubus','lipstick','kiss','crystal-ball','candle','robot',
+  'lightning','outlet','bat','dolphin','wave','anchor',
+  'knife_n','knife_s','knife_e','knife_w','knife_ne','knife_nw','knife_se','knife_sw',
+];
+
 // Fan layout constants — canvas is 680×700
 const FAN_RADIUS = 350;
 const FAN_HALF_ANGLE = 28 * Math.PI / 180; // ±28°, 56° total spread
@@ -113,6 +128,8 @@ export class Game {
   private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
   colorblindMode = false;
+  cardArtMode = false;
+  private cardImages: Record<string, HTMLImageElement> = {};
 
   private flipAnims: FlipAnim[] = [];
 
@@ -159,6 +176,12 @@ export class Game {
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
 
+    for (const key of CARD_ART_KEYS) {
+      const img = new Image();
+      img.src = `/assets/cards/${key}.png`;
+      this.cardImages[key] = img;
+    }
+
     canvas.addEventListener('mousedown', this.onMouseDown);
     canvas.addEventListener('mousemove', this.onMouseMove);
     canvas.addEventListener('mouseup', this.onMouseUp);
@@ -180,6 +203,18 @@ export class Game {
   }
 
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
+  setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
+
+  private drawCardImage(x: number, y: number, key: string) {
+    const img = this.cardImages[key];
+    if (!img?.complete || img.naturalWidth === 0) return;
+    const pad = 6;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(img, x + pad, y + pad, CARD - pad * 2, CARD - pad * 2);
+    ctx.restore();
+  }
 
   setMatchScore(score: Record<number, number>) {
     this.matchScore = { ...score };
@@ -1242,14 +1277,18 @@ export class Game {
     const ts = 4;
 
     if (card.type === 'heart') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const hm = ctx.measureText('🫀');
-      ctx.fillText('🫀', 0, (hm.actualBoundingBoxAscent - hm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'heart');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const hm = ctx.measureText('🫀');
+        ctx.fillText('🫀', 0, (hm.actualBoundingBoxAscent - hm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Four outward triangles — signals all-direction capture
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
@@ -1260,63 +1299,83 @@ export class Game {
     }
 
     if (card.type === 'eye') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const em = ctx.measureText('👁️');
-      ctx.fillText('👁️', 0, (em.actualBoundingBoxAscent - em.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'eye');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const em = ctx.measureText('👁️');
+        ctx.fillText('👁️', 0, (em.actualBoundingBoxAscent - em.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'tooth') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const tm = ctx.measureText('🦷');
-      ctx.fillText('🦷', 0, (tm.actualBoundingBoxAscent - tm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'tooth');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const tm = ctx.measureText('🦷');
+        ctx.fillText('🦷', 0, (tm.actualBoundingBoxAscent - tm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'moon') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const mm = ctx.measureText('🌕');
-      ctx.fillText('🌕', 0, (mm.actualBoundingBoxAscent - mm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'moon');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const mm = ctx.measureText('🌕');
+        ctx.fillText('🌕', 0, (mm.actualBoundingBoxAscent - mm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'mirror') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const mr = ctx.measureText('🪞');
-      ctx.fillText('🪞', 0, (mr.actualBoundingBoxAscent - mr.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'mirror');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const mr = ctx.measureText('🪞');
+        ctx.fillText('🪞', 0, (mr.actualBoundingBoxAscent - mr.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'bandage') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const bm = ctx.measureText('🩹');
-      ctx.fillText('🩹', 0, (bm.actualBoundingBoxAscent - bm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'bandage');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const bm = ctx.measureText('🩹');
+        ctx.fillText('🩹', 0, (bm.actualBoundingBoxAscent - bm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Left and right capture indicators
       const m = 6; const ts = 4;
       ctx.fillStyle = fg;
@@ -1335,14 +1394,18 @@ export class Game {
 
     if (card.type === 'vampire') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const vm = ctx.measureText('🧛');
-      ctx.fillText('🧛', 0, (vm.actualBoundingBoxAscent - vm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'vampire');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const vm = ctx.measureText('🧛');
+        ctx.fillText('🧛', 0, (vm.actualBoundingBoxAscent - vm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Diagonal-down indicators at bottom-left and bottom-right corners
       const m = 7; const ts = 4;
       ctx.fillStyle = fg;
@@ -1362,14 +1425,18 @@ export class Game {
     if (card.type === 'wolf') {
       const moonIsOut = this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
       if (moonIsOut) this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const wm = ctx.measureText('🐺');
-      ctx.fillText('🐺', 0, (wm.actualBoundingBoxAscent - wm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, moonIsOut ? 'werewolf' : 'wolf');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const wm = ctx.measureText('🐺');
+        ctx.fillText('🐺', 0, (wm.actualBoundingBoxAscent - wm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       const mc = 7; const ts = 4;
       ctx.fillStyle = fg;
       if (moonIsOut) {
@@ -1390,14 +1457,18 @@ export class Game {
 
     if (card.type === 'squid') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const sqm = ctx.measureText('🦑');
-      ctx.fillText('🦑', 0, (sqm.actualBoundingBoxAscent - sqm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'squid');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const sqm = ctx.measureText('🦑');
+        ctx.fillText('🦑', 0, (sqm.actualBoundingBoxAscent - sqm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
       ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
@@ -1407,14 +1478,18 @@ export class Game {
     }
 
     if (card.type === 'mermaid') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const mrm = ctx.measureText('🧜');
-      ctx.fillText('🧜', 0, (mrm.actualBoundingBoxAscent - mrm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'mermaid');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const mrm = ctx.measureText('🧜');
+        ctx.fillText('🧜', 0, (mrm.actualBoundingBoxAscent - mrm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
       ctx.beginPath(); ctx.moveTo(x + m, y + m); ctx.lineTo(x + m + ts * 1.5, y + m); ctx.lineTo(x + m, y + m + ts * 1.5); ctx.fill(); // up-left corner
@@ -1423,39 +1498,51 @@ export class Game {
     }
 
     if (card.type === 'bubbles') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const bbm = ctx.measureText('🫧');
-      ctx.fillText('🫧', 0, (bbm.actualBoundingBoxAscent - bbm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'bubbles');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const bbm = ctx.measureText('🫧');
+        ctx.fillText('🫧', 0, (bbm.actualBoundingBoxAscent - bbm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'zombie') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const zm = ctx.measureText('🧟');
-      ctx.fillText('🧟', 0, (zm.actualBoundingBoxAscent - zm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'zombie');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const zm = ctx.measureText('🧟');
+        ctx.fillText('🧟', 0, (zm.actualBoundingBoxAscent - zm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'brain') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const brm = ctx.measureText('🧠');
-      ctx.fillText('🧠', 0, (brm.actualBoundingBoxAscent - brm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'brain');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const brm = ctx.measureText('🧠');
+        ctx.fillText('🧠', 0, (brm.actualBoundingBoxAscent - brm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
       ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
@@ -1464,27 +1551,35 @@ export class Game {
     }
 
     if (card.type === 'gravestone') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const gvm = ctx.measureText('🪦');
-      ctx.fillText('🪦', 0, (gvm.actualBoundingBoxAscent - gvm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'gravestone');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const gvm = ctx.measureText('🪦');
+        ctx.fillText('🪦', 0, (gvm.actualBoundingBoxAscent - gvm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'skull') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const skm = ctx.measureText('💀');
-      ctx.fillText('💀', 0, (skm.actualBoundingBoxAscent - skm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'skull');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const skm = ctx.measureText('💀');
+        ctx.fillText('💀', 0, (skm.actualBoundingBoxAscent - skm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
       ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
@@ -1493,15 +1588,19 @@ export class Game {
     }
 
     if (card.type === 'bone') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(card.direction === 'up-right' ? 0 : Math.PI / 2);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const bom = ctx.measureText('🦴');
-      ctx.fillText('🦴', 0, (bom.actualBoundingBoxAscent - bom.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'bone');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(card.direction === 'up-right' ? 0 : Math.PI / 2);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const bom = ctx.measureText('🦴');
+        ctx.fillText('🦴', 0, (bom.actualBoundingBoxAscent - bom.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       const mc = 7;
       ctx.fillStyle = fg;
       if (card.direction === 'up-right') {
@@ -1515,15 +1614,19 @@ export class Game {
     }
 
     if (card.type === 'hand') {
-      const emoji = card.summonedHand?.emoji ?? '🫴';
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(card.summonedHand?.angle ?? 0);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(emoji, 0, 0);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, card.summonedHand?.emoji === '🫳' ? 'hand2' : 'hand');
+      } else {
+        const emoji = card.summonedHand?.emoji ?? '🫴';
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(card.summonedHand?.angle ?? 0);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, 0, 0);
+        ctx.restore();
+      }
       // Direction indicator — same corner/edge triangle logic as knife
       ctx.fillStyle = fg;
       ctx.beginPath();
@@ -1542,14 +1645,18 @@ export class Game {
     }
 
     if (card.type === 'troll') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const trm = ctx.measureText('🧌');
-      ctx.fillText('🧌', 0, (trm.actualBoundingBoxAscent - trm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'troll');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const trm = ctx.measureText('🧌');
+        ctx.fillText('🧌', 0, (trm.actualBoundingBoxAscent - trm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
@@ -1560,14 +1667,18 @@ export class Game {
 
     if (card.type === 'dragon') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const drm = ctx.measureText('🐲');
-      ctx.fillText('🐲', 0, (drm.actualBoundingBoxAscent - drm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'dragon');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const drm = ctx.measureText('🐲');
+        ctx.fillText('🐲', 0, (drm.actualBoundingBoxAscent - drm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Direction indicator + a second smaller triangle further along the line, suggesting pierce
       ctx.fillStyle = fg;
       const ts2 = ts * 0.7;
@@ -1618,14 +1729,18 @@ export class Game {
 
     if (card.type === 'alien') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const alm = ctx.measureText('👾');
-      ctx.fillText('👾', 0, (alm.actualBoundingBoxAscent - alm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'alien');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const alm = ctx.measureText('👾');
+        ctx.fillText('👾', 0, (alm.actualBoundingBoxAscent - alm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Eight small dots at proportional knight-move offsets within the card
       const step = CARD / 3;
       ctx.fillStyle = fg;
@@ -1642,14 +1757,18 @@ export class Game {
 
     if (card.type === 'imp') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const im = ctx.measureText('👿');
-      ctx.fillText('👿', 0, (im.actualBoundingBoxAscent - im.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'imp');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const im = ctx.measureText('👿');
+        ctx.fillText('👿', 0, (im.actualBoundingBoxAscent - im.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Two upper-corner triangles — captures diagonally upward (2 squares)
       ctx.fillStyle = fg;
       const mc = 7;
@@ -1659,27 +1778,35 @@ export class Game {
     }
 
     if (card.type === 'hellfire') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.filter = 'hue-rotate(120deg)';
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const hfm = ctx.measureText('🔥');
-      ctx.fillText('🔥', 0, (hfm.actualBoundingBoxAscent - hfm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'hellfire');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.filter = 'hue-rotate(120deg)';
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const hfm = ctx.measureText('🔥');
+        ctx.fillText('🔥', 0, (hfm.actualBoundingBoxAscent - hfm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'snake') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const snm = ctx.measureText('🐍');
-      ctx.fillText('🐍', 0, (snm.actualBoundingBoxAscent - snm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'snake');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const snm = ctx.measureText('🐍');
+        ctx.fillText('🐍', 0, (snm.actualBoundingBoxAscent - snm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Dragon-style double arrow at both ends of the capture axis
       ctx.fillStyle = fg;
       const mc = 7; const ts2 = ts * 0.7;
@@ -1714,14 +1841,18 @@ export class Game {
 
     if (card.type === 'clown') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const clm = ctx.measureText('🤡');
-      ctx.fillText('🤡', 0, (clm.actualBoundingBoxAscent - clm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'clown');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const clm = ctx.measureText('🤡');
+        ctx.fillText('🤡', 0, (clm.actualBoundingBoxAscent - clm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
@@ -1729,26 +1860,34 @@ export class Game {
     }
 
     if (card.type === 'clown-car') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const ccm = ctx.measureText('🚗');
-      ctx.fillText('🚗', 0, (ccm.actualBoundingBoxAscent - ccm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'clown-car');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const ccm = ctx.measureText('🚗');
+        ctx.fillText('🚗', 0, (ccm.actualBoundingBoxAscent - ccm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'balloon') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const blm = ctx.measureText('🎈');
-      ctx.fillText('🎈', 0, (blm.actualBoundingBoxAscent - blm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'balloon');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const blm = ctx.measureText('🎈');
+        ctx.fillText('🎈', 0, (blm.actualBoundingBoxAscent - blm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
       return;
@@ -1756,14 +1895,18 @@ export class Game {
 
     if (card.type === 'succubus') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const scm = ctx.measureText('🦹‍♀️');
-      ctx.fillText('🦹‍♀️', 0, (scm.actualBoundingBoxAscent - scm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'succubus');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const scm = ctx.measureText('🦹‍♀️');
+        ctx.fillText('🦹‍♀️', 0, (scm.actualBoundingBoxAscent - scm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
@@ -1773,39 +1916,51 @@ export class Game {
     }
 
     if (card.type === 'lipstick') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const lsm = ctx.measureText('💄');
-      ctx.fillText('💄', 0, (lsm.actualBoundingBoxAscent - lsm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'lipstick');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const lsm = ctx.measureText('💄');
+        ctx.fillText('💄', 0, (lsm.actualBoundingBoxAscent - lsm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'kisses') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const ksm = ctx.measureText('💋');
-      ctx.fillText('💋', 0, (ksm.actualBoundingBoxAscent - ksm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'kiss');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const ksm = ctx.measureText('💋');
+        ctx.fillText('💋', 0, (ksm.actualBoundingBoxAscent - ksm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'spider') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const spm = ctx.measureText('🕷️');
-      ctx.fillText('🕷️', 0, (spm.actualBoundingBoxAscent - spm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'spider');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const spm = ctx.measureText('🕷️');
+        ctx.fillText('🕷️', 0, (spm.actualBoundingBoxAscent - spm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // All 8 direction indicators
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
@@ -1821,57 +1976,73 @@ export class Game {
     }
 
     if (card.type === 'web') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const wbm = ctx.measureText('🕸️');
-      ctx.fillText('🕸️', 0, (wbm.actualBoundingBoxAscent - wbm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'web');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const wbm = ctx.measureText('🕸️');
+        ctx.fillText('🕸️', 0, (wbm.actualBoundingBoxAscent - wbm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'egg') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const egm = ctx.measureText('🥚');
-      ctx.fillText('🥚', 0, (egm.actualBoundingBoxAscent - egm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'egg');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const egm = ctx.measureText('🥚');
+        ctx.fillText('🥚', 0, (egm.actualBoundingBoxAscent - egm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'oni') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const om = ctx.measureText('👹');
-      ctx.fillText('👹', 0, (om.actualBoundingBoxAscent - om.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'oni');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const om = ctx.measureText('👹');
+        ctx.fillText('👹', 0, (om.actualBoundingBoxAscent - om.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'fire') {
-      const FIRE_ANGLE: Record<Direction, number> = {
-        up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2,
-        'up-right': Math.PI / 4, 'down-right': 3 * Math.PI / 4,
-        'down-left': -3 * Math.PI / 4, 'up-left': -Math.PI / 4,
-      };
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(FIRE_ANGLE[card.direction]);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const frm = ctx.measureText('🔥');
-      ctx.fillText('🔥', 0, (frm.actualBoundingBoxAscent - frm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'fire');
+      } else {
+        const FIRE_ANGLE: Record<Direction, number> = {
+          up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2,
+          'up-right': Math.PI / 4, 'down-right': 3 * Math.PI / 4,
+          'down-left': -3 * Math.PI / 4, 'up-left': -Math.PI / 4,
+        };
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(FIRE_ANGLE[card.direction]);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const frm = ctx.measureText('🔥');
+        ctx.fillText('🔥', 0, (frm.actualBoundingBoxAscent - frm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath();
       switch (card.direction) {
@@ -1889,75 +2060,99 @@ export class Game {
     }
 
     if (card.type === 'fog') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const fm = ctx.measureText('🌫️');
-      ctx.fillText('🌫️', 0, (fm.actualBoundingBoxAscent - fm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'fog');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const fm = ctx.measureText('🌫️');
+        ctx.fillText('🌫️', 0, (fm.actualBoundingBoxAscent - fm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'ghost') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const gm = ctx.measureText('👻');
-      ctx.fillText('👻', 0, (gm.actualBoundingBoxAscent - gm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'ghost');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const gm = ctx.measureText('👻');
+        ctx.fillText('👻', 0, (gm.actualBoundingBoxAscent - gm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'crystal-ball') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const cbm = ctx.measureText('🔮');
-      ctx.fillText('🔮', 0, (cbm.actualBoundingBoxAscent - cbm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'crystal-ball');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const cbm = ctx.measureText('🔮');
+        ctx.fillText('🔮', 0, (cbm.actualBoundingBoxAscent - cbm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'robot') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const rm = ctx.measureText('🤖');
-      ctx.fillText('🤖', 0, (rm.actualBoundingBoxAscent - rm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'robot');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const rm = ctx.measureText('🤖');
+        ctx.fillText('🤖', 0, (rm.actualBoundingBoxAscent - rm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'lightning') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const lm = ctx.measureText('⚡');
-      ctx.fillText('⚡', 0, (lm.actualBoundingBoxAscent - lm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'lightning');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const lm = ctx.measureText('⚡');
+        ctx.fillText('⚡', 0, (lm.actualBoundingBoxAscent - lm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'outlet') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const om = ctx.measureText('🔌');
-      ctx.fillText('🔌', 0, (om.actualBoundingBoxAscent - om.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'outlet');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const om = ctx.measureText('🔌');
+        ctx.fillText('🔌', 0, (om.actualBoundingBoxAscent - om.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       // Up and down indicators only
       ctx.fillStyle = fg;
       ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
@@ -1967,22 +2162,26 @@ export class Game {
 
     if (card.type === 'dolphin') {
       this.drawFoilOverlay(x, y, isOpp, border);
-      ctx.save();
-      ctx.translate(cx, cy - 6);
-      ctx.font = '24px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const dm = ctx.measureText('🐬');
-      ctx.fillText('🐬', 0, (dm.actualBoundingBoxAscent - dm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
-      ctx.save();
-      ctx.translate(cx, cy + 12);
-      ctx.font = '16px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const moto = ctx.measureText('🏍️');
-      ctx.fillText('🏍️', 0, (moto.actualBoundingBoxAscent - moto.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'dolphin');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy - 6);
+        ctx.font = '24px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const dm = ctx.measureText('🐬');
+        ctx.fillText('🐬', 0, (dm.actualBoundingBoxAscent - dm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(cx, cy + 12);
+        ctx.font = '16px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const moto = ctx.measureText('🏍️');
+        ctx.fillText('🏍️', 0, (moto.actualBoundingBoxAscent - moto.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       ctx.beginPath();
       switch (card.direction) {
@@ -2000,14 +2199,18 @@ export class Game {
     }
 
     if (card.type === 'wave') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const wvm = ctx.measureText('🌊');
-      ctx.fillText('🌊', 0, (wvm.actualBoundingBoxAscent - wvm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'wave');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const wvm = ctx.measureText('🌊');
+        ctx.fillText('🌊', 0, (wvm.actualBoundingBoxAscent - wvm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       ctx.fillStyle = fg;
       const isHoriz = card.direction === 'left' || card.direction === 'right';
       if (isHoriz) {
@@ -2025,50 +2228,66 @@ export class Game {
     }
 
     if (card.type === 'anchor') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const am = ctx.measureText('⚓');
-      ctx.fillText('⚓', 0, (am.actualBoundingBoxAscent - am.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'anchor');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const am = ctx.measureText('⚓');
+        ctx.fillText('⚓', 0, (am.actualBoundingBoxAscent - am.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'bat') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const bm = ctx.measureText('🦇');
-      ctx.fillText('🦇', 0, (bm.actualBoundingBoxAscent - bm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'bat');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const bm = ctx.measureText('🦇');
+        ctx.fillText('🦇', 0, (bm.actualBoundingBoxAscent - bm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     if (card.type === 'candle') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const cdm = ctx.measureText('🕯️');
-      ctx.fillText('🕯️', 0, (cdm.actualBoundingBoxAscent - cdm.actualBoundingBoxDescent) / 2);
-      ctx.restore();
+      if (this.cardArtMode) {
+        this.drawCardImage(x, y, 'candle');
+      } else {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '28px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const cdm = ctx.measureText('🕯️');
+        ctx.fillText('🕯️', 0, (cdm.actualBoundingBoxAscent - cdm.actualBoundingBoxDescent) / 2);
+        ctx.restore();
+      }
       return;
     }
 
     // Knife card
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(KNIFE_ANGLES[card.direction]);
-    ctx.font = '28px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🔪', 0, 0);
-    ctx.restore();
+    if (this.cardArtMode) {
+      this.drawCardImage(x, y, `knife_${KNIFE_DIR_SUFFIX[card.direction]}`);
+    } else {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(KNIFE_ANGLES[card.direction]);
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔪', 0, 0);
+      ctx.restore();
+    }
 
     ctx.fillStyle = fg;
     ctx.beginPath();

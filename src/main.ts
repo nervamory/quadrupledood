@@ -482,6 +482,14 @@ prefDeckSelect.addEventListener('change', () => {
   deckSelect.value = prefDeckSelect.value;
 });
 
+const cardArtToggle = getElement<HTMLInputElement>('card-art-toggle');
+cardArtToggle.checked = localStorage.getItem('cardArtMode') === 'true';
+game.setCardArtMode(cardArtToggle.checked);
+cardArtToggle.addEventListener('change', () => {
+  game.setCardArtMode(cardArtToggle.checked);
+  localStorage.setItem('cardArtMode', String(cardArtToggle.checked));
+});
+
 const colorblindToggle = getElement<HTMLInputElement>('colorblind-toggle');
 colorblindToggle.checked = localStorage.getItem('colorblindMode') === 'true';
 game.setColorblindMode(colorblindToggle.checked);

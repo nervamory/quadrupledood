@@ -55,6 +55,8 @@ const MAX_RETRIES = 3;
 export class PhotonClient {
   private lbc: LoadBalancing.LoadBalancingClient;
   private pendingRoom: string | null = null;
+  private pendingReconnectRoom: string | null = null;
+  private roomName: string | null = null;
   private pendingMatchmaking = false;
   private inLobby = false;
   private lobbyTimer: ReturnType<typeof setInterval> | null = null;
@@ -96,6 +98,7 @@ export class PhotonClient {
           this.cb.onDisconnected();
           if (this.retryCount < MAX_RETRIES) {
             this.retryCount++;
+            this.pendingReconnectRoom = this.roomName;
             this.cb.onStatusChange('rechanneling…');
             setTimeout(() => this.lbc.connectToRegionMaster('us'), 1500);
           } else {
@@ -104,6 +107,7 @@ export class PhotonClient {
           }
         } else {
           this.retryCount = 0;
+          this.pendingReconnectRoom = null;
         }
         this.intentionalDisconnect = false;
         return;
@@ -117,7 +121,11 @@ export class PhotonClient {
       if (this.inLobby && !wasInLobby) {
         this.updateLobbyCount();
 
-        if (this.pendingRoom) {
+        if (this.pendingReconnectRoom) {
+          const room = this.pendingReconnectRoom;
+          this.pendingReconnectRoom = null;
+          this.lbc.joinRoom(room, {}, { playerTtl: 60000, emptyRoomTtl: 60000 });
+        } else if (this.pendingRoom) {
           const room = this.pendingRoom;
           this.pendingRoom = null;
           this.lbc.joinRoom(room, { createIfNotExists: true }, { playerTtl: 60000, emptyRoomTtl: 60000 }); // debug path
@@ -135,6 +143,7 @@ export class PhotonClient {
     };
 
     this.lbc.onJoinRoom = () => {
+      this.roomName = (this.lbc.myRoom() as { name?: string } | null)?.name ?? null;
       const localNr = this.lbc.myActor().actorNr;
       this.cb.onJoined(localNr);
       const actors = this.lbc.myRoomActors() as Record<number, { actorNr: number }>;
@@ -249,6 +258,8 @@ export class PhotonClient {
 
   leave() {
     this.intentionalDisconnect = true;
+    this.pendingRoom = null;
+    this.pendingReconnectRoom = null;
     this.lbc.leaveRoom();
   }
 
