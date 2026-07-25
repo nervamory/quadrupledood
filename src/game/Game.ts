@@ -6,6 +6,10 @@ const CELL = 72;
 const CELL_GAP = 8;
 const GRID = 4 * CELL + 3 * CELL_GAP; // 312
 
+// Backing-store multiplier: renders the logical 680×700 layout at 2x pixel
+// density so the board/cards display twice as large (and stay crisp).
+const RENDER_SCALE = 2;
+
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
   left:  3 * Math.PI / 4, up:   -3 * Math.PI / 4,
@@ -178,6 +182,10 @@ export class Game {
     this.W = canvas.width;
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
+
+    canvas.width = this.W * RENDER_SCALE;
+    canvas.height = this.H * RENDER_SCALE;
+    ctx.scale(RENDER_SCALE, RENDER_SCALE);
 
     for (const key of CARD_ART_KEYS) {
       const img = new Image();
