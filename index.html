@@ -101,11 +101,12 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v8.2</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v8.3</p>
       </div>
-      <div id="game-screen" class="screen">
+      <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
-        <button id="leave-btn">leave room</button>
+        <p id="turn-status" style="margin-top:10px; min-height:18px; font-family:monospace; font-size:14px; color:#eee;"></p>
+        <button id="leave-btn" style="position:absolute; right:8px; bottom:8px; margin:0;">leave room</button>
       </div>
       <div id="between-screen" class="screen">
         <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>

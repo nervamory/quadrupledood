@@ -30,20 +30,20 @@ const CARD_ART_KEYS = [
 
 // Fan layout constants — canvas is 680×700. Kept a shallow arc (vs. the
 // original ±28°) so the bigger CARD/CELL size still fits without clipping;
-// FAN_RADIUS is large so cards still spread out horizontally at that shallow
-// angle (horizontal spread grows ~linearly with radius, vertical bulge only
-// grows with 1-cos(angle), which stays tiny at 12° — so a big radius buys
-// spacing back almost for free).
-const FAN_RADIUS = 650;
-const FAN_HALF_ANGLE = 12 * Math.PI / 180; // ±12°, 24° total spread
+// FAN_RADIUS is very large so cards still spread across nearly the full
+// canvas width at that shallow angle (horizontal spread grows ~linearly
+// with radius, vertical bulge only grows with 1-cos(angle), which stays
+// tiny at 9° — so a big radius buys horizontal spacing back almost for free).
+const FAN_RADIUS = 1750;
+const FAN_HALF_ANGLE = 9 * Math.PI / 180; // ±9°, 18° total spread
 
 const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
 const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
 
 // Center-card cy for each hand (pivot is FAN_RADIUS away from center)
-const MY_HAND_CY = 625;
-const OPP_HAND_CY = 76;
+const MY_HAND_CY = 623;
+const OPP_HAND_CY = 80;
 const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
 const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
 
@@ -117,7 +117,7 @@ export class Game {
   private readonly W: number;
   private readonly H: number;
   private readonly gridX: number;
-  private readonly gridY = 131;
+  private readonly gridY = 132;
 
   private state: GameState | null = null;
   private localNr = 0;
@@ -174,6 +174,8 @@ export class Game {
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
+  onStatusTextChange?: (text: string, color: string) => void;
+  private lastStatusText: string | null = null;
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -726,6 +728,8 @@ export class Game {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.state = null;
+    this.lastStatusText = null;
+    this.onStatusTextChange?.('', '#eee');
     this.drag = null;
     this.spinAnim = null;
     this.ghostSwapAnim = null;
@@ -2486,7 +2490,10 @@ export class Game {
     }
 
     const { ctx, W, H, state } = this;
-    if (!state) return;
+    if (!state) {
+      if (this.lastStatusText !== null) { this.lastStatusText = null; this.onStatusTextChange?.('', '#eee'); }
+      return;
+    }
 
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
@@ -2733,21 +2740,18 @@ export class Game {
       }
     }
 
-    // turn / result
-    ctx.textBaseline = 'alphabetic';
-    if (state.phase === 'finished') {
-      const msg = state.winner === null ? 'draw!'
-        : state.winner === this.localNr ? 'you win!' : 'you lose.';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(msg, W / 2, this.gridY + GRID + 30);
-    } else {
+    // turn / result — surfaced to an HTML element below the canvas (see onStatusTextChange)
+    // instead of drawn on canvas, since that space is now too tight for legible text.
+    {
       const isMyTurn = state.currentTurn === this.localNr;
-      ctx.font = '14px monospace';
-      ctx.fillStyle = isMyTurn ? '#eee' : '#444';
-      // Equidistant between board bottom and top edge of highest hovered hand card
-      const handTop = MY_HAND_CY - HOVER_LIFT - CARD / 2;
-      ctx.fillText(isMyTurn ? 'your turn' : "opponent's turn", W / 2, (this.gridY + GRID + handTop) / 2);
+      const statusMsg = state.phase === 'finished'
+        ? (state.winner === null ? 'draw!' : state.winner === this.localNr ? 'you win!' : 'you lose.')
+        : (isMyTurn ? 'your turn' : "opponent's turn");
+      const statusColor = state.phase === 'finished' ? '#fff' : isMyTurn ? '#eee' : '#444';
+      if (statusMsg !== this.lastStatusText) {
+        this.lastStatusText = statusMsg;
+        this.onStatusTextChange?.(statusMsg, statusColor);
+      }
     }
 
     // hellfire animation — green fire over destroyed cards, then fade

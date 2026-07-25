@@ -388,6 +388,12 @@ game.onHoverChange = (idx) => {
   photon.sendHover(idx);
 };
 
+game.onStatusTextChange = (text, color) => {
+  const el = getElement<HTMLParagraphElement>('turn-status');
+  el.textContent = text;
+  el.style.color = color;
+};
+
 game.onPlaceCard = (cardId, row, col) => {
   if (!gameState) return;
   if (cpuMode) {
