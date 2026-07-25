@@ -1,5 +1,6 @@
 import type { GameState, Card, CardType, Direction } from './types';
 import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
+import { loadVersionPrefs, versionedArtKey } from './cardVersions';
 
 const CARD = 96;
 const CELL = 102;
@@ -134,6 +135,7 @@ export class Game {
   colorblindMode = false;
   cardArtMode = false;
   private cardImages: Record<string, HTMLImageElement> = {};
+  private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartClientPos: { x: number; y: number } | null = null;
   private inLongPress = false;
@@ -190,6 +192,10 @@ export class Game {
       img.src = `/assets/cards/${key}.png`;
       this.cardImages[key] = img;
     }
+    // Preload any non-default card-version choice saved from a previous session.
+    for (const [base, version] of Object.entries(this.cardVersionPrefs)) {
+      this.loadVersionImage(base, version);
+    }
 
     canvas.addEventListener('mousedown', this.onMouseDown);
     canvas.addEventListener('mousemove', this.onMouseMove);
@@ -218,6 +224,21 @@ export class Game {
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
   setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
 
+  private loadVersionImage(baseKey: string, version: number) {
+    if (version <= 1) return;
+    const key = versionedArtKey(baseKey, version);
+    if (this.cardImages[key]) return;
+    const img = new Image();
+    img.src = `/assets/cards/${key}.png`;
+    this.cardImages[key] = img;
+  }
+
+  // Used by the "card version select" settings screen.
+  setCardVersion(baseKey: string, version: number) {
+    this.cardVersionPrefs[baseKey] = version;
+    this.loadVersionImage(baseKey, version);
+  }
+
   private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
     const b = this.canvas.getBoundingClientRect();
     const scale = b.width / this.W;
@@ -225,7 +246,9 @@ export class Game {
   }
 
   private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
-    const img = this.cardImages[key];
+    const version = this.cardVersionPrefs[key];
+    const effectiveKey = version && version > 1 ? versionedArtKey(key, version) : key;
+    const img = this.cardImages[effectiveKey] ?? this.cardImages[key];
     if (!img?.complete || img.naturalWidth === 0) return;
     const pad = 6;
     const ctx = this.ctx;

@@ -7,10 +7,11 @@ export class UI {
   private matchoverScreen = document.getElementById('matchover-screen')!;
   private settingsScreen = document.getElementById('settings-screen')!;
   private foilCreatorScreen = document.getElementById('foil-creator-screen')!;
+  private cardVersionScreen = document.getElementById('card-version-screen')!;
   private status         = document.getElementById('status')!;
 
   private allScreens() {
-    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.foilCreatorScreen];
+    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.foilCreatorScreen, this.cardVersionScreen];
   }
 
   private show(screen: HTMLElement) {
@@ -22,6 +23,7 @@ export class UI {
   showGame()         { this.show(this.gameScreen); }
   showSettings()     { this.show(this.settingsScreen); }
   showFoilCreator()  { this.show(this.foilCreatorScreen); }
+  showCardVersionSelect() { this.show(this.cardVersionScreen); }
 
   showBetweenGames(opts: {
     myWins: number;

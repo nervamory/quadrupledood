@@ -9,6 +9,14 @@ import {
   loadCustomFoilParams,
   saveCustomFoilParams,
 } from './foil/customFoil';
+import {
+  VERSIONABLE_TYPES,
+  baseArtKey,
+  loadVersionPrefs,
+  saveVersionPrefs,
+  versionedArtKey,
+  probeVersionCount,
+} from './game/cardVersions';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -643,6 +651,107 @@ getElement('foil-save-btn').addEventListener('click', () => {
   stopFoilPreview();
   ui.showSettings();
 });
+
+// ── card version select ───────────────────────────────────────────────────────
+
+let cardVersionCounts: Record<string, number> | null = null; // cached across screen visits
+
+function drawVersionThumb(canvas: HTMLCanvasElement, img: HTMLImageElement) {
+  const ctx = canvas.getContext('2d')!;
+  const s = canvas.width;
+  ctx.clearRect(0, 0, s, s);
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, 6);
+  ctx.fillStyle = '#111111';
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  const pad = s * 0.09;
+  ctx.filter = 'invert(1)';
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(img, pad, pad, s - pad * 2, s - pad * 2);
+  ctx.restore();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, 6);
+  ctx.stroke();
+}
+
+async function buildCardVersionList() {
+  const container = getElement<HTMLDivElement>('card-version-list');
+  container.textContent = 'loading…';
+
+  if (!cardVersionCounts) {
+    const entries = await Promise.all(
+      VERSIONABLE_TYPES.map(async (type) => [baseArtKey(type), await probeVersionCount(baseArtKey(type))] as const)
+    );
+    cardVersionCounts = Object.fromEntries(entries);
+  }
+  const counts = cardVersionCounts;
+  const prefs = loadVersionPrefs();
+
+  container.innerHTML = '';
+  for (const type of VERSIONABLE_TYPES) {
+    const base = baseArtKey(type);
+    const count = counts[base] ?? 1;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #222; text-align:left;';
+
+    const label = document.createElement('span');
+    label.textContent = type.replace(/-/g, ' ');
+    label.style.cssText = 'width:90px; color:#ccc; font-size:12px; flex-shrink:0;';
+    row.appendChild(label);
+
+    const thumbRow = document.createElement('div');
+    thumbRow.style.cssText = 'display:flex; gap:6px; flex-shrink:0;';
+    for (let v = 1; v <= count; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 48;
+      canvas.height = 48;
+      thumbRow.appendChild(canvas);
+      const img = new Image();
+      img.onload = () => drawVersionThumb(canvas, img);
+      img.src = `/assets/cards/${versionedArtKey(base, v)}.png`;
+    }
+    row.appendChild(thumbRow);
+
+    if (count > 1) {
+      const select = document.createElement('select');
+      select.style.cssText = 'margin-left:auto;';
+      for (let v = 1; v <= count; v++) {
+        const opt = document.createElement('option');
+        opt.value = String(v);
+        opt.textContent = `v${v}`;
+        select.appendChild(opt);
+      }
+      select.value = String(prefs[base] ?? 1);
+      select.addEventListener('change', () => {
+        const v = parseInt(select.value, 10);
+        const newPrefs = loadVersionPrefs();
+        newPrefs[base] = v;
+        saveVersionPrefs(newPrefs);
+        game.setCardVersion(base, v);
+      });
+      row.appendChild(select);
+    } else {
+      const onlyLabel = document.createElement('span');
+      onlyLabel.textContent = 'v1';
+      onlyLabel.style.cssText = 'margin-left:auto; color:#444; font-size:11px;';
+      row.appendChild(onlyLabel);
+    }
+
+    container.appendChild(row);
+  }
+}
+
+getElement('card-version-btn').addEventListener('click', () => {
+  ui.showCardVersionSelect();
+  buildCardVersionList();
+});
+
+getElement('card-version-back-btn').addEventListener('click', () => ui.showSettings());
 
 // ── debug toggle ──────────────────────────────────────────────────────────────
 

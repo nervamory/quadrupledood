@@ -35,6 +35,7 @@
       .screen { display: none; }
       .screen.active { display: block; }
       #foil-creator-screen.active { display: flex; }
+      #card-version-screen.active { display: flex; }
       input, button, select {
         margin: 6px 4px;
         padding: 10px 20px;
@@ -101,7 +102,7 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v8.4</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v9.0</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -172,6 +173,8 @@
           </select>
         </div>
         <button id="foil-creator-btn" style="margin-top:8px;">custom foil creator</button>
+        <br>
+        <button id="card-version-btn" style="margin-top:8px;">card version select</button>
         <br>
         <button id="settings-back-btn" style="margin-top:12px;">back</button>
       </div>
@@ -284,6 +287,11 @@
         </div>
         <button id="foil-save-btn">save as custom</button>
         <button id="foil-creator-back-btn" style="margin-top:8px;">back</button>
+      </div>
+      <div id="card-version-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:#0a0a14;flex-direction:column;align-items:center;padding:40px 20px 60px;">
+        <h2 style="line-height:1.1; margin-bottom:24px;">card version select</h2>
+        <div id="card-version-list" style="width:100%; max-width:480px; margin-bottom:20px; color:#555; font-size:12px; text-align:center;">loading…</div>
+        <button id="card-version-back-btn">back</button>
       </div>
       <div id="matchover-screen" class="screen">
         <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>
