@@ -471,7 +471,7 @@ getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode)
 // ── settings ──────────────────────────────────────────────────────────────────
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
-foilSelect.value = String(Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
+foilSelect.value = String(Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
 foilSelect.addEventListener('change', () => {
   const style = parseInt(foilSelect.value, 10);
   game.setFoilStyle(style);

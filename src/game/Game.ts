@@ -1092,13 +1092,13 @@ export class Game {
     if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
   };
 
-  private foilStyle = Math.min(3, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
+  private foilStyle = Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
   private customFoilParams: CustomFoilParams = loadCustomFoilParams();
   private oppFoilStyle = 2;
   private oppCustomFoilParams: CustomFoilParams = { ...DEFAULT_CUSTOM_FOIL };
 
   setFoilStyle(n: number) {
-    this.foilStyle = Math.min(3, Math.max(0, n));
+    this.foilStyle = Math.min(4, Math.max(0, n));
     localStorage.setItem('foilStyle', String(this.foilStyle));
   }
 
@@ -1107,13 +1107,19 @@ export class Game {
   }
 
   setOppFoilStyle(style: number, params: CustomFoilParams) {
-    this.oppFoilStyle = Math.min(3, Math.max(0, style));
+    this.oppFoilStyle = Math.min(4, Math.max(0, style));
     this.oppCustomFoilParams = params;
   }
 
   private drawFoilOverlay(x: number, y: number, isOpp = false, solidBorder?: string) {
     const style = isOpp ? this.oppFoilStyle : this.foilStyle;
     const params = isOpp ? this.oppCustomFoilParams : this.customFoilParams;
+    // Gilded edges: no pattern on the card face at all (it stays plain
+    // player color) — only the border itself gets the gold treatment.
+    if (style === 4) {
+      this.drawGildedEdge(x, y);
+      return;
+    }
     if (style === 3) {
       drawCustomFoil(this.ctx, x, y, CARD, params, performance.now());
     } else {
@@ -1127,6 +1133,83 @@ export class Game {
       ctx.lineWidth = 3;
       ctx.stroke();
     }
+  }
+
+  // Gilded edges — gold, shimmering border made of a few unevenly offset
+  // strokes (like hand-gilded/stacked page edges) plus small twinkling
+  // glints. Border width is 2x the standard 3px foil border so it reads
+  // clearly while testing. The card face itself is untouched (plain
+  // player color) — this style is a border-only treatment.
+  private drawGildedEdge(x: number, y: number) {
+    const ctx = this.ctx;
+    const now = performance.now();
+    const w = CARD;
+    const r = 6;
+    const borderWidth = 6;
+
+    // Deterministic per-card "hand-applied" wobble, seeded from this card's
+    // screen position — stable across frames (not time-based) so the rough
+    // edge doesn't vibrate every frame, only the shine/glints animate.
+    const seed = Math.abs(x * 0.29 + y * 0.83) % 10;
+
+    ctx.save();
+
+    // Rotating gold gradient — same "catches the light" technique the other
+    // foil styles use for their rainbow sweeps, gold-toned here.
+    const angle = (now / 5000) * Math.PI * 2;
+    const cx = x + w / 2, cy = y + w / 2;
+    const rad = w * 0.75;
+    const grad = ctx.createLinearGradient(
+      cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad,
+      cx - Math.cos(angle) * rad, cy - Math.sin(angle) * rad,
+    );
+    grad.addColorStop(0,    '#3a2408');
+    grad.addColorStop(0.25, '#a87d2e');
+    grad.addColorStop(0.5,  '#fff3c4');
+    grad.addColorStop(0.75, '#c99a3d');
+    grad.addColorStop(1,    '#4a2e0a');
+
+    // A few layered, slightly offset passes simulate an uneven, hand-gilded
+    // edge (like stacked page edges catching light differently) instead of
+    // one perfectly clean stroke.
+    const passes = [
+      { dx: -seed * 0.15,       dy:  seed * 0.11,        width: borderWidth,       alpha: 1    },
+      { dx:  (seed - 3) * 0.22, dy: -(seed - 5) * 0.16,  width: borderWidth * 0.58, alpha: 0.55 },
+      { dx: -(seed - 6) * 0.19, dy:  (seed - 2) * 0.21,  width: borderWidth * 0.33, alpha: 0.4  },
+    ];
+    ctx.lineJoin = 'round';
+    for (const p of passes) {
+      ctx.save();
+      ctx.translate(p.dx, p.dy);
+      ctx.globalAlpha = p.alpha;
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = p.width;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, w, r);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+
+    // Small twinkling glints along the border for a "catching the light" shine.
+    const GLINT_POINTS: [number, number, number][] = [
+      [0.15, 0,    0.2], [0.5,  0,    1.1], [0.85, 0,    0.6],
+      [1,    0.3,  1.6], [1,    0.7,  0.3],
+      [0.8,  1,    1.2], [0.35, 1,    0.8],
+      [0,    0.65, 1.9], [0,    0.25, 0.5],
+    ];
+    ctx.fillStyle = '#fff8dd';
+    for (const [fx, fy, phase] of GLINT_POINTS) {
+      const twinkle = Math.abs(Math.sin(now / 700 + phase * Math.PI + seed));
+      if (twinkle < 0.6) continue;
+      ctx.globalAlpha = (twinkle - 0.6) / 0.4;
+      ctx.beginPath();
+      ctx.arc(x + fx * w, y + fy * w, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
   }
 
   // V1 — original: single rotating rainbow gradient + sheen
