@@ -29,8 +29,12 @@ const CARD_ART_KEYS = [
 ];
 
 // Fan layout constants — canvas is 680×700. Kept a shallow arc (vs. the
-// original ±28°) so the bigger CARD/CELL size still fits without clipping.
-const FAN_RADIUS = 320;
+// original ±28°) so the bigger CARD/CELL size still fits without clipping;
+// FAN_RADIUS is large so cards still spread out horizontally at that shallow
+// angle (horizontal spread grows ~linearly with radius, vertical bulge only
+// grows with 1-cos(angle), which stays tiny at 12° — so a big radius buys
+// spacing back almost for free).
+const FAN_RADIUS = 650;
 const FAN_HALF_ANGLE = 12 * Math.PI / 180; // ±12°, 24° total spread
 
 const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
@@ -38,8 +42,8 @@ const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
 
 // Center-card cy for each hand (pivot is FAN_RADIUS away from center)
-const MY_HAND_CY = 628;
-const OPP_HAND_CY = 72;
+const MY_HAND_CY = 625;
+const OPP_HAND_CY = 76;
 const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
 const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
 
@@ -1107,7 +1111,7 @@ export class Game {
     const style = isOpp ? this.oppFoilStyle : this.foilStyle;
     const params = isOpp ? this.oppCustomFoilParams : this.customFoilParams;
     if (style === 3) {
-      drawCustomFoil(this.ctx, x, y, params, performance.now());
+      drawCustomFoil(this.ctx, x, y, CARD, params, performance.now());
     } else {
       [this.drawFoilV1, this.drawFoilV2, this.drawFoilV3][style]?.call(this, x, y);
     }

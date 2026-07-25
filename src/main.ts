@@ -591,7 +591,7 @@ function drawPreviewFrame(now: number) {
   previewCtx.fillRect(0, 0, 204, 204);
   previewCtx.save();
   previewCtx.scale(3, 3);
-  drawCustomFoil(previewCtx, 0, 0, workingFoilParams, now);
+  drawCustomFoil(previewCtx, 0, 0, 68, workingFoilParams, now); // fixed 204px preview widget, independent of live card size
   previewCtx.restore();
   previewRaf = requestAnimationFrame(drawPreviewFrame);
 }

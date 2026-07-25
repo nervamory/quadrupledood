@@ -1,5 +1,3 @@
-const CARD = 68;
-
 export interface CustomFoilParams {
   glitterCount:      number;   // 0–120
   glitterPeriodMs:   number;   // 200–5000 ms  (twinkle period)
@@ -65,9 +63,11 @@ export function drawCustomFoil(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
+  cardSize: number,
   p: CustomFoilParams,
   now: number,
 ): void {
+  const CARD = cardSize;
   const cx = x + CARD / 2;
   const cy = y + CARD / 2;
   const spacing = Math.max(1, p.hatchSpacing);
