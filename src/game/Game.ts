@@ -1,14 +1,10 @@
 import type { GameState, Card, CardType, Direction } from './types';
 import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
 
-const CARD = 68;
-const CELL = 72;
-const CELL_GAP = 8;
-const GRID = 4 * CELL + 3 * CELL_GAP; // 312
-
-// Backing-store multiplier: renders the logical 680×700 layout at 2x pixel
-// density so the board/cards display twice as large (and stay crisp).
-const RENDER_SCALE = 2;
+const CARD = 96;
+const CELL = 102;
+const CELL_GAP = 10;
+const GRID = 4 * CELL + 3 * CELL_GAP; // 438
 
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
@@ -32,18 +28,18 @@ const CARD_ART_KEYS = [
   'knife_n','knife_s','knife_e','knife_w','knife_ne','knife_nw','knife_se','knife_sw',
 ];
 
-// Fan layout constants — canvas is 680×700
-const FAN_RADIUS = 350;
-const FAN_HALF_ANGLE = 28 * Math.PI / 180; // ±28°, 56° total spread
+// Fan layout constants — canvas is 680×700. Kept a shallow arc (vs. the
+// original ±28°) so the bigger CARD/CELL size still fits without clipping.
+const FAN_RADIUS = 320;
+const FAN_HALF_ANGLE = 12 * Math.PI / 180; // ±12°, 24° total spread
 
 const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
 const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
 
 // Center-card cy for each hand (pivot is FAN_RADIUS away from center)
-// Midpoint between the two hand centers = 350 (canvas center at H=700)
-const MY_HAND_CY = 600;
-const OPP_HAND_CY = 100;
+const MY_HAND_CY = 628;
+const OPP_HAND_CY = 72;
 const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
 const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
 
@@ -117,7 +113,7 @@ export class Game {
   private readonly W: number;
   private readonly H: number;
   private readonly gridX: number;
-  private readonly gridY = 194;
+  private readonly gridY = 131;
 
   private state: GameState | null = null;
   private localNr = 0;
@@ -182,10 +178,6 @@ export class Game {
     this.W = canvas.width;
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
-
-    canvas.width = this.W * RENDER_SCALE;
-    canvas.height = this.H * RENDER_SCALE;
-    ctx.scale(RENDER_SCALE, RENDER_SCALE);
 
     for (const key of CARD_ART_KEYS) {
       const img = new Image();
@@ -413,7 +405,7 @@ export class Game {
       ctx.save();
       ctx.globalAlpha = alpha;
       this.drawCard(x + pad, y + pad, card, isBlack);
-      ctx.font = '32px serif';
+      ctx.font = '45px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.filter = 'hue-rotate(120deg)'; // orange fire → green
@@ -661,7 +653,7 @@ export class Game {
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out toward vampire
     const ctx = this.ctx;
     ctx.save();
-    ctx.font = '24px serif';
+    ctx.font = '34px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.globalAlpha = 1 - t;
@@ -1395,7 +1387,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const hm = ctx.measureText('🫀');
@@ -1417,7 +1409,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const em = ctx.measureText('👁️');
@@ -1433,7 +1425,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const tm = ctx.measureText('🦷');
@@ -1450,7 +1442,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const mm = ctx.measureText('🌕');
@@ -1466,7 +1458,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const mr = ctx.measureText('🪞');
@@ -1482,7 +1474,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const bm = ctx.measureText('🩹');
@@ -1512,7 +1504,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const vm = ctx.measureText('🧛');
@@ -1543,7 +1535,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const wm = ctx.measureText('🐺');
@@ -1575,7 +1567,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const sqm = ctx.measureText('🦑');
@@ -1596,7 +1588,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const mrm = ctx.measureText('🧜');
@@ -1616,7 +1608,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const bbm = ctx.measureText('🫧');
@@ -1633,7 +1625,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const zm = ctx.measureText('🧟');
@@ -1649,7 +1641,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const brm = ctx.measureText('🧠');
@@ -1669,7 +1661,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const gvm = ctx.measureText('🪦');
@@ -1686,7 +1678,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const skm = ctx.measureText('💀');
@@ -1707,7 +1699,7 @@ export class Game {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(card.direction === 'up-right' ? 0 : Math.PI / 2);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const bom = ctx.measureText('🦴');
@@ -1734,7 +1726,7 @@ export class Game {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(card.summonedHand?.angle ?? 0);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(emoji, 0, 0);
@@ -1763,7 +1755,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const trm = ctx.measureText('🧌');
@@ -1785,7 +1777,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const drm = ctx.measureText('🐲');
@@ -1847,7 +1839,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const alm = ctx.measureText('👾');
@@ -1875,7 +1867,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const im = ctx.measureText('👿');
@@ -1897,7 +1889,7 @@ export class Game {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.filter = 'hue-rotate(120deg)';
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const hfm = ctx.measureText('🔥');
@@ -1913,7 +1905,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const snm = ctx.measureText('🐍');
@@ -1959,7 +1951,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const clm = ctx.measureText('🤡');
@@ -1978,7 +1970,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const ccm = ctx.measureText('🚗');
@@ -1994,7 +1986,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const blm = ctx.measureText('🎈');
@@ -2013,7 +2005,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const scm = ctx.measureText('🦹‍♀️');
@@ -2034,7 +2026,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const lsm = ctx.measureText('💄');
@@ -2050,7 +2042,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const ksm = ctx.measureText('💋');
@@ -2067,7 +2059,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const spm = ctx.measureText('🕷️');
@@ -2094,7 +2086,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const wbm = ctx.measureText('🕸️');
@@ -2110,7 +2102,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const egm = ctx.measureText('🥚');
@@ -2127,7 +2119,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const om = ctx.measureText('👹');
@@ -2149,7 +2141,7 @@ export class Game {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(FIRE_ANGLE[card.direction]);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const frm = ctx.measureText('🔥');
@@ -2178,7 +2170,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const fm = ctx.measureText('🌫️');
@@ -2194,7 +2186,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const gm = ctx.measureText('👻');
@@ -2210,7 +2202,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const cbm = ctx.measureText('🔮');
@@ -2227,7 +2219,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const rm = ctx.measureText('🤖');
@@ -2243,7 +2235,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const lm = ctx.measureText('⚡');
@@ -2259,7 +2251,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const om = ctx.measureText('🔌');
@@ -2280,7 +2272,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy - 6);
-        ctx.font = '24px serif';
+        ctx.font = '34px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const dm = ctx.measureText('🐬');
@@ -2288,7 +2280,7 @@ export class Game {
         ctx.restore();
         ctx.save();
         ctx.translate(cx, cy + 12);
-        ctx.font = '16px serif';
+        ctx.font = '23px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const moto = ctx.measureText('🏍️');
@@ -2317,7 +2309,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const wvm = ctx.measureText('🌊');
@@ -2346,7 +2338,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const am = ctx.measureText('⚓');
@@ -2362,7 +2354,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const bm = ctx.measureText('🦇');
@@ -2378,7 +2370,7 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.font = '28px serif';
+        ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         const cdm = ctx.measureText('🕯️');
@@ -2395,7 +2387,7 @@ export class Game {
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(KNIFE_ANGLES[card.direction]);
-      ctx.font = '28px serif';
+      ctx.font = '40px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🔪', 0, 0);
@@ -2544,7 +2536,7 @@ export class Game {
             if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad, now);
           }
         } else if (cell && 'blood' in cell) {
-          ctx.font = '36px serif';
+          ctx.font = '51px serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🩸', x + CELL / 2, y + CELL / 2);
@@ -2589,7 +2581,7 @@ export class Game {
           ctx.save();
           ctx.translate(x + CELL / 2, y + CELL / 2);
           ctx.rotate(angle);
-          ctx.font = '22px serif';
+          ctx.font = '31px serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(emoji, 0, 0);
