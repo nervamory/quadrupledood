@@ -2759,18 +2759,23 @@ export class Game {
           ctx.strokeStyle = 'rgba(255, 160, 40, 0.7)';
           ctx.lineWidth = 2;
           ctx.stroke();
-          // Emoji (rotated to match placed card orientation)
-          ctx.save();
-          ctx.translate(x + CELL / 2, y + CELL / 2);
-          ctx.rotate(angle);
-          ctx.font = '31px serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(emoji, 0, 0);
-          ctx.restore();
-          // Direction triangle (card-coordinate space: pad=2 offset into 68×68)
           const pad = (CELL - CARD) / 2;
           const xc = x + pad, yc = y + pad;
+          if (this.cardArtMode) {
+            ctx.save();
+            ctx.globalAlpha = 0.92;
+            this.drawCardImage(xc, yc, myIsBlack, emoji === '🫳' ? 'hand2' : 'hand');
+            ctx.restore();
+          } else {
+            ctx.save();
+            ctx.translate(x + CELL / 2, y + CELL / 2);
+            ctx.rotate(angle);
+            ctx.font = '31px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, 0, 0);
+            ctx.restore();
+          }
           const ccx = xc + CARD / 2, ccy = yc + CARD / 2;
           const m = 6, ts = 4;
           ctx.fillStyle = 'rgba(255, 200, 80, 0.9)';
