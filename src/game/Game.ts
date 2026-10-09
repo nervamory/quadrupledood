@@ -267,6 +267,17 @@ export class Game {
     return { x: (clientX - b.left) / scale, y: (clientY - b.top) / scale };
   }
 
+  // Hand art is drawn fingers-up; oni emoji angles assume a right-facing glyph.
+  // +π/2 maps those angles onto the assets so fingertips follow capture direction.
+  private drawRotatedHandArt(x: number, y: number, isBlack: boolean, emoji: string, angle: number) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(x + CARD / 2, y + CARD / 2);
+    ctx.rotate(angle + Math.PI / 2);
+    this.drawCardImage(-CARD / 2, -CARD / 2, isBlack, emoji === '🫳' ? 'hand2' : 'hand');
+    ctx.restore();
+  }
+
   private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
     const version = this.resolvedArtVersion(key);
     const effectiveKey = version > 1 ? versionedArtKey(key, version) : key;
@@ -1875,7 +1886,7 @@ export class Game {
 
     if (card.type === 'hand') {
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, isBlack, card.summonedHand?.emoji === '🫳' ? 'hand2' : 'hand');
+        this.drawRotatedHandArt(x, y, isBlack, card.summonedHand?.emoji ?? '🫴', card.summonedHand?.angle ?? 0);
       } else {
         const emoji = card.summonedHand?.emoji ?? '🫴';
         ctx.save();
@@ -2764,7 +2775,7 @@ export class Game {
           if (this.cardArtMode) {
             ctx.save();
             ctx.globalAlpha = 0.92;
-            this.drawCardImage(xc, yc, myIsBlack, emoji === '🫳' ? 'hand2' : 'hand');
+            this.drawRotatedHandArt(xc, yc, myIsBlack, emoji, angle);
             ctx.restore();
           } else {
             ctx.save();
