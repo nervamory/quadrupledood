@@ -1,15 +1,15 @@
 import type { CardType } from './types';
 
-// Card types excluded from version-select: their alternate art (if any) is
-// driven by game state, not a player-chosen "version" —
-//   knife: 8 separate per-direction sprites, not a single versionable file
-//   hand:  hand2.png is the summoned-hand's alternate gesture (🫳), tied to
-//          card.summonedHand, not a style preference
-//   wolf:  werewolf.png is the "moon is out" alternate, tied to board state
+// Knife stays out of version-select: its 8 direction sprites are identical in
+// the current pack, and they are not a single versionable file.
+//
+// Hand and wolf *do* have game-state alternate art (hand2 / werewolf), but
+// those alts are still style-versioned in lockstep with the base key so a
+// player can switch the whole look back to a previous pack.
 export const VERSIONABLE_TYPES: CardType[] = [
   'heart', 'eye', 'tooth', 'moon', 'mirror', 'vampire', 'bandage', 'ghost', 'fog',
-  'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone',
-  'oni', 'fire', 'spider', 'web', 'egg', 'troll', 'dragon', 'alien', 'imp',
+  'wolf', 'squid', 'mermaid', 'bubbles', 'skull', 'bone', 'zombie', 'brain', 'gravestone',
+  'oni', 'fire', 'hand', 'spider', 'web', 'egg', 'troll', 'dragon', 'alien', 'imp',
   'hellfire', 'snake', 'clown', 'clown-car', 'balloon', 'succubus', 'lipstick',
   'kisses', 'crystal-ball', 'candle', 'robot', 'lightning', 'outlet', 'bat',
   'dolphin', 'wave', 'anchor',
@@ -20,8 +20,21 @@ const ART_KEY_OVERRIDES: Partial<Record<CardType, string>> = {
   kisses: 'kiss',
 };
 
+// Extra art keys that must follow the same version as the type's base key.
+// Using `-vN` filenames (not `hand2.png`) so summoned-hand / werewolf alts
+// never collide with a style version of the base card.
+const LINKED_ART_KEYS: Partial<Record<CardType, string[]>> = {
+  hand: ['hand2'],
+  wolf: ['werewolf'],
+};
+
 export function baseArtKey(type: CardType): string {
   return ART_KEY_OVERRIDES[type] ?? type;
+}
+
+export function artKeysForType(type: CardType): string[] {
+  const base = baseArtKey(type);
+  return [base, ...(LINKED_ART_KEYS[type] ?? [])];
 }
 
 const STORAGE_KEY = 'cardVersions';
@@ -39,12 +52,12 @@ export function saveVersionPrefs(prefs: Record<string, number>): void {
 }
 
 export function versionedArtKey(baseKey: string, version: number): string {
-  return version > 1 ? `${baseKey}${version}` : baseKey;
+  return version > 1 ? `${baseKey}-v${version}` : baseKey;
 }
 
-// Probes /assets/cards/<baseKey>N.png for N = 2..maxVersions, stopping at the
-// first missing file. Returns the total version count (always >= 1) — the
-// base (unsuffixed) file is assumed to always exist.
+// Probes /assets/cards/<baseKey>-vN.png for N = 2..maxVersions, stopping at
+// the first missing file. Returns the total version count (always >= 1) —
+// the base (unsuffixed) file is assumed to always exist.
 export function probeVersionCount(baseKey: string, maxVersions = 5): Promise<number> {
   return new Promise((resolve) => {
     let found = 1;
@@ -53,7 +66,7 @@ export function probeVersionCount(baseKey: string, maxVersions = 5): Promise<num
       const img = new Image();
       img.onload = () => { found = n; tryNext(n + 1); };
       img.onerror = () => resolve(found);
-      img.src = `/assets/cards/${baseKey}${n}.png`;
+      img.src = `/assets/cards/${versionedArtKey(baseKey, n)}.png`;
     };
     tryNext(2);
   });

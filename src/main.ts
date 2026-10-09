@@ -11,6 +11,7 @@ import {
 } from './foil/customFoil';
 import {
   VERSIONABLE_TYPES,
+  artKeysForType,
   baseArtKey,
   loadVersionPrefs,
   saveVersionPrefs,
@@ -730,9 +731,11 @@ async function buildCardVersionList() {
       select.addEventListener('change', () => {
         const v = parseInt(select.value, 10);
         const newPrefs = loadVersionPrefs();
-        newPrefs[base] = v;
+        for (const key of artKeysForType(type)) {
+          newPrefs[key] = v;
+          game.setCardVersion(key, v);
+        }
         saveVersionPrefs(newPrefs);
-        game.setCardVersion(base, v);
       });
       row.appendChild(select);
     } else {
