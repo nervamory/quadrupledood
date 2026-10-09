@@ -50,7 +50,36 @@
       @media (hover: none) { button:hover { background: #1a1a2e; } }
       #status { margin-top: 10px; color: #555; font-size: 13px; }
       h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: Trattatello, Luminari, fantasy; font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
-      #leave-btn { margin-top: 10px; }
+      #game-menu-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 40;
+        width: 36px;
+        height: 36px;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 20, 0.82);
+        color: #ccc;
+      }
+      #game-menu-btn:hover { background: rgba(26, 26, 46, 0.95); color: #eee; }
+      #game-menu {
+        display: none;
+        position: absolute;
+        top: 48px;
+        right: 8px;
+        z-index: 41;
+        background: #1a1a2e;
+        border: 1px solid #333;
+        padding: 6px;
+        min-width: 140px;
+        text-align: left;
+      }
+      #game-menu.open { display: block; }
+      #game-menu button { display: block; width: 100%; margin: 0; text-align: left; }
       #rotate-overlay {
         display: none;
         position: fixed;
@@ -102,12 +131,19 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v9.2</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v9.4</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
         <p id="turn-status" style="margin-top:10px; min-height:18px; font-family:monospace; font-size:14px; color:#eee;"></p>
-        <button id="leave-btn" style="position:absolute; right:8px; bottom:8px; margin:0;">leave room</button>
+        <button id="game-menu-btn" type="button" aria-label="game settings" aria-haspopup="true" aria-expanded="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.63-.94l-.36-2.54A.5.5 0 0014.3 2h-4.6a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.31 8.48a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.43 14.16a.5.5 0 00-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h4.6c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
+          </svg>
+        </button>
+        <div id="game-menu">
+          <button id="leave-btn" type="button">leave room</button>
+        </div>
       </div>
       <div id="between-screen" class="screen">
         <h2 style="display:inline-block; text-align:left; line-height:1.1;">Quadruple<br><span style="display:block; text-align:right; padding-right:0.2em;">dood</span></h2>

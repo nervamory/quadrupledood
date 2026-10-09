@@ -1,0 +1,19 @@
+---
+description: Ship playable changes to Vercel by default; Chris tests live
+alwaysApply: true
+---
+
+# Ship to Vercel unless told otherwise
+
+Chris tests on production (https://rupledood.vercel.app/), not a local-only loop.
+
+After a playable game/UI change is done:
+
+- Bump the lobby version in `index.html` (patch +0.1, or +1.0 for features)
+- Run `npm run build` and fix failures
+- Commit to `main` with a subject like `v9.4: …`
+- Push `origin main` so Vercel Git deploy goes out
+
+Do **not** wait for an extra “ship” / “commit” / “push” unless Chris says not to ship, to hold, or to keep it local.
+
+GitHub repo: `nervamory/quadrupledood`. Vercel project: `nervamory/rupledood`.

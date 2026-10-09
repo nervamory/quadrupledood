@@ -18,6 +18,8 @@ There is no test suite beyond `test-oni.mjs`. TypeScript strict mode (`tsconfig.
 
 The version string is displayed in the lobby (`index.html` line ~69). **Always bump it before committing.** Use patch increments (+0.1) for fixes and polish; minor increments (+1.0) for new features. The commit message subject should lead with the new version, e.g. `v7.9: fix foo`.
 
+**Ship by default:** commit and push to `main` (Vercel production at https://rupledood.vercel.app/) after playable changes unless Chris says to hold or keep it local. He tests live.
+
 ## Architecture
 
 **Layer separation is strict:**

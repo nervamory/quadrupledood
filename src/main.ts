@@ -436,7 +436,30 @@ getElement('join-btn').addEventListener('click', () => {
   }
 });
 
-getElement('leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
+const gameMenuBtn = getElement<HTMLButtonElement>('game-menu-btn');
+const gameMenu = getElement('game-menu');
+
+function setGameMenuOpen(open: boolean) {
+  gameMenu.classList.toggle('open', open);
+  gameMenuBtn.setAttribute('aria-expanded', String(open));
+}
+
+gameMenuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setGameMenuOpen(!gameMenu.classList.contains('open'));
+});
+gameMenu.addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', (e) => {
+  const t = e.target as Node | null;
+  if (t && (gameMenuBtn.contains(t) || gameMenu.contains(t))) return;
+  setGameMenuOpen(false);
+});
+
+getElement('leave-btn').addEventListener('click', () => {
+  setGameMenuOpen(false);
+  if (cpuMode) { doCpuLeave(); return; }
+  doLeave();
+});
 
 // ── between-games buttons ─────────────────────────────────────────────────────
 

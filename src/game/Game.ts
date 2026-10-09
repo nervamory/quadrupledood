@@ -1170,26 +1170,26 @@ export class Game {
   }
 
   // Gilded edges — gold, shimmering border made of a few unevenly offset
-  // strokes (like hand-gilded/stacked page edges) plus small twinkling
-  // glints. Border width is 2x the standard 3px foil border so it reads
-  // clearly while testing. The card face itself is untouched (plain
-  // player color) — this style is a border-only treatment.
+  // strokes (like hand-gilded/stacked page edges) plus scattered flake
+  // glints in the gold band. The card face itself is untouched.
   private drawGildedEdge(x: number, y: number) {
     const ctx = this.ctx;
     const now = performance.now();
     const w = CARD;
     const r = 6;
-    const borderWidth = 6;
+    const borderWidth = 4.5; // 3/4 of the previous 6px test width
 
     // Deterministic per-card "hand-applied" wobble, seeded from this card's
-    // screen position — stable across frames (not time-based) so the rough
-    // edge doesn't vibrate every frame, only the shine/glints animate.
+    // screen position — stable across frames so the rough edge doesn't
+    // vibrate; only the shine/glints animate.
     const seed = Math.abs(x * 0.29 + y * 0.83) % 10;
+    const rnd = (n: number) => {
+      const s = Math.sin((n + 1.17) * 12.9898 + seed * 78.233) * 43758.5453;
+      return s - Math.floor(s);
+    };
 
     ctx.save();
 
-    // Rotating gold gradient — same "catches the light" technique the other
-    // foil styles use for their rainbow sweeps, gold-toned here.
     const angle = (now / 5000) * Math.PI * 2;
     const cx = x + w / 2, cy = y + w / 2;
     const rad = w * 0.75;
@@ -1203,9 +1203,6 @@ export class Game {
     grad.addColorStop(0.75, '#c99a3d');
     grad.addColorStop(1,    '#4a2e0a');
 
-    // A few layered, slightly offset passes simulate an uneven, hand-gilded
-    // edge (like stacked page edges catching light differently) instead of
-    // one perfectly clean stroke.
     const passes = [
       { dx: -seed * 0.15,       dy:  seed * 0.11,        width: borderWidth,       alpha: 1    },
       { dx:  (seed - 3) * 0.22, dy: -(seed - 5) * 0.16,  width: borderWidth * 0.58, alpha: 0.55 },
@@ -1225,21 +1222,43 @@ export class Game {
     }
     ctx.globalAlpha = 1;
 
-    // Small twinkling glints along the border for a "catching the light" shine.
-    const GLINT_POINTS: [number, number, number][] = [
-      [0.15, 0,    0.2], [0.5,  0,    1.1], [0.85, 0,    0.6],
-      [1,    0.3,  1.6], [1,    0.7,  0.3],
-      [0.8,  1,    1.2], [0.35, 1,    0.8],
-      [0,    0.65, 1.9], [0,    0.25, 0.5],
+    // Flake glints sit inside the gold stroke, jittered off the edge so they
+    // don't read as a straight string of pearls.
+    const inset = borderWidth * 0.45;
+    const span = w - 2 * r;
+    const edges: { px: number; py: number; nx: number; ny: number; rot: number }[] = [
+      { px: x + r,     py: y + inset,     nx:  0, ny:  1, rot: 0 },
+      { px: x + w - inset, py: y + r,     nx: -1, ny:  0, rot: Math.PI / 2 },
+      { px: x + w - r, py: y + w - inset, nx:  0, ny: -1, rot: 0 },
+      { px: x + inset, py: y + w - r,     nx:  1, ny:  0, rot: Math.PI / 2 },
     ];
     ctx.fillStyle = '#fff8dd';
-    for (const [fx, fy, phase] of GLINT_POINTS) {
-      const twinkle = Math.abs(Math.sin(now / 700 + phase * Math.PI + seed));
-      if (twinkle < 0.6) continue;
-      ctx.globalAlpha = (twinkle - 0.6) / 0.4;
-      ctx.beginPath();
-      ctx.arc(x + fx * w, y + fy * w, 1.4, 0, Math.PI * 2);
-      ctx.fill();
+    let gi = 0;
+    for (let e = 0; e < 4; e++) {
+      const edge = edges[e];
+      const count = 5 + Math.floor(rnd(e) * 3);
+      for (let i = 0; i < count; i++) {
+        const t = (i + 0.18 + rnd(gi + 3) * 0.7) / count;
+        const along = Math.min(1, Math.max(0, t)) * span;
+        const nJitter = (rnd(gi + 11) - 0.5) * borderWidth * 0.7;
+        const aJitter = (rnd(gi + 19) - 0.5) * 3.2;
+        const px = edge.px + (e % 2 === 0 ? along * (e === 0 ? 1 : -1) : 0) + edge.nx * nJitter;
+        const py = edge.py + (e % 2 === 1 ? along * (e === 1 ? 1 : -1) : 0) + edge.ny * nJitter;
+        const ox = e % 2 === 0 ? aJitter : 0;
+        const oy = e % 2 === 1 ? aJitter : 0;
+        const twinkle = 0.35 + 0.65 * Math.abs(Math.sin(now / 820 + rnd(gi) * Math.PI * 2 + seed));
+        if (twinkle < 0.55) { gi++; continue; }
+        ctx.globalAlpha = (twinkle - 0.45) * 0.85;
+        ctx.save();
+        ctx.translate(px + ox, py + oy);
+        ctx.rotate(edge.rot + (rnd(gi + 7) - 0.5) * 0.7);
+        ctx.scale(1.5 + rnd(gi + 5) * 1.1, 0.35 + rnd(gi + 13) * 0.35);
+        ctx.beginPath();
+        ctx.arc(0, 0, 0.9 + rnd(gi + 17) * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        gi++;
+      }
     }
     ctx.globalAlpha = 1;
 
