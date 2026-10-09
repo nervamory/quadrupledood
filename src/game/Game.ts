@@ -147,6 +147,9 @@ export class Game {
   private lastHoverIdx: number | null = null;
   private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
+  private oppDrag: { idx: number; x: number; y: number } | null = null;
+  private lastDragSend = 0;
+  private lastDragSentPos = { x: 0, y: 0 };
   colorblindMode = false;
   cardArtMode = false;
   private cardImages: Record<string, HTMLImageElement> = {};
@@ -193,6 +196,7 @@ export class Game {
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
+  onDragChange?: (drag: { idx: number; x: number; y: number } | null) => void;
   onStatusTextChange?: (text: string, color: string) => void;
   private lastStatusText: string | null = null;
 
@@ -220,7 +224,7 @@ export class Game {
     canvas.addEventListener('mousemove', this.onMouseMove);
     canvas.addEventListener('mouseup', this.onMouseUp);
     canvas.addEventListener('contextmenu', (e) => {
-      if (this.drag) { e.preventDefault(); this.drag = null; }
+      if (this.drag) { e.preventDefault(); this.drag = null; this.emitDrag(true); }
     });
     canvas.addEventListener('mouseleave', () => {
       this.hoverPos = null;
@@ -329,7 +333,7 @@ export class Game {
         done: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.oppDrag = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -863,6 +867,46 @@ export class Game {
     this.oppHoverIdx = idx;
   }
 
+  // Opponent's canvas has their hand at the bottom, same as ours. Map that
+  // onto our view: board cells stay aligned, their hand band folds onto ours.
+  private mapOppDragPoint(x: number, y: number): { x: number; y: number } {
+    const boardTop = this.gridY;
+    const boardBot = this.gridY + GRID;
+    if (y >= boardTop && y <= boardBot) return { x, y };
+    if (y > boardBot) return { x, y: boardTop - (y - boardBot) };
+    return { x, y: boardBot + (boardTop - y) };
+  }
+
+  setOppDrag(drag: { idx: number; x: number; y: number } | null) {
+    if (!drag) { this.oppDrag = null; return; }
+    const p = this.mapOppDragPoint(drag.x, drag.y);
+    this.oppDrag = { idx: drag.idx, x: p.x, y: p.y };
+    this.oppHoverIdx = null;
+  }
+
+  private emitDrag(force = false) {
+    const drag = this.drag;
+    if (!drag || !this.state) {
+      this.lastDragSend = 0;
+      this.onDragChange?.(null);
+      return;
+    }
+    const hand = this.state.hands[this.localNr] ?? [];
+    const idx = hand.findIndex(c => c.id === drag.card.id);
+    if (idx < 0) {
+      this.lastDragSend = 0;
+      this.onDragChange?.(null);
+      return;
+    }
+    const now = performance.now();
+    const dx = drag.x - this.lastDragSentPos.x;
+    const dy = drag.y - this.lastDragSentPos.y;
+    if (!force && now - this.lastDragSend < 40 && dx * dx + dy * dy < 36) return;
+    this.lastDragSend = now;
+    this.lastDragSentPos = { x: drag.x, y: drag.y };
+    this.onDragChange?.({ idx, x: Math.round(drag.x), y: Math.round(drag.y) });
+  }
+
   reset() {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
@@ -884,6 +928,7 @@ export class Game {
     this.captureShakeAnims = [];
     this.vampireAnim = null;
     this.oppHoverIdx = null;
+    this.oppDrag = null;
     this.lastHoverIdx = null;
     this.flipAnims = [];
     this.matchScore = {};
@@ -1114,13 +1159,24 @@ export class Game {
     if (this.spinAnim && (this.spinAnim.mode === 'idle' || !this.spinAnim.done)) return;
     const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
     const hit = this.hitHandCard(x, y);
-    if (hit) this.drag = { card: hit.layout.card, x, y };
+    if (hit) {
+      this.drag = { card: hit.layout.card, x, y };
+      if (this.lastHoverIdx !== null) {
+        this.lastHoverIdx = null;
+        this.onHoverChange?.(null);
+      }
+      this.emitDrag(true);
+    }
   };
 
   private onMouseMove = (e: MouseEvent) => {
     const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
     this.hoverPos = { x, y };
-    if (this.drag) { this.drag.x = x; this.drag.y = y; }
+    if (this.drag) {
+      this.drag.x = x;
+      this.drag.y = y;
+      this.emitDrag();
+    }
     const idx = this.hoveredHandCardIdx();
     if (idx !== this.lastHoverIdx) {
       this.lastHoverIdx = idx;
@@ -1129,7 +1185,8 @@ export class Game {
   };
 
   private onMouseUp = (e: MouseEvent) => {
-    if (!this.drag || !this.state) { this.drag = null; return; }
+    if (!this.drag) return;
+    if (!this.state) { this.drag = null; this.emitDrag(true); return; }
     const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
     const cell = this.hitCell(x, y);
     if (cell) {
@@ -1140,6 +1197,7 @@ export class Game {
       if (validDrop) this.onPlaceCard?.(this.drag.card.id, cell.row, cell.col);
     }
     this.drag = null;
+    this.emitDrag(true);
   };
 
   private onTouchStart = (e: TouchEvent) => {
@@ -1153,11 +1211,13 @@ export class Game {
     if (hit) {
       e.preventDefault();
       this.drag = { card: hit.layout.card, x, y };
+      this.emitDrag(true);
       // Long press (400ms, no movement) cancels drag and shows tooltip instead
       this.longPressTimer = setTimeout(() => {
         this.longPressTimer = null;
         this.inLongPress = true;
         this.drag = null;
+        this.emitDrag(true);
         this.hoverPos = { x, y };
       }, 400);
     } else {
@@ -1188,6 +1248,7 @@ export class Game {
       this.hoverPos = { x, y };
       this.drag.x = x;
       this.drag.y = y;
+      this.emitDrag();
     } else if (this.inLongPress && movedFar) {
       // Moved out of tooltip — dismiss and try to start a drag
       e.preventDefault();
@@ -1195,7 +1256,10 @@ export class Game {
       this.hoverPos = null;
       const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
       const hit = this.hitHandCard(x, y);
-      if (hit) this.drag = { card: hit.layout.card, x, y };
+      if (hit) {
+        this.drag = { card: hit.layout.card, x, y };
+        this.emitDrag(true);
+      }
     }
   };
 
@@ -1218,6 +1282,7 @@ export class Game {
       }
     }
     this.drag = null;
+    this.emitDrag(true);
     this.hoverPos = null;
     if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
   };
@@ -1227,6 +1292,7 @@ export class Game {
     this.inLongPress = false;
     this.touchStartClientPos = null;
     this.drag = null;
+    this.emitDrag(true);
     this.hoverPos = null;
     if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
   };
@@ -2912,6 +2978,7 @@ export class Game {
     for (let i = 0; i < oppLayout.length; i++) {
       const l = oppLayout[i];
       if (this.ghostSwapAnim?.hiddenIds.has(l.card.id)) continue;
+      if (this.oppDrag && i === this.oppDrag.idx) continue;
       if (i === this.oppHoverIdx) { oppHoveredEntry = l; continue; }
       ctx.save();
       ctx.translate(l.cx, l.cy);
@@ -3069,6 +3136,16 @@ export class Game {
       ctx.globalAlpha = 0.88;
       this.drawCard(this.drag.x - CARD / 2, this.drag.y - CARD / 2, this.drag.card, myIsBlack);
       ctx.globalAlpha = 1;
+    }
+
+    // opponent drag — same ghost, mapped so their hand-to-board path reads from the top
+    if (this.oppDrag) {
+      const dragged = oppLayout[this.oppDrag.idx];
+      if (dragged) {
+        ctx.globalAlpha = 0.88;
+        this.drawCard(this.oppDrag.x - CARD / 2, this.oppDrag.y - CARD / 2, dragged.card, oppIsBlack, !myEyeActive);
+        ctx.globalAlpha = 1;
+      }
     }
 
     // hover tooltip

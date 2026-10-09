@@ -341,6 +341,7 @@ const photon = new PhotonClient({
   },
   onCardPlaced: (actorNr, cardId, row, col) => {
     if (!gameState) return;
+    game.setOppDrag(null);
     gameState = placeCard(gameState, actorNr, cardId, row, col);
     game.setState(gameState);
     if (gameState.phase === 'finished') handleGameEnd(gameState);
@@ -390,12 +391,20 @@ const photon = new PhotonClient({
   onOpponentHover: (idx) => {
     game.setOppHover(idx);
   },
+  onOpponentDrag: (drag) => {
+    game.setOppDrag(drag);
+  },
 });
 
 // ── game callbacks ────────────────────────────────────────────────────────────
 
 game.onHoverChange = (idx) => {
   photon.sendHover(idx);
+};
+
+game.onDragChange = (drag) => {
+  if (cpuMode) return;
+  photon.sendDrag(drag);
 };
 
 game.onStatusTextChange = (text, color) => {
