@@ -17,6 +17,7 @@ import {
   saveVersionPrefs,
   versionedArtKey,
   probeVersionCount,
+  resolvedVersion,
 } from './game/cardVersions';
 
 function getElement<T extends HTMLElement>(id: string): T {
@@ -657,6 +658,32 @@ getElement('foil-save-btn').addEventListener('click', () => {
 
 let cardVersionCounts: Record<string, number> | null = null; // cached across screen visits
 
+async function loadCardVersionCounts(): Promise<Record<string, number>> {
+  if (cardVersionCounts) return cardVersionCounts;
+  const keys = [...new Set(VERSIONABLE_TYPES.flatMap(artKeysForType))];
+  const entries = await Promise.all(
+    keys.map(async (key) => [key, await probeVersionCount(key)] as const)
+  );
+  cardVersionCounts = Object.fromEntries(entries);
+  return cardVersionCounts;
+}
+
+async function applyCardVersionDefaults() {
+  const counts = await loadCardVersionCounts();
+  const prefs = loadVersionPrefs();
+  for (const type of VERSIONABLE_TYPES) {
+    const base = baseArtKey(type);
+    for (const key of artKeysForType(type)) {
+      const count = counts[key] ?? counts[base] ?? 1;
+      game.setArtVersionCount(key, count);
+      const chosen = prefs[key] ?? prefs[base];
+      if (chosen != null) game.setCardVersion(key, chosen);
+    }
+  }
+}
+
+void applyCardVersionDefaults();
+
 function drawVersionThumb(canvas: HTMLCanvasElement, img: HTMLImageElement) {
   const ctx = canvas.getContext('2d')!;
   const s = canvas.width;
@@ -683,13 +710,7 @@ async function buildCardVersionList() {
   const container = getElement<HTMLDivElement>('card-version-list');
   container.textContent = 'loading…';
 
-  if (!cardVersionCounts) {
-    const entries = await Promise.all(
-      VERSIONABLE_TYPES.map(async (type) => [baseArtKey(type), await probeVersionCount(baseArtKey(type))] as const)
-    );
-    cardVersionCounts = Object.fromEntries(entries);
-  }
-  const counts = cardVersionCounts;
+  const counts = await loadCardVersionCounts();
   const prefs = loadVersionPrefs();
 
   container.innerHTML = '';
@@ -727,7 +748,7 @@ async function buildCardVersionList() {
         opt.textContent = `v${v}`;
         select.appendChild(opt);
       }
-      select.value = String(prefs[base] ?? 1);
+      select.value = String(resolvedVersion(prefs, base, count));
       select.addEventListener('change', () => {
         const v = parseInt(select.value, 10);
         const newPrefs = loadVersionPrefs();

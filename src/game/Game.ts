@@ -1,6 +1,6 @@
 import type { GameState, Card, CardType, Direction } from './types';
 import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
-import { loadVersionPrefs, versionedArtKey } from './cardVersions';
+import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
 
 const CARD = 96;
 const CELL = 102;
@@ -136,6 +136,7 @@ export class Game {
   cardArtMode = false;
   private cardImages: Record<string, HTMLImageElement> = {};
   private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
+  private cardVersionCounts: Record<string, number> = {};
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartClientPos: { x: number; y: number } | null = null;
   private inLongPress = false;
@@ -233,6 +234,16 @@ export class Game {
     this.cardImages[key] = img;
   }
 
+  private resolvedArtVersion(key: string): number {
+    return resolvedVersion(this.cardVersionPrefs, key, this.cardVersionCounts[key] ?? 1);
+  }
+
+  // Highest available pack for a key. Missing prefs then draw this version.
+  setArtVersionCount(baseKey: string, count: number) {
+    this.cardVersionCounts[baseKey] = count;
+    this.loadVersionImage(baseKey, this.resolvedArtVersion(baseKey));
+  }
+
   // Used by the "card version select" settings screen.
   setCardVersion(baseKey: string, version: number) {
     this.cardVersionPrefs[baseKey] = version;
@@ -246,8 +257,8 @@ export class Game {
   }
 
   private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
-    const version = this.cardVersionPrefs[key];
-    const effectiveKey = version && version > 1 ? versionedArtKey(key, version) : key;
+    const version = this.resolvedArtVersion(key);
+    const effectiveKey = version > 1 ? versionedArtKey(key, version) : key;
     const img = this.cardImages[effectiveKey] ?? this.cardImages[key];
     if (!img?.complete || img.naturalWidth === 0) return;
     const pad = 6;

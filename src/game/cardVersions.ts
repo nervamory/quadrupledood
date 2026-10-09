@@ -55,6 +55,11 @@ export function versionedArtKey(baseKey: string, version: number): string {
   return version > 1 ? `${baseKey}-v${version}` : baseKey;
 }
 
+/** Unset prefs follow the newest pack so dropping in a higher -vN just works. */
+export function resolvedVersion(prefs: Record<string, number>, key: string, count: number): number {
+  return prefs[key] ?? count;
+}
+
 // Probes /assets/cards/<baseKey>-vN.png for N = 2..maxVersions, stopping at
 // the first missing file. Returns the total version count (always >= 1) —
 // the base (unsuffixed) file is assumed to always exist.
