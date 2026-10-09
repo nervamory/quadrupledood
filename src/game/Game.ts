@@ -2656,11 +2656,21 @@ export class Game {
 
     ctx.save();
     ctx.translate(W / 2, H / 2);
-    ctx.rotate(angle);
-    ctx.font = '160px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🔪', 0, 0);
+    const img = this.cardImages['knife_e'];
+    if (img?.complete && img.naturalWidth > 0) {
+      // knife_e points east; the 🔪 glyph points SE. +π/4 maps KNIFE_ANGLES onto the asset.
+      ctx.rotate(angle + Math.PI / 4);
+      const size = 280;
+      ctx.filter = 'invert(1)';
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    } else {
+      ctx.rotate(angle);
+      ctx.font = '160px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔪', 0, 0);
+    }
     ctx.restore();
   }
 
