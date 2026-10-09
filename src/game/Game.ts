@@ -378,8 +378,8 @@ export class Game {
 
     const oldMyLayout  = this.computeHandLayout(oldMyHand, true);
     const oldOppLayout = this.computeHandLayout(oldOppHand, false);
-    const myIsBlack  = this.localNr === oldState.blackPlayer;
-    const oppIsBlack = oppNr === oldState.blackPlayer;
+    const myIsBlack  = this.cardIsBlack(this.localNr);
+    const oppIsBlack = this.cardIsBlack(oppNr);
     const myEyeActive = oldState.board.flat().some(
       c => c && 'card' in c && c.owner === this.localNr && c.card.type === 'eye'
     );
@@ -447,8 +447,8 @@ export class Game {
           this.flipAnims.push({
             row: r, col: c,
             startTime: now + delay,
-            oldCard: old.card, oldIsBlack: old.owner === oldState.blackPlayer,
-            newCard: next.card, newIsBlack: next.owner === newState.blackPlayer,
+            oldCard: old.card, oldIsBlack: this.cardIsBlack(old.owner),
+            newCard: next.card, newIsBlack: this.cardIsBlack(next.owner),
           });
         }
       }
@@ -477,7 +477,7 @@ export class Game {
             life: 480 + rnd() * 640,
           });
         }
-        cells.push({ row: r, col: c, card: cell.card, isBlack: cell.owner === oldState.blackPlayer, embers });
+        cells.push({ row: r, col: c, card: cell.card, isBlack: this.cardIsBlack(cell.owner), embers });
       }
     }
     this.hellfireAnim = { cells, startTime: performance.now() };
@@ -654,9 +654,9 @@ export class Game {
       const from = this.cellPos(fromRow, fromCol);
       const to   = this.cellPos(toRow, toCol);
       const oldCell = oldState.board[fromRow][fromCol];
-      const pullIsBlack = oldCell && 'card' in oldCell ? oldCell.owner === oldState.blackPlayer : false;
+      const pullIsBlack = oldCell && 'card' in oldCell ? this.cardIsBlack(oldCell.owner) : false;
       const landCell = newState.board[toRow][toCol];
-      const landIsBlack = landCell && 'card' in landCell ? landCell.owner === newState.blackPlayer : false;
+      const landIsBlack = landCell && 'card' in landCell ? this.cardIsBlack(landCell.owner) : false;
       this.succubusPullAnims.push({
         card,
         fromX: from.x + pad, fromY: from.y + pad,
@@ -746,7 +746,7 @@ export class Game {
     const pad = (CELL - CARD) / 2;
     const to = this.cellPos(pull.toRow, pull.toCol);
     const landCell = newState.board[pull.toRow][pull.toCol];
-    const landIsBlack = landCell && 'card' in landCell ? landCell.owner === newState.blackPlayer : false;
+    const landIsBlack = landCell && 'card' in landCell ? this.cardIsBlack(landCell.owner) : false;
 
     this.mermaidPullAnim = {
       card: pull.card,
@@ -754,8 +754,8 @@ export class Game {
       toX: to.x + pad + CARD / 2, toY: to.y + pad + CARD / 2,
       toRow: pull.toRow, toCol: pull.toCol,
       startTime: performance.now(),
-      pullIsBlack: oppNr === newState.blackPlayer, // opponent's color during flight
-      landIsBlack,                                  // mermaid player's color after landing
+      pullIsBlack: this.cardIsBlack(oppNr),
+      landIsBlack,
       hiddenCardId: pull.card.id,
     };
   }
@@ -849,7 +849,7 @@ export class Game {
       toY: tl?.cy ?? MY_HAND_CY,
       startTime: performance.now(),
       done: false,
-      isBlack: this.localNr === newState.blackPlayer,
+      isBlack: this.cardIsBlack(this.localNr),
       hiddenId: cbr.card.id,
     };
   }
@@ -969,10 +969,14 @@ export class Game {
     });
   }
 
-  // Non-black player sits across the table: board is drawn 180° so their
-  // near edge is at the bottom. Logic still uses canonical row/col.
+  // Seat across the table is whoever isn't blackPlayer (actor1). Card color
+  // is independent: you are always white, opponent always black.
   private get viewFlipped(): boolean {
     return this.state !== null && this.localNr !== this.state.blackPlayer;
+  }
+
+  private cardIsBlack(owner: number): boolean {
+    return this.localNr !== 0 && owner !== this.localNr;
   }
 
   private visualDir(dir: Direction): Direction {
@@ -1699,8 +1703,7 @@ export class Game {
       return;
     }
 
-    const myIsBlack = this.localNr !== 0 && this.state !== null && this.localNr === this.state.blackPlayer;
-    const isOpp = this.state !== null && (isBlack !== myIsBlack);
+    const isOpp = isBlack;
 
     const bg     = isBlack ? (this.colorblindMode ? '#0d2652' : '#111111') : (this.colorblindMode ? '#f5921a' : '#f0f0f0');
     const fg     = GILDED_GOLD;
@@ -2862,7 +2865,7 @@ export class Game {
     ctx.fillStyle = '#0a0a14';
     ctx.fillRect(0, 0, W, H);
 
-    const myIsBlack = this.localNr === state.blackPlayer;
+    const myIsBlack = this.cardIsBlack(this.localNr);
 
     // grid
     for (let row = 0; row < 4; row++) {
@@ -2907,7 +2910,7 @@ export class Game {
               if (st >= 1) { this.captureShakeAnims = this.captureShakeAnims.filter(a => a !== sa); return 0; }
               return Math.sin(st * Math.PI * 4) * 3 * (1 - st);
             })();
-            this.drawCard(x + pad + shake, y + pad, cell.card, cell.owner === state.blackPlayer, fogged);
+            this.drawCard(x + pad + shake, y + pad, cell.card, this.cardIsBlack(cell.owner), fogged);
             if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad, now);
           }
         } else if (cell && 'blood' in cell) {
@@ -2993,7 +2996,7 @@ export class Game {
     // opponent hand — face-down unless local player has an eye on the board
     const oppNr = Object.keys(state.hands).map(Number).find(n => n !== this.localNr);
     const oppHand = oppNr !== undefined ? (state.hands[oppNr] ?? []) : [];
-    const oppIsBlack = oppNr === state.blackPlayer;
+    const oppIsBlack = oppNr !== undefined && this.cardIsBlack(oppNr);
     const myEyeActive = state.board.flat().some(
       c => c && 'card' in c && c.owner === this.localNr && c.card.type === 'eye'
     );
