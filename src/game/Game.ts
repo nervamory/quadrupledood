@@ -66,6 +66,12 @@ type FlipAnim = {
   newCard: Card; newIsBlack: boolean;
 };
 
+type HellfireEmber = {
+  x: number; y: number;
+  vx: number; vy: number;
+  size: number; life: number;
+};
+
 const CARD_LABELS: Record<CardType, string> = {
   knife:   'immune to capture from its point',
   heart:   'becomes blood when captured',
@@ -154,7 +160,9 @@ export class Game {
   private flipAnims: FlipAnim[] = [];
 
   private hellfireAnim: {
-    cells: { row: number; col: number; card: Card; isBlack: boolean }[];
+    originRow: number;
+    originCol: number;
+    cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[] }[];
     startTime: number;
   } | null = null;
 
@@ -442,42 +450,170 @@ export class Game {
   private detectHellfire(oldState: GameState, newState: GameState) {
     if (!newState.hellfirePos) return;
     const [hr, hc] = newState.hellfirePos;
-    const cells: { row: number; col: number; card: Card; isBlack: boolean }[] = [];
+    const cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[] }[] = [];
     for (const [dr, dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]] as [number,number][]) {
       const r = hr + dr, c = hc + dc;
       if (r < 0 || r >= 4 || c < 0 || c >= 4) continue;
       const cell = oldState.board[r][c];
       if (cell && 'card' in cell) {
-        cells.push({ row: r, col: c, card: cell.card, isBlack: cell.owner === oldState.blackPlayer });
+        let seed = (r * 17 + c * 31 + 7) >>> 0;
+        const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        const embers: HellfireEmber[] = [];
+        for (let i = 0; i < 56; i++) {
+          embers.push({
+            x: 8 + rnd() * (CARD - 16),
+            y: 6 + rnd() * (CARD - 12),
+            vx: (rnd() - 0.5) * 0.05,
+            vy: -0.07 - rnd() * 0.14,
+            size: 1.1 + rnd() * 3.2,
+            life: 480 + rnd() * 640,
+          });
+        }
+        cells.push({ row: r, col: c, card: cell.card, isBlack: cell.owner === oldState.blackPlayer, embers });
       }
     }
-    this.hellfireAnim = { cells, startTime: performance.now() };
+    this.hellfireAnim = { originRow: hr, originCol: hc, cells, startTime: performance.now() };
+  }
+
+  private strokePentagram(cx: number, cy: number, r: number) {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * (4 * Math.PI / 5);
+      const x = cx + r * Math.cos(a);
+      const y = cy + r * Math.sin(a);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
   }
 
   private drawHellfireAnim(now: number) {
     if (!this.hellfireAnim) return;
-    const SHOW_MS  = 300; // green fire visible before fade
-    const FADE_MS  = 200; // fade out duration
+    const HOLD_MS = 220;
+    const BURN_MS = 1400;
+    const SCORCH_AT = 380;
+    const SCORCH_MS = 1500;
+    const FADE_AT = 1650;
+    const FADE_MS = 500;
+    const TOTAL = FADE_AT + FADE_MS;
     const t = now - this.hellfireAnim.startTime;
+    if (t > TOTAL) { this.hellfireAnim = null; return; }
+
     const ctx = this.ctx;
     const pad = (CELL - CARD) / 2;
+    const fade = t < FADE_AT ? 1 : Math.max(0, 1 - (t - FADE_AT) / FADE_MS);
+    const burn01 = t <= HOLD_MS ? 0 : Math.min(1, (t - HOLD_MS) / BURN_MS);
+    const burnEase = 1 - Math.pow(1 - burn01, 1.6);
 
-    for (const { row, col, card, isBlack } of this.hellfireAnim.cells) {
+    for (const { row, col, card, isBlack, embers } of this.hellfireAnim.cells) {
       const { x, y } = this.cellPos(row, col);
-      const alpha = t < SHOW_MS ? 1 : Math.max(0, 1 - (t - SHOW_MS) / FADE_MS);
+      const cardX = x + pad, cardY = y + pad;
+      const cx = x + CELL / 2;
+      const flicker = 0.82 + 0.18 * Math.sin(now * 0.038 + row * 2.1 + col);
+      const lineY = cardY + CARD * (1 - burnEase);
+
       ctx.save();
-      ctx.globalAlpha = alpha;
-      this.drawCard(x + pad, y + pad, card, isBlack);
-      ctx.font = '45px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.filter = 'hue-rotate(120deg)'; // orange fire → green
-      ctx.fillText('🔥', x + CELL / 2, y + CELL / 2);
-      ctx.filter = 'none';
+      ctx.globalAlpha = fade;
+
+      // Heat bloom under the card — strongest at the burn front
+      if (burn01 > 0) {
+        const glow = ctx.createRadialGradient(cx, lineY, 4, cx, lineY, CELL * 0.72);
+        glow.addColorStop(0, `rgba(255, 210, 90, ${0.55 * flicker})`);
+        glow.addColorStop(0.35, `rgba(201, 154, 61, ${0.32 * flicker})`);
+        glow.addColorStop(1, 'rgba(180, 40, 0, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx, Math.min(lineY, cardY + CARD * 0.85), CELL * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      this.drawCard(cardX, cardY, card, isBlack);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cardX, cardY, CARD, CARD, 6);
+      ctx.clip();
+
+      if (burnEase > 0) {
+        const charH = cardY + CARD - lineY;
+        if (charH > 0) {
+          ctx.fillStyle = `rgba(6, 3, 1, ${0.72 + 0.18 * flicker})`;
+          ctx.fillRect(cardX, lineY, CARD, charH);
+          const ash = ctx.createLinearGradient(cardX, lineY, cardX, lineY + Math.min(28, charH));
+          ash.addColorStop(0, `rgba(40, 22, 8, ${0.55 * flicker})`);
+          ash.addColorStop(1, 'rgba(8, 4, 2, 0)');
+          ctx.fillStyle = ash;
+          ctx.fillRect(cardX, lineY, CARD, Math.min(28, charH));
+        }
+        // Hot leading edge
+        const edge = ctx.createLinearGradient(cardX, lineY - 10, cardX, lineY + 8);
+        edge.addColorStop(0, 'rgba(255, 248, 210, 0)');
+        edge.addColorStop(0.45, `rgba(255, 236, 160, ${0.95 * flicker})`);
+        edge.addColorStop(0.62, GILDED_GOLD);
+        edge.addColorStop(1, 'rgba(180, 50, 10, 0.15)');
+        ctx.fillStyle = edge;
+        ctx.fillRect(cardX, lineY - 10, CARD, 18);
+      }
       ctx.restore();
+
+      ctx.restore();
+
+      for (const ember of embers) {
+        const spawnFrac = ember.y / CARD;
+        const appearAt = HOLD_MS + (1 - spawnFrac) * BURN_MS;
+        if (t < appearAt) continue;
+        const age = t - appearAt;
+        if (age > ember.life) continue;
+        const a = fade * (1 - age / ember.life);
+        const ex = cardX + ember.x + ember.vx * age;
+        const ey = cardY + ember.y + ember.vy * age;
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.fillStyle = ember.size > 2.6 ? '#fff3c4' : ember.size > 1.8 ? GILDED_GOLD : '#e06020';
+        ctx.beginPath();
+        ctx.arc(ex, ey, ember.size * (0.55 + 0.45 * (1 - age / ember.life)), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
-    if (t > SHOW_MS + FADE_MS) this.hellfireAnim = null;
+    const scorch = Math.max(0, Math.min(1, (t - SCORCH_AT) / SCORCH_MS));
+    if (scorch > 0) {
+      const { originRow, originCol } = this.hellfireAnim;
+      const origin = this.cellPos(originRow, originCol);
+      const ocx = origin.x + CELL / 2;
+      const ocy = origin.y + CELL / 2;
+      const pop = 1 - Math.pow(1 - Math.min(scorch * 1.25, 1), 3);
+      const size = CELL * (1.15 + pop * 2.55);
+      const scorchA = (scorch < 0.18 ? scorch / 0.18 : Math.max(0, 1 - (scorch - 0.18) / 0.82)) * fade;
+
+      const key = 'hellfire';
+      const version = this.resolvedArtVersion(key);
+      const img = this.cardImages[version > 1 ? versionedArtKey(key, version) : key] ?? this.cardImages[key];
+      if (img?.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.translate(ocx, ocy);
+        ctx.globalAlpha = scorchA * 0.85;
+        ctx.filter = 'invert(1) sepia(1) saturate(7) hue-rotate(8deg) brightness(1.2)';
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalAlpha = scorchA;
+      ctx.strokeStyle = '#fff6d0';
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = GILDED_GOLD;
+      ctx.shadowBlur = 18;
+      this.strokePentagram(ocx, ocy, size * 0.28);
+      ctx.strokeStyle = GILDED_GOLD;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ocx, ocy, size * 0.34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   private detectLightningFlash(newState: GameState) {
@@ -2951,7 +3087,7 @@ export class Game {
       }
     }
 
-    // hellfire animation — green fire over destroyed cards, then fade
+    // hellfire animation — burn-up + pentagram scorch, then fade
     if (this.hellfireAnim) this.drawHellfireAnim(now);
 
     // lightning flash — yellow rect over destroyed cells, fades out
