@@ -63,8 +63,10 @@
       @media (hover: none) { button:hover { background: #1a1a2e; } }
       #status { margin-top: 10px; color: #555; font-size: 13px; }
       h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: var(--font-display); font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
-      h2.wordmark { letter-spacing: 0; margin-bottom: 20px; }
-      h2.wordmark img { display: block; margin: 0 auto; width: clamp(168px, 61vw, 271px); height: auto; }
+      h2.wordmark, h2.red-title { letter-spacing: 0; }
+      h2.wordmark img, h2.red-title img { display: block; margin: 0 auto; height: auto; }
+      h2.wordmark img { width: clamp(168px, 61vw, 271px); }
+      h2.red-title img { width: min(100%, var(--title-w, 280px)); }
       #game-menu-btn {
         position: absolute;
         top: 8px;
@@ -146,7 +148,7 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v9.7</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v9.8</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -188,7 +190,7 @@
         <p id="between-status" style="margin-top:10px; color:#555; font-size:13px;"></p>
       </div>
       <div id="settings-screen" class="screen">
-        <h2 style="line-height:1.1; margin-bottom:32px;">settings</h2>
+        <h2 class="red-title" style="--title-w:179px; margin-bottom:32px;"><img src="/assets/heading-settings.png" alt="settings"></h2>
         <div style="display:grid; grid-template-columns:auto auto; gap:12px 6px; align-items:center; margin-bottom:20px;">
           <label style="color:#555; font-size:13px; text-align:right;">default deck</label>
           <select id="pref-deck-select">
@@ -230,7 +232,7 @@
         <button id="settings-back-btn" style="margin-top:12px;">back</button>
       </div>
       <div id="foil-creator-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:#0a0a14;flex-direction:column;align-items:center;padding:40px 20px 60px;">
-        <h2 style="line-height:1.1; margin-bottom:24px;">foil creator</h2>
+        <h2 class="red-title" style="--title-w:288px; margin-bottom:24px;"><img src="/assets/heading-foil-creator.png" alt="foil creator"></h2>
         <canvas id="foil-preview" width="204" height="204" style="border:1px solid #333; border-radius:8px; margin-bottom:24px;"></canvas>
         <div style="display:grid; grid-template-columns:auto 1fr auto; gap:10px 12px; align-items:center; width:100%; max-width:420px; margin-bottom:24px;">
 
@@ -340,7 +342,7 @@
         <button id="foil-creator-back-btn" style="margin-top:8px;">back</button>
       </div>
       <div id="card-version-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:#0a0a14;flex-direction:column;align-items:center;padding:40px 20px 60px;">
-        <h2 style="line-height:1.1; margin-bottom:24px;">card version select</h2>
+        <h2 class="red-title" style="--title-w:434px; margin-bottom:24px;"><img src="/assets/heading-card-version.png" alt="card version select"></h2>
         <div id="card-version-list" style="width:100%; max-width:480px; margin-bottom:20px; color:#555; font-size:12px; text-align:center;">loading…</div>
         <button id="card-version-back-btn">back</button>
       </div>
