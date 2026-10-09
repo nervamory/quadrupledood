@@ -10,12 +10,25 @@
     <meta name="apple-mobile-web-app-title" content="Quad Dood">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link rel="manifest" href="/manifest.json">
+    <link rel="preload" href="/fonts/uncial-antiqua-latin.woff2" as="font" type="font/woff2" crossorigin>
     <style>
+      @font-face {
+        font-family: 'Uncial Antiqua';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/uncial-antiqua-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      :root {
+        --font-display: Trattatello, Luminari, 'Uncial Antiqua', fantasy;
+        --font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         background: #0a0a14;
         color: #eee;
-        font-family: monospace;
+        font-family: var(--font-mono);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -39,7 +52,7 @@
       input, button, select {
         margin: 6px 4px;
         padding: 10px 20px;
-        font-family: monospace;
+        font-family: var(--font-mono);
         font-size: 14px;
         background: #1a1a2e;
         color: #eee;
@@ -49,7 +62,7 @@
       button:hover { background: #222240; }
       @media (hover: none) { button:hover { background: #1a1a2e; } }
       #status { margin-top: 10px; color: #555; font-size: 13px; }
-      h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: Trattatello, Luminari, fantasy; font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
+      h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: var(--font-display); font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
       #game-menu-btn {
         position: absolute;
         top: 8px;
@@ -92,7 +105,7 @@
         gap: 12px;
         color: #eee;
         font-size: 16px;
-        font-family: monospace;
+        font-family: var(--font-mono);
         text-align: center;
         padding: 20px;
       }
@@ -131,11 +144,11 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:monospace;">v9.5</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v9.6</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
-        <p id="turn-status" style="margin-top:10px; min-height:18px; font-family:monospace; font-size:14px; color:#eee;"></p>
+        <p id="turn-status" style="margin-top:10px; min-height:18px; font-family:var(--font-mono); font-size:14px; color:#eee;"></p>
         <button id="game-menu-btn" type="button" aria-label="game settings" aria-haspopup="true" aria-expanded="false">
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.63-.94l-.36-2.54A.5.5 0 0014.3 2h-4.6a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.31 8.48a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.43 14.16a.5.5 0 00-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h4.6c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
@@ -338,7 +351,7 @@
       </div>
     </div>
     <div id="reconnect-overlay" style="display:none; position:fixed; inset:0; background:rgba(10,10,20,0.88); z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
-      <p id="reconnect-msg" style="color:#eee; font-size:15px; font-family:monospace; text-align:center; white-space:pre-line; line-height:1.8;"></p>
+      <p id="reconnect-msg" style="color:#eee; font-size:15px; font-family:var(--font-mono); text-align:center; white-space:pre-line; line-height:1.8;"></p>
       <button id="reconnect-leave-btn">leave now</button>
     </div>
     <div id="rotate-overlay">

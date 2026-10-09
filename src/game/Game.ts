@@ -7,6 +7,10 @@ const CELL = 102;
 const CELL_GAP = 10;
 const GRID = 4 * CELL + 3 * CELL_GAP; // 438
 
+// Trattatello/Luminari are Mac-only; Uncial Antiqua is self-hosted for mobile.
+const FONT_DISPLAY = 'Trattatello, Luminari, "Uncial Antiqua", fantasy';
+const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Monaco, monospace';
+
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
   left:  3 * Math.PI / 4, up:   -3 * Math.PI / 4,
@@ -187,6 +191,7 @@ export class Game {
     this.W = canvas.width;
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
+    void document.fonts.load(`64px "Uncial Antiqua"`);
 
     for (const key of CARD_ART_KEYS) {
       const img = new Image();
@@ -2574,7 +2579,7 @@ export class Game {
 
     if (spinAnim.mode === 'idle') {
       angle = (now - spinAnim.startTime) * IDLE_SPEED;
-      ctx.font = '14px monospace';
+      ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#555';
       ctx.fillText('opponent', W / 2, 52);
@@ -2597,7 +2602,7 @@ export class Game {
         : spinAnim.target;
       angle = settled ? resolvedTarget : spinAnim.startAngle + spinAnim.totalAngle * eased;
 
-      ctx.font = '14px monospace';
+      ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = (settled && !isMyTurn) ? '#eee' : '#555';
       ctx.fillText((settled && !isMyTurn) ? 'opponent goes first' : 'opponent', W / 2, 52);
@@ -2829,7 +2834,7 @@ export class Game {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    ctx.font = '64px Trattatello, Luminari, fantasy';
+    ctx.font = `64px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#cc1111';
     const SCORE_BOUNCE_MS = 220;
     const scoreScale = (animStart: number | null) => {
@@ -2846,7 +2851,7 @@ export class Game {
       ctx.restore();
     }
 
-    ctx.font = '14px monospace';
+        ctx.font = `14px ${FONT_MONO}`;
     ctx.fillStyle = '#aaa';
     ctx.fillText((myIsBlack ? '⬛ ' : '⬜ ') + 'you', leftX, scoreCy + 46);
     ctx.fillText((myIsBlack ? '⬜ ' : '⬛ ') + 'opp', rightX, scoreCy + 46);
@@ -2936,9 +2941,9 @@ export class Game {
         const namePrefix = `${name}: `;
         const label = CARD_LABELS[hovered.type];
         const pad = 8;
-        ctx.font = 'bold 14px monospace';
+        ctx.font = `bold 14px ${FONT_MONO}`;
         const nameW = ctx.measureText(namePrefix).width;
-        ctx.font = '14px monospace';
+        ctx.font = `14px ${FONT_MONO}`;
         const labelW = ctx.measureText(label).width;
         const bw = nameW + labelW + pad * 2;
         const bh = 24;
@@ -2958,9 +2963,9 @@ export class Game {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const textY = by + bh / 2;
-        ctx.font = 'bold 14px monospace';
+        ctx.font = `bold 14px ${FONT_MONO}`;
         ctx.fillText(namePrefix, bx + pad, textY);
-        ctx.font = '14px monospace';
+        ctx.font = `14px ${FONT_MONO}`;
         ctx.fillText(label, bx + pad + nameW, textY);
         ctx.restore();
       }
