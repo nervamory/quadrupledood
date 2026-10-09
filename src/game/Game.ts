@@ -2932,11 +2932,15 @@ export class Game {
     if (this.hoverPos && !this.drag) {
       const hovered = this.findHoveredCard(this.hoverPos.x, this.hoverPos.y);
       if (hovered) {
+        const name = hovered.type.replace(/-/g, ' ');
+        const namePrefix = `${name}: `;
         const label = CARD_LABELS[hovered.type];
         const pad = 8;
+        ctx.font = 'bold 14px monospace';
+        const nameW = ctx.measureText(namePrefix).width;
         ctx.font = '14px monospace';
-        const tw = ctx.measureText(label).width;
-        const bw = tw + pad * 2;
+        const labelW = ctx.measureText(label).width;
+        const bw = nameW + labelW + pad * 2;
         const bh = 24;
         const bx = Math.max(4, Math.min(W - bw - 4, this.hoverPos.x - bw / 2));
         const by = Math.max(4, this.hoverPos.y - bh - 10);
@@ -2953,7 +2957,11 @@ export class Game {
         ctx.fillStyle = '#ccc';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, bx + pad, by + bh / 2);
+        const textY = by + bh / 2;
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText(namePrefix, bx + pad, textY);
+        ctx.font = '14px monospace';
+        ctx.fillText(label, bx + pad + nameW, textY);
         ctx.restore();
       }
     }
