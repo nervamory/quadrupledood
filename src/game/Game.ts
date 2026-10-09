@@ -2788,8 +2788,7 @@ export class Game {
     const spinAnim = this.spinAnim;
     if (!spinAnim) return;
 
-    ctx.fillStyle = '#0a0a14';
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);
 
     let angle: number;
 
@@ -2862,8 +2861,7 @@ export class Game {
       return;
     }
 
-    ctx.fillStyle = '#0a0a14';
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);
 
     const myIsBlack = this.cardIsBlack(this.localNr);
 
