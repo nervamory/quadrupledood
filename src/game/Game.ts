@@ -7,9 +7,13 @@ const CELL = 102;
 const CELL_GAP = 10;
 const GRID = 4 * CELL + 3 * CELL_GAP; // 438
 
-// Trattatello/Luminari are Mac-only; Uncial Antiqua is self-hosted for mobile.
-const FONT_DISPLAY = 'Trattatello, Luminari, "Uncial Antiqua", fantasy';
+// Trattatello/Luminari are Mac-only. Title/scores use rasterized Trattatello
+// assets; Felipa is the self-hosted chancery fallback for remaining UI.
+const FONT_DISPLAY = 'Trattatello, Luminari, Felipa, fantasy';
 const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Monaco, monospace';
+const SCORE_DIGIT_W = 78;
+const SCORE_DIGIT_H = 100;
+const SCORE_DIGIT_DRAW_H = 50;
 
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
@@ -139,6 +143,7 @@ export class Game {
   colorblindMode = false;
   cardArtMode = false;
   private cardImages: Record<string, HTMLImageElement> = {};
+  private scoreDigitImg = new Image();
   private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
   private cardVersionCounts: Record<string, number> = {};
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -191,7 +196,8 @@ export class Game {
     this.W = canvas.width;
     this.H = canvas.height;
     this.gridX = (this.W - GRID) / 2;
-    void document.fonts.load(`64px "Uncial Antiqua"`);
+    void document.fonts.load('64px Felipa');
+    this.scoreDigitImg.src = '/assets/score-digits.png';
 
     for (const key of CARD_ART_KEYS) {
       const img = new Image();
@@ -2567,6 +2573,30 @@ export class Game {
     ctx.fill();
   }
 
+  private drawScoreNumber(n: number) {
+    const ctx = this.ctx;
+    const img = this.scoreDigitImg;
+    const text = String(n);
+    if (!img.complete || img.naturalWidth === 0) {
+      ctx.font = `64px ${FONT_DISPLAY}`;
+      ctx.fillStyle = '#cc1111';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 0, 0);
+      return;
+    }
+    const destH = SCORE_DIGIT_DRAW_H;
+    const destW = destH * (SCORE_DIGIT_W / SCORE_DIGIT_H);
+    let x = -(destW * text.length) / 2;
+    const y = -destH / 2;
+    for (const ch of text) {
+      const d = ch.charCodeAt(0) - 48;
+      if (d < 0 || d > 9) continue;
+      ctx.drawImage(img, d * SCORE_DIGIT_W, 0, SCORE_DIGIT_W, SCORE_DIGIT_H, x, y, destW, destH);
+      x += destW;
+    }
+  }
+
   private drawSpin(now: number) {
     const { ctx, W, H } = this;
     const spinAnim = this.spinAnim;
@@ -2834,7 +2864,6 @@ export class Game {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    ctx.font = `64px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#cc1111';
     const SCORE_BOUNCE_MS = 220;
     const scoreScale = (animStart: number | null) => {
@@ -2847,11 +2876,11 @@ export class Game {
       ctx.save();
       ctx.translate(cx, scoreCy - 10);
       ctx.scale(s, s);
-      ctx.fillText(String(score), 0, 0);
+      this.drawScoreNumber(score);
       ctx.restore();
     }
 
-        ctx.font = `14px ${FONT_MONO}`;
+    ctx.font = `14px ${FONT_MONO}`;
     ctx.fillStyle = '#aaa';
     ctx.fillText((myIsBlack ? '⬛ ' : '⬜ ') + 'you', leftX, scoreCy + 46);
     ctx.fillText((myIsBlack ? '⬜ ' : '⬛ ') + 'opp', rightX, scoreCy + 46);
