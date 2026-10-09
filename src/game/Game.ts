@@ -28,6 +28,12 @@ const KNIFE_DIR_SUFFIX: Record<Direction, string> = {
   'up-left': 'nw', 'up-right': 'ne', 'down-left': 'sw', 'down-right': 'se',
 };
 
+const VIEW_OPPOSITE: Record<Direction, Direction> = {
+  up: 'down', down: 'up', left: 'right', right: 'left',
+  'up-left': 'down-right', 'up-right': 'down-left',
+  'down-left': 'up-right', 'down-right': 'up-left',
+};
+
 const CARD_ART_KEYS = [
   'heart','eye','tooth','moon','mirror','vampire','bandage','ghost','fog',
   'wolf','werewolf','squid','mermaid','bubbles','skull','bone','zombie',
@@ -867,14 +873,9 @@ export class Game {
     this.oppHoverIdx = idx;
   }
 
-  // Opponent's canvas has their hand at the bottom, same as ours. Map that
-  // onto our view: board cells stay aligned, their hand band folds onto ours.
+  // They sit opposite: rotate their pointer 180° into our seat.
   private mapOppDragPoint(x: number, y: number): { x: number; y: number } {
-    const boardTop = this.gridY;
-    const boardBot = this.gridY + GRID;
-    if (y >= boardTop && y <= boardBot) return { x, y };
-    if (y > boardBot) return { x, y: boardTop - (y - boardBot) };
-    return { x, y: boardBot + (boardTop - y) };
+    return { x: this.W - x, y: this.H - y };
   }
 
   setOppDrag(drag: { idx: number; x: number; y: number } | null) {
@@ -968,10 +969,22 @@ export class Game {
     });
   }
 
+  // Non-black player sits across the table: board is drawn 180° so their
+  // near edge is at the bottom. Logic still uses canonical row/col.
+  private get viewFlipped(): boolean {
+    return this.state !== null && this.localNr !== this.state.blackPlayer;
+  }
+
+  private visualDir(dir: Direction): Direction {
+    return this.viewFlipped ? VIEW_OPPOSITE[dir] : dir;
+  }
+
   private cellPos(row: number, col: number) {
+    const r = this.viewFlipped ? 3 - row : row;
+    const c = this.viewFlipped ? 3 - col : col;
     return {
-      x: this.gridX + col * (CELL + CELL_GAP),
-      y: this.gridY + row * (CELL + CELL_GAP),
+      x: this.gridX + c * (CELL + CELL_GAP),
+      y: this.gridY + r * (CELL + CELL_GAP),
     };
   }
 
@@ -1651,6 +1664,16 @@ export class Game {
 
   private drawCard(x: number, y: number, card: Card, isBlack: boolean, faceDown = false) {
     const ctx = this.ctx;
+
+    if (this.viewFlipped && !faceDown) {
+      card = {
+        ...card,
+        direction: VIEW_OPPOSITE[card.direction],
+        summonedHand: card.summonedHand
+          ? { ...card.summonedHand, angle: card.summonedHand.angle + Math.PI }
+          : undefined,
+      };
+    }
 
     if (faceDown) {
       ctx.beginPath();
@@ -2931,15 +2954,17 @@ export class Game {
           ctx.stroke();
           const pad = (CELL - CARD) / 2;
           const xc = x + pad, yc = y + pad;
+          const visAngle = this.viewFlipped ? angle + Math.PI : angle;
+          const visDir = this.visualDir(dir);
           if (this.cardArtMode) {
             ctx.save();
             ctx.globalAlpha = 0.92;
-            this.drawRotatedHandArt(xc, yc, myIsBlack, emoji, angle);
+            this.drawRotatedHandArt(xc, yc, myIsBlack, emoji, visAngle);
             ctx.restore();
           } else {
             ctx.save();
             ctx.translate(x + CELL / 2, y + CELL / 2);
-            ctx.rotate(angle);
+            ctx.rotate(visAngle);
             ctx.font = '31px serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -2950,7 +2975,7 @@ export class Game {
           const m = 6, ts = 4;
           ctx.fillStyle = GILDED_GOLD;
           ctx.beginPath();
-          switch (dir) {
+          switch (visDir) {
             case 'up':         ctx.moveTo(ccx, yc + m); ctx.lineTo(ccx - ts, yc + m + ts * 1.5); ctx.lineTo(ccx + ts, yc + m + ts * 1.5); break;
             case 'down':       ctx.moveTo(ccx, yc + CARD - m); ctx.lineTo(ccx - ts, yc + CARD - m - ts * 1.5); ctx.lineTo(ccx + ts, yc + CARD - m - ts * 1.5); break;
             case 'left':       ctx.moveTo(xc + m, ccy); ctx.lineTo(xc + m + ts * 1.5, ccy - ts); ctx.lineTo(xc + m + ts * 1.5, ccy + ts); break;
