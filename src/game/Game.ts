@@ -14,6 +14,7 @@ const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Monaco, monospace';
 const SCORE_DIGIT_W = 78;
 const SCORE_DIGIT_H = 100;
 const SCORE_DIGIT_DRAW_H = 50;
+const GILDED_GOLD = '#c99a3d'; // same mid-gold as drawGildedEdge
 
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
@@ -1531,7 +1532,7 @@ export class Game {
     const isOpp = this.state !== null && (isBlack !== myIsBlack);
 
     const bg     = isBlack ? (this.colorblindMode ? '#0d2652' : '#111111') : (this.colorblindMode ? '#f5921a' : '#f0f0f0');
-    const fg     = isBlack ? (this.colorblindMode ? '#c8e0ff' : '#eeeeee') : (this.colorblindMode ? '#1a0800' : '#111111');
+    const fg     = GILDED_GOLD;
     const border = isBlack ? (this.colorblindMode ? '#1a3870' : '#333333') : (this.colorblindMode ? '#c06010' : '#cccccc');
 
     ctx.beginPath();
@@ -2789,7 +2790,7 @@ export class Game {
           }
           const ccx = xc + CARD / 2, ccy = yc + CARD / 2;
           const m = 6, ts = 4;
-          ctx.fillStyle = 'rgba(255, 200, 80, 0.9)';
+          ctx.fillStyle = GILDED_GOLD;
           ctx.beginPath();
           switch (dir) {
             case 'up':         ctx.moveTo(ccx, yc + m); ctx.lineTo(ccx - ts, yc + m + ts * 1.5); ctx.lineTo(ccx + ts, yc + m + ts * 1.5); break;
