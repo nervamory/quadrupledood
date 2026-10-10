@@ -219,7 +219,9 @@ export class Game {
   onHoverChange?: (idx: number | null) => void;
   onDragChange?: (drag: { idx: number; x: number; y: number } | null) => void;
   onStatusTextChange?: (text: string, color: string) => void;
+  onTurnAnchor?: (cardBottomCss: number) => void;
   private lastStatusText: string | null = null;
+  private playOffsetX = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -368,19 +370,23 @@ export class Game {
     this.myHandCy = my;
   }
 
-  // Map the canvas element onto a logical playfield. Width stays 680 when the
-  // window is tall enough; extra height is split above and below the board.
+  // Map the canvas element onto a logical playfield. The canvas itself covers
+  // the window (one surface, same as matchmaking). The board stays in a
+  // centered column at most 680 wide. Extra height is split above and below
+  // the board so the hands sit in those gaps.
   private syncLayout() {
     const cssW = this.canvas.clientWidth;
     const cssH = this.canvas.clientHeight;
     if (cssW < 2 || cssH < 2) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const playW = Math.min(BASE_W, cssW);
+    const playH = cssH;
     let logicalW = BASE_W;
-    let logicalH = BASE_W * (cssH / cssW);
+    let logicalH = BASE_W * (playH / playW);
     if (logicalH < BASE_H) {
       logicalH = BASE_H;
-      logicalW = Math.max(BASE_W, BASE_H * (cssW / cssH));
+      logicalW = Math.max(BASE_W, BASE_H * (playW / playH));
     }
 
     const extra = Math.max(0, logicalH - BASE_H);
@@ -396,14 +402,22 @@ export class Game {
       this.canvas.width = bw;
       this.canvas.height = bh;
     }
-    const scale = (cssW / logicalW) * dpr;
-    this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    const scale = (playW / logicalW) * dpr;
+    this.playOffsetX = (cssW - playW) / 2;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, bw, bh);
+    this.ctx.setTransform(scale, 0, 0, scale, this.playOffsetX * dpr, 0);
+
+    const box = this.canvas.getBoundingClientRect();
+    const cssPerLogical = box.height / this.H;
+    this.onTurnAnchor?.(box.top + (this.myHandCy + CARD / 2) * cssPerLogical);
   }
 
   private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
     const b = this.canvas.getBoundingClientRect();
+    const playW = Math.min(BASE_W, b.width);
     return {
-      x: (clientX - b.left) * (this.W / b.width),
+      x: (clientX - b.left - this.playOffsetX) * (this.W / playW),
       y: (clientY - b.top) * (this.H / b.height),
     };
   }

@@ -446,6 +446,32 @@ game.onStatusTextChange = (text, color) => {
   el.style.color = color;
 };
 
+game.onTurnAnchor = (cardBottomCss) => {
+  const el = getElement<HTMLParagraphElement>('turn-status');
+  const mid = (cardBottomCss + window.innerHeight) / 2;
+  el.style.top = `${mid}px`;
+};
+
+function syncPageBg() {
+  const c = document.getElementById('page-bg') as HTMLCanvasElement | null;
+  if (!c) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const bw = Math.max(1, Math.round(w * dpr));
+  const bh = Math.max(1, Math.round(h * dpr));
+  if (c.width !== bw || c.height !== bh) {
+    c.width = bw;
+    c.height = bh;
+  }
+  const ctx = c.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, bw, bh);
+}
+window.addEventListener('resize', syncPageBg);
+syncPageBg();
+
 game.onPlaceCard = (cardId, row, col) => {
   if (!gameState) return;
   if (cpuMode) {
