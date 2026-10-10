@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "photon-realtime": "^4.4.0"
   },
   "devDependencies": {
