@@ -52,6 +52,18 @@ export function saveCustomFoilParams(p: CustomFoilParams): void {
   localStorage.setItem('customFoil', JSON.stringify(p));
 }
 
+/**
+ * Left edge of a sheen, in card-widths. It travels from fully off the leading
+ * side to fully off the trailing side, so the repeat happens while the
+ * highlight is outside the card instead of popping back to the start.
+ * `periodMs` is the time to travel one card-width (same speed as the old sweep).
+ */
+export function loopingSheenPos(now: number, periodMs: number, widthFrac: number): number {
+  const bleed = 0.02;
+  const span = 1 + widthFrac + bleed * 2;
+  return ((now / Math.max(1, periodMs)) % span) - (widthFrac + bleed);
+}
+
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -140,7 +152,7 @@ export function drawCustomFoil(
 
   // Layer 4: sheen sweep
   if (p.sheenEnabled) {
-    const sheenPos = ((now / sheenPeriod) % 1.6) - 0.3;
+    const sheenPos = loopingSheenPos(now, sheenPeriod, p.sheenWidth);
     const sx = x + sheenPos * CARD;
     const sheen = ctx.createLinearGradient(sx, y, sx + CARD * p.sheenWidth, y);
     sheen.addColorStop(0,   'rgba(255,255,255,0)');

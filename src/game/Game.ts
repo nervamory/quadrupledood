@@ -1,5 +1,5 @@
 import type { GameState, Card, CardType, Direction } from './types';
-import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
+import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, loopingSheenPos, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
 import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
 
 const CARD = 96;
@@ -1558,11 +1558,15 @@ export class Game {
 
     // Axis-aligned sheens, staggered: x-travel lights top/bottom, y-travel
     // lights the two side edges, different phase so they don't lock together.
+    // The highlight center travels from fully off one side to fully off the
+    // other, so the loop point is invisible instead of a jump back to the start.
     const sheenW = w * 0.38;
-    const tx = ((now / 3200) + seed * 0.08) % 1;
-    const ty = ((now / 4100) + seed * 0.41) % 1;
-    const sheenX = x + tx * w;
-    const sheenY = y + ty * w;
+    const bleed = 2;
+    const travel = w + 2 * (sheenW + bleed);
+    const tx = ((now / (3200 * travel / w)) + seed * 0.08) % 1;
+    const ty = ((now / (4100 * travel / w)) + seed * 0.41) % 1;
+    const sheenX = x - sheenW - bleed + tx * travel;
+    const sheenY = y - sheenW - bleed + ty * travel;
     const gx = ctx.createLinearGradient(sheenX - sheenW, 0, sheenX + sheenW, 0);
     gx.addColorStop(0, 'rgba(255,243,196,0)');
     gx.addColorStop(0.5, 'rgba(255,243,196,0.9)');
@@ -1639,9 +1643,10 @@ export class Game {
     grad.addColorStop(0.6, 'rgba(  0, 255, 160, 0.30)');
     grad.addColorStop(0.8, 'rgba(  0, 140, 255, 0.30)');
     grad.addColorStop(1,   'rgba(180,   0, 255, 0.30)');
-    const sheenPos = ((now / 1800) % 1.6) - 0.3;
+    const sheenWidth = 0.45;
+    const sheenPos = loopingSheenPos(now, 1800, sheenWidth);
     const sx = x + sheenPos * CARD;
-    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.45, y);
+    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * sheenWidth, y);
     sheen.addColorStop(0,   'rgba(255,255,255,0)');
     sheen.addColorStop(0.5, 'rgba(255,255,255,0.18)');
     sheen.addColorStop(1,   'rgba(255,255,255,0)');
@@ -1700,9 +1705,10 @@ export class Game {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
-    const sheenPos = ((now / 3500) % 1.6) - 0.3;
+    const sheenWidth = 0.4;
+    const sheenPos = loopingSheenPos(now, 3500, sheenWidth);
     const sx = x + sheenPos * CARD;
-    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.4, y);
+    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * sheenWidth, y);
     sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.5, 'rgba(255,255,255,0.28)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sheen; ctx.fillRect(x, y, CARD, CARD);
     ctx.restore();
@@ -1773,9 +1779,10 @@ export class Game {
     ctx.globalCompositeOperation = 'source-over';
 
     // === Layer 4: Sheen sweep ===
-    const sheenPos = ((now / 3500) % 1.6) - 0.3;
+    const sheenWidth = 0.35;
+    const sheenPos = loopingSheenPos(now, 3500, sheenWidth);
     const sx = x + sheenPos * CARD;
-    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * 0.35, y);
+    const sheen = ctx.createLinearGradient(sx, y, sx + CARD * sheenWidth, y);
     sheen.addColorStop(0,   'rgba(255,255,255,0)');
     sheen.addColorStop(0.5, 'rgba(255,255,255,0.20)');
     sheen.addColorStop(1,   'rgba(255,255,255,0)');
