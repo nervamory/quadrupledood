@@ -37,11 +37,12 @@ const VIEW_OPPOSITE: Record<Direction, Direction> = {
 // Filenames in public/assets/cards (no unsuffixed v1 pack). Preload these
 // only — probing missing heart.png etc. floods iOS and the art never shows.
 const CARD_ART_FILES = [
-  'alien-v2','anchor-v2','bandage-v2','bat-v2','bone-v2','brain-v2',
+  'alien-v2','anchor-v2','balloon','bandage-v2','bat-v2','bone-v2','brain-v2',
   'bubbles-v2','bubbles-v3','candle-v2','clown-car-v2','clown-v2',
   'crystal-ball-v2','dolphin-v2','dragon-v2','egg-v2','eye-v2','fire-v2',
-  'fog-v2','ghost-v2','hand-v2','hand2-v2','heart-v2','hellfire-v2','imp-v2',
-  'kiss-v2','lightning-v2','lipstick-v2','mermaid-v2','mirror-v2','moon-v2',
+  'fog-v2','ghost-v2','gravestone','hand-v2','hand2-v2','heart-v2','hellfire-v2','imp-v2',
+  'kiss-v2','knife_e','knife_n','knife_ne','knife_nw','knife_s','knife_se','knife_sw','knife_w',
+  'lightning-v2','lipstick-v2','mermaid-v2','mirror-v2','moon-v2',
   'oni-v2','outlet-v2','outlet-v3','robot-v2','skull-v2','snake-v2','spider-v2',
   'squid-v2','succubus-v2','tooth-v2','troll-v2','vampire-v2','vampire-v3',
   'wave-v2','web-v2','werewolf-v2','wolf-v2','zombie-v2',
@@ -259,13 +260,15 @@ export class Game {
   setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
 
   private loadVersionImage(baseKey: string, version: number) {
-    if (version <= 1) return;
-    const key = versionedArtKey(baseKey, version);
-    if (this.cardImages[key]) return;
+    this.ensureArt(versionedArtKey(baseKey, version));
+  }
+
+  private ensureArt(file: string) {
+    if (this.cardImages[file]) return;
     const img = new Image();
     img.decoding = 'async';
-    img.src = `/assets/cards/${key}.png`;
-    this.cardImages[key] = img;
+    img.src = `/assets/cards/${file}.png`;
+    this.cardImages[file] = img;
   }
 
   private artImage(key: string): HTMLImageElement | null {
@@ -275,6 +278,7 @@ export class Game {
       const k = versionedArtKey(key, v);
       if (!order.includes(k)) order.push(k);
     }
+    this.ensureArt(order[0]);
     for (const k of order) {
       const img = this.cardImages[k];
       if (img?.complete && img.naturalWidth > 0) return img;
