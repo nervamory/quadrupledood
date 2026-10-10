@@ -15,6 +15,13 @@ const SCORE_DIGIT_W = 78;
 const SCORE_DIGIT_H = 100;
 const SCORE_DIGIT_DRAW_H = 50;
 const GILDED_GOLD = '#c99a3d'; // same mid-gold as drawGildedEdge
+export const DEFAULT_FOIL_STYLE = 4; // gilded edges
+
+// Deck "rares" that always show foil. Wolf is foil only while a moon is out.
+const ALWAYS_FOIL_TYPES = new Set<CardType>([
+  'moon', 'vampire', 'squid', 'zombie', 'skull', 'dragon', 'alien', 'imp',
+  'clown', 'succubus', 'spider', 'oni', 'robot', 'dolphin',
+]);
 
 const KNIFE_ANGLES: Record<Direction, number> = {
   right: -Math.PI / 4,    down: Math.PI / 4,
@@ -1437,14 +1444,27 @@ export class Game {
     if (this.lastHoverIdx !== null) { this.lastHoverIdx = null; this.onHoverChange?.(null); }
   };
 
-  private foilStyle = Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10)));
+  private foilStyle = Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? String(DEFAULT_FOIL_STYLE), 10)));
+  private allCardsFoil = localStorage.getItem('allCardsFoil') === 'true';
   private customFoilParams: CustomFoilParams = loadCustomFoilParams();
-  private oppFoilStyle = 2;
+  private oppFoilStyle = DEFAULT_FOIL_STYLE;
   private oppCustomFoilParams: CustomFoilParams = { ...DEFAULT_CUSTOM_FOIL };
 
   setFoilStyle(n: number) {
     this.foilStyle = Math.min(4, Math.max(0, n));
     localStorage.setItem('foilStyle', String(this.foilStyle));
+  }
+
+  setAllCardsFoil(on: boolean) {
+    this.allCardsFoil = on;
+  }
+
+  private cardShowsFoil(card: Card): boolean {
+    if (this.allCardsFoil) return true;
+    if (card.type === 'wolf') {
+      return this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
+    }
+    return ALWAYS_FOIL_TYPES.has(card.type);
   }
 
   setCustomFoilParams(params: CustomFoilParams) {
@@ -1854,6 +1874,8 @@ export class Game {
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    if (this.cardShowsFoil(card)) this.drawFoilOverlay(x, y, isOpp, border);
+
     const cx = x + CARD / 2;
     const cy = y + CARD / 2;
     const m = 6;
@@ -1914,7 +1936,6 @@ export class Game {
     }
 
     if (card.type === 'moon') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'moon');
       } else {
@@ -1976,7 +1997,6 @@ export class Game {
     }
 
     if (card.type === 'vampire') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'vampire');
       } else {
@@ -2007,7 +2027,6 @@ export class Game {
 
     if (card.type === 'wolf') {
       const moonIsOut = this.state?.board.flat().some(c => c && 'card' in c && c.card.type === 'moon') ?? false;
-      if (moonIsOut) this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, moonIsOut ? 'werewolf' : 'wolf');
       } else {
@@ -2039,7 +2058,6 @@ export class Game {
     }
 
     if (card.type === 'squid') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'squid');
       } else {
@@ -2097,7 +2115,6 @@ export class Game {
     }
 
     if (card.type === 'zombie') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'zombie');
       } else {
@@ -2150,7 +2167,6 @@ export class Game {
     }
 
     if (card.type === 'skull') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'skull');
       } else {
@@ -2249,7 +2265,6 @@ export class Game {
     }
 
     if (card.type === 'dragon') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'dragon');
       } else {
@@ -2311,7 +2326,6 @@ export class Game {
     }
 
     if (card.type === 'alien') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'alien');
       } else {
@@ -2339,7 +2353,6 @@ export class Game {
     }
 
     if (card.type === 'imp') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'imp');
       } else {
@@ -2423,7 +2436,6 @@ export class Game {
     }
 
     if (card.type === 'clown') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'clown');
       } else {
@@ -2477,7 +2489,6 @@ export class Game {
     }
 
     if (card.type === 'succubus') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'succubus');
       } else {
@@ -2531,7 +2542,6 @@ export class Game {
     }
 
     if (card.type === 'spider') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'spider');
       } else {
@@ -2591,7 +2601,6 @@ export class Game {
     }
 
     if (card.type === 'oni') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'oni');
       } else {
@@ -2691,7 +2700,6 @@ export class Game {
     }
 
     if (card.type === 'robot') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'robot');
       } else {
@@ -2744,7 +2752,6 @@ export class Game {
     }
 
     if (card.type === 'dolphin') {
-      this.drawFoilOverlay(x, y, isOpp, border);
       if (this.cardArtMode) {
         this.drawCardImage(x, y, isBlack, 'dolphin');
       } else {

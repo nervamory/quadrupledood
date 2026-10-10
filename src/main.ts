@@ -1,5 +1,5 @@
 import { PhotonClient } from './network/PhotonClient';
-import { Game } from './game/Game';
+import { Game, DEFAULT_FOIL_STYLE } from './game/Game';
 import { UI } from './ui/UI';
 import { initGame, placeCard } from './game/gameLogic';
 import type { GameState, DeckType } from './game/types';
@@ -550,11 +550,19 @@ getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode)
 initAccount();
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
-foilSelect.value = String(Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? '2', 10))));
+foilSelect.value = String(Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? String(DEFAULT_FOIL_STYLE), 10))));
 foilSelect.addEventListener('change', () => {
   const style = parseInt(foilSelect.value, 10);
   game.setFoilStyle(style);
   if (inRoom) photon.sendFoilPick(style, workingFoilParams);
+});
+
+const allCardsFoilToggle = getElement<HTMLInputElement>('all-cards-foil-toggle');
+allCardsFoilToggle.checked = localStorage.getItem('allCardsFoil') === 'true';
+game.setAllCardsFoil(allCardsFoilToggle.checked);
+allCardsFoilToggle.addEventListener('change', () => {
+  game.setAllCardsFoil(allCardsFoilToggle.checked);
+  localStorage.setItem('allCardsFoil', String(allCardsFoilToggle.checked));
 });
 
 const deckSelect    = getElement<HTMLSelectElement>('deck-select');
