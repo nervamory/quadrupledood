@@ -63,7 +63,13 @@
       }
       button:hover { background: #222240; }
       @media (hover: none) { button:hover { background: #1a1a2e; } }
-      #status { margin-top: 10px; color: #555; font-size: 13px; }
+        #status { margin-top: 10px; color: #555; font-size: 13px; }
+        #account-panel { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #222; }
+        #account-email, #account-name { width: min(100%, 240px); }
+        #account-who { color: #444; font-size: 11px; margin: 2px 0 4px; }
+        #account-record { color: #888; font-size: 13px; margin: 0 0 8px; }
+        #account-status { color: #666; font-size: 12px; margin-top: 8px; min-height: 16px; }
+        #lobby-account { margin-top: 16px; color: #555; font-size: 12px; }
       h2 { margin-bottom: 20px; letter-spacing: 4px; color: #cc1111; font-family: var(--font-display); font-size: clamp(36px, 13vw, 58px); font-weight: normal; }
       h2.wordmark, h2.red-title { letter-spacing: 0; }
       h2.wordmark img, h2.red-title img { display: block; margin: 0 auto; height: auto; }
@@ -150,7 +156,8 @@
         <div style="margin-top:60px;">
           <button id="settings-btn">settings</button>
         </div>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v11.4</p>
+        <p id="lobby-account" hidden></p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v12.5</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -193,6 +200,25 @@
       </div>
       <div id="settings-screen" class="screen">
         <h2 class="red-title" style="--title-w:179px; margin-bottom:32px;"><img src="/assets/heading-settings.png" alt="settings"></h2>
+        <div id="account-panel" hidden>
+          <p style="color:#444; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;">account</p>
+          <div id="account-logged-out">
+            <input id="account-email" type="email" placeholder="email" autocomplete="email" />
+            <br>
+            <button id="account-login-btn" type="button">log in</button>
+          </div>
+          <div id="account-logged-in" hidden>
+            <div style="display:grid; grid-template-columns:auto auto; gap:12px 6px; align-items:center; justify-content:center;">
+              <label for="account-name" style="color:#555; font-size:13px; text-align:right;">name</label>
+              <input id="account-name" type="text" maxlength="24" autocomplete="nickname" spellcheck="false" />
+            </div>
+            <p id="account-who"></p>
+            <p id="account-record"></p>
+            <button id="account-save-btn" type="button">save name</button>
+            <button id="account-logout-btn" type="button">log out</button>
+          </div>
+          <p id="account-status" aria-live="polite"></p>
+        </div>
         <div style="display:grid; grid-template-columns:auto auto; gap:12px 6px; align-items:center; margin-bottom:20px;">
           <label style="color:#555; font-size:13px; text-align:right;">default deck</label>
           <select id="pref-deck-select">
@@ -351,7 +377,8 @@
       <div id="matchover-screen" class="screen">
         <h2 class="wordmark"><img src="/assets/wordmark.png" alt="Quadruple dood"></h2>
         <p id="matchover-result" style="font-size:28px; letter-spacing:2px; margin-bottom:8px;"></p>
-        <p id="matchover-score" style="color:#888; margin-bottom:24px; font-size:13px;"></p>
+        <p id="matchover-score" style="color:#888; margin-bottom:8px; font-size:13px;"></p>
+        <p id="matchover-account" style="color:#555; font-size:12px; margin:0 0 20px; min-height:16px;"></p>
         <button id="rematch-btn">rematch</button>
         <button id="matchover-leave-btn">leave room</button>
       </div>

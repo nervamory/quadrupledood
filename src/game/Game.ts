@@ -34,14 +34,17 @@ const VIEW_OPPOSITE: Record<Direction, Direction> = {
   'down-left': 'up-right', 'down-right': 'up-left',
 };
 
-const CARD_ART_KEYS = [
-  'heart','eye','tooth','moon','mirror','vampire','bandage','ghost','fog',
-  'wolf','werewolf','squid','mermaid','bubbles','skull','bone','zombie',
-  'brain','gravestone','oni','fire','hand','hand2','spider','web','egg',
-  'troll','dragon','alien','imp','hellfire','snake','clown','clown-car',
-  'balloon','succubus','lipstick','kiss','crystal-ball','candle','robot',
-  'lightning','outlet','bat','dolphin','wave','anchor',
-  'knife_n','knife_s','knife_e','knife_w','knife_ne','knife_nw','knife_se','knife_sw',
+// Filenames in public/assets/cards (no unsuffixed v1 pack). Preload these
+// only — probing missing heart.png etc. floods iOS and the art never shows.
+const CARD_ART_FILES = [
+  'alien-v2','anchor-v2','bandage-v2','bat-v2','bone-v2','brain-v2',
+  'bubbles-v2','bubbles-v3','candle-v2','clown-car-v2','clown-v2',
+  'crystal-ball-v2','dolphin-v2','dragon-v2','egg-v2','eye-v2','fire-v2',
+  'fog-v2','ghost-v2','hand-v2','hand2-v2','heart-v2','hellfire-v2','imp-v2',
+  'kiss-v2','lightning-v2','lipstick-v2','mermaid-v2','mirror-v2','moon-v2',
+  'oni-v2','outlet-v2','outlet-v3','robot-v2','skull-v2','snake-v2','spider-v2',
+  'squid-v2','succubus-v2','tooth-v2','troll-v2','vampire-v2','vampire-v3',
+  'wave-v2','web-v2','werewolf-v2','wolf-v2','zombie-v2',
 ];
 
 // Fan layout constants — canvas is 680×700. Kept a shallow arc (vs. the
@@ -157,8 +160,9 @@ export class Game {
   private lastDragSend = 0;
   private lastDragSentPos = { x: 0, y: 0 };
   colorblindMode = false;
-  cardArtMode = false;
+  cardArtMode = true;
   private cardImages: Record<string, HTMLImageElement> = {};
+  private invertedArt: Record<string, HTMLCanvasElement> = {};
   private scoreDigitImg = new Image();
   private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
   private cardVersionCounts: Record<string, number> = {};
@@ -216,10 +220,11 @@ export class Game {
     void document.fonts.load('64px Felipa');
     this.scoreDigitImg.src = '/assets/score-digits.png';
 
-    for (const key of CARD_ART_KEYS) {
+    for (const file of CARD_ART_FILES) {
       const img = new Image();
-      img.src = `/assets/cards/${key}.png`;
-      this.cardImages[key] = img;
+      img.decoding = 'async';
+      img.src = `/assets/cards/${file}.png`;
+      this.cardImages[file] = img;
     }
     // Preload any non-default card-version choice saved from a previous session.
     for (const [base, version] of Object.entries(this.cardVersionPrefs)) {
@@ -258,8 +263,51 @@ export class Game {
     const key = versionedArtKey(baseKey, version);
     if (this.cardImages[key]) return;
     const img = new Image();
+    img.decoding = 'async';
     img.src = `/assets/cards/${key}.png`;
     this.cardImages[key] = img;
+  }
+
+  private artImage(key: string): HTMLImageElement | null {
+    const version = this.resolvedArtVersion(key);
+    const order: string[] = [versionedArtKey(key, version)];
+    for (let v = 5; v >= 1; v--) {
+      const k = versionedArtKey(key, v);
+      if (!order.includes(k)) order.push(k);
+    }
+    for (const k of order) {
+      const img = this.cardImages[k];
+      if (img?.complete && img.naturalWidth > 0) return img;
+    }
+    return null;
+  }
+
+  // iOS Safari often skips ctx.filter on drawImage. Invert once into a cache.
+  private invertedArtCanvas(cacheKey: string, img: HTMLImageElement): HTMLCanvasElement | null {
+    const hit = this.invertedArt[cacheKey];
+    if (hit) return hit;
+    if (!img.complete || img.naturalWidth === 0) return null;
+    const size = 256;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const t = c.getContext('2d');
+    if (!t) return null;
+    try {
+      t.drawImage(img, 0, 0, size, size);
+      const id = t.getImageData(0, 0, size, size);
+      const d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = 255 - d[i];
+        d[i + 1] = 255 - d[i + 1];
+        d[i + 2] = 255 - d[i + 2];
+      }
+      t.putImageData(id, 0, 0);
+    } catch {
+      return null;
+    }
+    this.invertedArt[cacheKey] = c;
+    return c;
   }
 
   private resolvedArtVersion(key: string): number {
@@ -296,20 +344,20 @@ export class Game {
   }
 
   private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
-    const version = this.resolvedArtVersion(key);
-    const effectiveKey = version > 1 ? versionedArtKey(key, version) : key;
-    const img = this.cardImages[effectiveKey] ?? this.cardImages[key];
-    if (!img?.complete || img.naturalWidth === 0) return;
+    const img = this.artImage(key);
+    if (!img) return;
     const pad = 6;
+    const dw = CARD - pad * 2;
     const ctx = this.ctx;
     ctx.save();
     if (isBlack) {
-      ctx.filter = 'invert(1)';
+      const inv = this.invertedArtCanvas(`${key}@${img.src}`, img);
       ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(inv ?? img, x + pad, y + pad, dw, dw);
     } else {
-      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(img, x + pad, y + pad, dw, dw);
     }
-    ctx.drawImage(img, x + pad, y + pad, CARD - pad * 2, CARD - pad * 2);
     ctx.restore();
   }
 

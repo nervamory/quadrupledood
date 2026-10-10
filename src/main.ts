@@ -19,6 +19,7 @@ import {
   probeVersionCount,
   resolvedVersion,
 } from './game/cardVersions';
+import { initAccount, recordMatch } from './account/account';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -46,6 +47,7 @@ function doLeave(status?: string) {
   myReadyDeck = null;
   gameState = null;
   matchScore = {};
+  clearMatchRecord();
   inRoom = false;
   gameStarted = false;
   photon.leave();
@@ -80,6 +82,28 @@ function clearReconnectWait() {
 
 // Match state
 let matchScore: Record<number, number> = {};
+let matchStatsRecorded = false;
+let matchRecordGen = 0;
+
+function clearMatchRecord() {
+  matchStatsRecorded = false;
+  matchRecordGen += 1;
+  const note = document.getElementById('matchover-account');
+  if (note) note.textContent = '';
+}
+
+function saveMatchResult(iWon: boolean) {
+  if (matchStatsRecorded) return;
+  matchStatsRecorded = true;
+  const gen = matchRecordGen;
+  const note = document.getElementById('matchover-account');
+  void recordMatch(iWon ? 'win' : 'loss').then((status) => {
+    if (gen !== matchRecordGen || !note) return;
+    if (status === 'saved') note.textContent = iWon ? 'win saved' : 'loss saved';
+    else if (status === 'error') note.textContent = "couldn't save this match";
+  });
+}
+
 let myPlayedDeck: DeckType | null = null;   // deck I used in the last completed game
 let myReadyDeck: DeckType | null = null;    // deck I signalled ready with
 let oppReadyDeck: DeckType | null = null;   // deck opponent signalled ready with
@@ -205,6 +229,7 @@ function doCpuLeave() {
   clearEndTimer();
   gameState = null;
   matchScore = {};
+  clearMatchRecord();
   myPlayedDeck = null;
   myReadyDeck = null;
   oppReadyDeck = null;
@@ -255,13 +280,15 @@ function handleGameEnd(state: GameState) {
   const myWins = matchScore[photon.actorNr] ?? 0;
   const oppNr = photon.allActorNrs.find(n => n !== photon.actorNr)!;
   const oppWins = matchScore[oppNr] ?? 0;
+  const matchOver = myWins >= 2 || oppWins >= 2;
+  if (matchOver) saveMatchResult(myWins >= 2);
 
   clearEndTimer();
   endTransitionTimer = setTimeout(() => {
     endTransitionTimer = null;
 
     // Match over?
-    if (myWins >= 2 || oppWins >= 2) {
+    if (matchOver) {
       ui.showMatchOver({ myWins, oppWins, iWon: myWins >= 2 });
       return;
     }
@@ -368,6 +395,7 @@ const photon = new PhotonClient({
   },
   onRematch: () => {
     matchScore = {};
+    clearMatchRecord();
     myPlayedDeck = null;
     myReadyDeck = null;
     oppReadyDeck = null;
@@ -431,6 +459,7 @@ game.onPlaceCard = (cardId, row, col) => {
 // ── lobby button ──────────────────────────────────────────────────────────────
 
 getElement('join-btn').addEventListener('click', () => {
+  clearMatchRecord();
   if (cpuMode) {
     matchScore = {};
     startCpuGame(getSelectedDeck());
@@ -494,6 +523,7 @@ getElement('between-leave-btn').addEventListener('click', () => { if (cpuMode) {
 
 getElement('rematch-btn').addEventListener('click', () => {
   matchScore = {};
+  clearMatchRecord();
   myPlayedDeck = null;
   myReadyDeck = null;
   oppReadyDeck = null;
@@ -531,7 +561,7 @@ prefDeckSelect.addEventListener('change', () => {
 });
 
 const cardArtToggle = getElement<HTMLInputElement>('card-art-toggle');
-cardArtToggle.checked = localStorage.getItem('cardArtMode') === 'true';
+cardArtToggle.checked = localStorage.getItem('cardArtMode') !== 'false';
 game.setCardArtMode(cardArtToggle.checked);
 cardArtToggle.addEventListener('change', () => {
   game.setCardArtMode(cardArtToggle.checked);
@@ -727,9 +757,22 @@ function drawVersionThumb(canvas: HTMLCanvasElement, img: HTMLImageElement) {
   ctx.save();
   ctx.clip();
   const pad = s * 0.09;
-  ctx.filter = 'invert(1)';
+  const dw = s - pad * 2;
+  const tmp = document.createElement('canvas');
+  tmp.width = dw;
+  tmp.height = dw;
+  const t = tmp.getContext('2d')!;
+  t.drawImage(img, 0, 0, dw, dw);
+  const id = t.getImageData(0, 0, dw, dw);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = 255 - d[i];
+    d[i + 1] = 255 - d[i + 1];
+    d[i + 2] = 255 - d[i + 2];
+  }
+  t.putImageData(id, 0, 0);
   ctx.globalCompositeOperation = 'screen';
-  ctx.drawImage(img, pad, pad, s - pad * 2, s - pad * 2);
+  ctx.drawImage(tmp, pad, pad);
   ctx.restore();
   ctx.strokeStyle = '#333';
   ctx.lineWidth = 1;
