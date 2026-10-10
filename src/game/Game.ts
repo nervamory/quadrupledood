@@ -1357,19 +1357,15 @@ export class Game {
     }
   }
 
-  // Gilded edges — gold, shimmering border made of a few unevenly offset
-  // strokes (like hand-gilded/stacked page edges) plus scattered flake
-  // glints in the gold band. The card face itself is untouched.
+  // Gilded edges — gold border clipped to the band. Sheen is axis-aligned
+  // (parallel to the sides) and staggered on x vs y — no rotating sweep.
   private drawGildedEdge(x: number, y: number) {
     const ctx = this.ctx;
     const now = performance.now();
     const w = CARD;
     const r = 6;
-    const borderWidth = 4.5; // 3/4 of the previous 6px test width
+    const borderWidth = 4.5;
 
-    // Deterministic per-card "hand-applied" wobble, seeded from this card's
-    // screen position — stable across frames so the rough edge doesn't
-    // vibrate; only the shine/glints animate.
     const seed = Math.abs(x * 0.29 + y * 0.83) % 10;
     const rnd = (n: number) => {
       const s = Math.sin((n + 1.17) * 12.9898 + seed * 78.233) * 43758.5453;
@@ -1378,18 +1374,12 @@ export class Game {
 
     ctx.save();
 
-    const angle = (now / 5000) * Math.PI * 2;
-    const cx = x + w / 2, cy = y + w / 2;
-    const rad = w * 0.75;
-    const grad = ctx.createLinearGradient(
-      cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad,
-      cx - Math.cos(angle) * rad, cy - Math.sin(angle) * rad,
-    );
-    grad.addColorStop(0,    '#3a2408');
-    grad.addColorStop(0.25, '#a87d2e');
-    grad.addColorStop(0.5,  '#fff3c4');
-    grad.addColorStop(0.75, '#c99a3d');
-    grad.addColorStop(1,    '#4a2e0a');
+    // Gold lives only in the edge band — never on the card face.
+    const band = borderWidth + 1.2;
+    ctx.beginPath();
+    ctx.roundRect(x - 1.2, y - 1.2, w + 2.4, w + 2.4, r + 1.2);
+    ctx.roundRect(x + band, y + band, w - 2 * band, w - 2 * band, Math.max(0.5, r - band));
+    ctx.clip('evenodd');
 
     const passes = [
       { dx: -seed * 0.15,       dy:  seed * 0.11,        width: borderWidth,       alpha: 1    },
@@ -1401,24 +1391,48 @@ export class Game {
       ctx.save();
       ctx.translate(p.dx, p.dy);
       ctx.globalAlpha = p.alpha;
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = '#c99a3d';
       ctx.lineWidth = p.width;
       ctx.beginPath();
       ctx.roundRect(x, y, w, w, r);
       ctx.stroke();
       ctx.restore();
     }
+
+    // Axis-aligned sheens, staggered: x-travel lights top/bottom, y-travel
+    // lights the two side edges, different phase so they don't lock together.
+    const sheenW = w * 0.38;
+    const tx = ((now / 3200) + seed * 0.08) % 1;
+    const ty = ((now / 4100) + seed * 0.41) % 1;
+    const sheenX = x + tx * w;
+    const sheenY = y + ty * w;
+    const gx = ctx.createLinearGradient(sheenX - sheenW, 0, sheenX + sheenW, 0);
+    gx.addColorStop(0, 'rgba(255,243,196,0)');
+    gx.addColorStop(0.5, 'rgba(255,243,196,0.9)');
+    gx.addColorStop(1, 'rgba(255,243,196,0)');
+    const gy = ctx.createLinearGradient(0, sheenY - sheenW, 0, sheenY + sheenW);
+    gy.addColorStop(0, 'rgba(255,243,196,0)');
+    gy.addColorStop(0.5, 'rgba(255,243,196,0.9)');
+    gy.addColorStop(1, 'rgba(255,243,196,0)');
+    for (const [stroke, alpha] of [[gx, 0.85], [gy, 0.85]] as const) {
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = borderWidth;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, w, r);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
 
-    // Flake glints sit inside the gold stroke, jittered off the edge so they
-    // don't read as a straight string of pearls.
-    const inset = borderWidth * 0.45;
+    // Flakes stay parallel to their edge (no extra rotation) and stagger
+    // inward/outward so they aren't a straight string of pearls.
+    const inset = borderWidth * 0.5;
     const span = w - 2 * r;
     const edges: { px: number; py: number; nx: number; ny: number; rot: number }[] = [
-      { px: x + r,     py: y + inset,     nx:  0, ny:  1, rot: 0 },
-      { px: x + w - inset, py: y + r,     nx: -1, ny:  0, rot: Math.PI / 2 },
-      { px: x + w - r, py: y + w - inset, nx:  0, ny: -1, rot: 0 },
-      { px: x + inset, py: y + w - r,     nx:  1, ny:  0, rot: Math.PI / 2 },
+      { px: x + r,         py: y + inset,     nx:  0, ny:  1, rot: 0 },
+      { px: x + w - inset, py: y + r,         nx: -1, ny:  0, rot: Math.PI / 2 },
+      { px: x + w - r,     py: y + w - inset, nx:  0, ny: -1, rot: 0 },
+      { px: x + inset,     py: y + w - r,     nx:  1, ny:  0, rot: Math.PI / 2 },
     ];
     ctx.fillStyle = '#fff8dd';
     let gi = 0;
@@ -1426,10 +1440,10 @@ export class Game {
       const edge = edges[e];
       const count = 5 + Math.floor(rnd(e) * 3);
       for (let i = 0; i < count; i++) {
-        const t = (i + 0.18 + rnd(gi + 3) * 0.7) / count;
+        const t = (i + 0.22 + rnd(gi + 3) * 0.55) / count;
         const along = Math.min(1, Math.max(0, t)) * span;
-        const nJitter = (rnd(gi + 11) - 0.5) * borderWidth * 0.7;
-        const aJitter = (rnd(gi + 19) - 0.5) * 3.2;
+        const nJitter = ((i % 2 === 0 ? -1 : 1) * 0.22 + (rnd(gi + 11) - 0.5) * 0.2) * borderWidth;
+        const aJitter = (rnd(gi + 19) - 0.5) * 2.4;
         const px = edge.px + (e % 2 === 0 ? along * (e === 0 ? 1 : -1) : 0) + edge.nx * nJitter;
         const py = edge.py + (e % 2 === 1 ? along * (e === 1 ? 1 : -1) : 0) + edge.ny * nJitter;
         const ox = e % 2 === 0 ? aJitter : 0;
@@ -1439,10 +1453,10 @@ export class Game {
         ctx.globalAlpha = (twinkle - 0.45) * 0.85;
         ctx.save();
         ctx.translate(px + ox, py + oy);
-        ctx.rotate(edge.rot + (rnd(gi + 7) - 0.5) * 0.7);
-        ctx.scale(1.5 + rnd(gi + 5) * 1.1, 0.35 + rnd(gi + 13) * 0.35);
+        ctx.rotate(edge.rot);
+        ctx.scale(1.05 + rnd(gi + 5) * 0.55, 0.22 + rnd(gi + 13) * 0.18);
         ctx.beginPath();
-        ctx.arc(0, 0, 0.9 + rnd(gi + 17) * 0.7, 0, Math.PI * 2);
+        ctx.arc(0, 0, 0.7 + rnd(gi + 17) * 0.45, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
         gi++;
