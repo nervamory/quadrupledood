@@ -114,6 +114,7 @@
       h2.wordmark img, h2.red-title img { display: block; margin: 0 auto; height: auto; }
       h2.wordmark img { width: clamp(168px, 61vw, 271px); }
       h2.red-title img { width: min(100%, var(--title-w, 280px)); }
+      #settings-btn,
       #game-menu-btn {
         position: absolute;
         top: 8px;
@@ -129,6 +130,12 @@
         background: rgba(10, 10, 20, 0.82);
         color: #ccc;
       }
+      #settings-btn {
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: calc(8px + env(safe-area-inset-right, 0px));
+      }
+      #settings-btn:hover,
       #game-menu-btn:hover { background: rgba(26, 26, 46, 0.95); color: #eee; }
       #game-menu {
         display: none;
@@ -192,11 +199,13 @@
           <button id="join-btn">sacrifice</button>
         </div>
         <p id="status">channeling…</p>
-        <div style="margin-top:60px;">
-          <button id="settings-btn">settings</button>
-        </div>
+        <button id="settings-btn" type="button" aria-label="settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.63-.94l-.36-2.54A.5.5 0 0014.3 2h-4.6a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.31 8.48a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.43 14.16a.5.5 0 00-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h4.6c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
+          </svg>
+        </button>
         <p id="lobby-account" hidden></p>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v13.1</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v13.2</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
