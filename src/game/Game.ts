@@ -48,24 +48,25 @@ const CARD_ART_FILES = [
   'wave-v2','web-v2','werewolf-v2','wolf-v2','zombie-v2',
 ];
 
-// Fan layout constants — canvas is 680×700. Kept a shallow arc (vs. the
-// original ±28°) so the bigger CARD/CELL size still fits without clipping;
-// FAN_RADIUS is very large so cards still spread across nearly the full
-// canvas width at that shallow angle (horizontal spread grows ~linearly
-// with radius, vertical bulge only grows with 1-cos(angle), which stays
-// tiny at 9° — so a big radius buys horizontal spacing back almost for free).
+// Fan layout constants. The logical playfield is at least 680×700 and grows
+// with the window so each hand can sit in the gap between the board and the
+// window edge. Kept a shallow arc (vs. the original ±28°) so the bigger
+// CARD/CELL size still fits without clipping; FAN_RADIUS is very large so
+// cards still spread across nearly the full width at that shallow angle
+// (horizontal spread grows ~linearly with radius, vertical bulge only grows
+// with 1-cos(angle), which stays tiny at 9°).
 const FAN_RADIUS = 1750;
 const FAN_HALF_ANGLE = 9 * Math.PI / 180; // ±9°, 18° total spread
+const BASE_W = 680;
+const BASE_H = 700;
+const BASE_GRID_Y = 132;
+// Original center-card cy on the 700-tall playfield (52px above the board, 53px below).
+const BASE_OPP_HAND_CY = 80;
+const BASE_MY_HAND_CY = 623;
 
 const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
 const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
-
-// Center-card cy for each hand (pivot is FAN_RADIUS away from center)
-const MY_HAND_CY = 623;
-const OPP_HAND_CY = 80;
-const MY_PIVOT_Y = MY_HAND_CY + FAN_RADIUS;    // 950 — below canvas
-const OPP_PIVOT_Y = OPP_HAND_CY - FAN_RADIUS;  // −250 — above canvas
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
@@ -140,10 +141,12 @@ type SwapCardAnim = {
 
 export class Game {
   private ctx: CanvasRenderingContext2D;
-  private readonly W: number;
-  private readonly H: number;
-  private readonly gridX: number;
-  private readonly gridY = 132;
+  private W = BASE_W;
+  private H = BASE_H;
+  private gridX = (BASE_W - GRID) / 2;
+  private gridY = BASE_GRID_Y;
+  private myHandCy = BASE_MY_HAND_CY;
+  private oppHandCy = BASE_OPP_HAND_CY;
 
   private state: GameState | null = null;
   private localNr = 0;
@@ -215,9 +218,6 @@ export class Game {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
-    this.W = canvas.width;
-    this.H = canvas.height;
-    this.gridX = (this.W - GRID) / 2;
     void document.fonts.load('64px Felipa');
     this.scoreDigitImg.src = '/assets/score-digits.png';
 
@@ -330,10 +330,75 @@ export class Game {
     this.loadVersionImage(baseKey, version);
   }
 
+  private get myPivotY() { return this.myHandCy + FAN_RADIUS; }
+  private get oppPivotY() { return this.oppHandCy - FAN_RADIUS; }
+
+  // Edge cards sit further toward the window than the center card.
+  private cardOuterReach(): number {
+    const a = FAN_HALF_ANGLE;
+    return FAN_RADIUS * (1 - Math.cos(a)) + (CARD / 2) * (Math.sin(a) + Math.cos(a));
+  }
+
+  // Center each hand in the gap between the board and the window, without
+  // crossing the board or clipping the canvas.
+  private layoutHands() {
+    const boardTop = this.gridY;
+    const boardBottom = this.gridY + GRID;
+    const inner = CARD / 2;
+    const outer = this.cardOuterReach();
+    const boardPad = 10;
+    const edgePad = 2;
+
+    let opp = boardTop / 2;
+    opp = Math.min(opp, boardTop - inner - boardPad);
+    opp = Math.max(opp, outer + edgePad);
+
+    let my = (boardBottom + this.H) / 2;
+    my = Math.max(my, boardBottom + inner + boardPad);
+    my = Math.min(my, this.H - outer - edgePad);
+
+    this.oppHandCy = opp;
+    this.myHandCy = my;
+  }
+
+  // Map the canvas element onto a logical playfield. Width stays 680 when the
+  // window is tall enough; extra height is split above and below the board.
+  private syncLayout() {
+    const cssW = this.canvas.clientWidth;
+    const cssH = this.canvas.clientHeight;
+    if (cssW < 2 || cssH < 2) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let logicalW = BASE_W;
+    let logicalH = BASE_W * (cssH / cssW);
+    if (logicalH < BASE_H) {
+      logicalH = BASE_H;
+      logicalW = Math.max(BASE_W, BASE_H * (cssW / cssH));
+    }
+
+    const extra = Math.max(0, logicalH - BASE_H);
+    this.W = logicalW;
+    this.H = logicalH;
+    this.gridY = BASE_GRID_Y + extra / 2;
+    this.gridX = (logicalW - GRID) / 2;
+    this.layoutHands();
+
+    const bw = Math.max(1, Math.round(cssW * dpr));
+    const bh = Math.max(1, Math.round(cssH * dpr));
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.canvas.width = bw;
+      this.canvas.height = bh;
+    }
+    const scale = (cssW / logicalW) * dpr;
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  }
+
   private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
     const b = this.canvas.getBoundingClientRect();
-    const scale = b.width / this.W;
-    return { x: (clientX - b.left) / scale, y: (clientY - b.top) / scale };
+    return {
+      x: (clientX - b.left) * (this.W / b.width),
+      y: (clientY - b.top) * (this.H / b.height),
+    };
   }
 
   // Hand art is drawn fingers-up; oni emoji angles assume a right-facing glyph.
@@ -445,7 +510,7 @@ export class Game {
       swapCards.push({
         card: c,
         fromX: l.cx, fromY: l.cy, fromRotation: l.rotation,
-        toX: this.W / 2, toY: OPP_HAND_CY, toRotation: 0,
+        toX: this.W / 2, toY: this.oppHandCy, toRotation: 0,
         startFaceDown: false, startIsBlack: myIsBlack, endIsBlack: oppIsBlack,
       });
       hiddenIds.add(c.id);
@@ -456,7 +521,7 @@ export class Game {
       swapCards.push({
         card: c,
         fromX: l.cx, fromY: l.cy, fromRotation: l.rotation,
-        toX: this.W / 2, toY: MY_HAND_CY, toRotation: 0,
+        toX: this.W / 2, toY: this.myHandCy, toRotation: 0,
         startFaceDown: !myEyeActive, startIsBlack: oppIsBlack, endIsBlack: myIsBlack,
       });
       hiddenIds.add(c.id);
@@ -898,7 +963,7 @@ export class Game {
       card: cbr.card,
       fromX, fromY,
       toX: tl?.cx ?? this.W / 2,
-      toY: tl?.cy ?? MY_HAND_CY,
+      toY: tl?.cy ?? this.myHandCy,
       startTime: performance.now(),
       done: false,
       isBlack: this.cardIsBlack(this.localNr),
@@ -926,8 +991,12 @@ export class Game {
   }
 
   // They sit opposite: rotate their pointer 180° into our seat.
+  // Coords are fractions of each client's playfield (legacy clients sent
+  // pixels in the fixed 680×700 canvas).
   private mapOppDragPoint(x: number, y: number): { x: number; y: number } {
-    return { x: this.W - x, y: this.H - y };
+    const nx = x > 1.5 ? x / BASE_W : x;
+    const ny = y > 1.5 ? y / BASE_H : y;
+    return { x: (1 - nx) * this.W, y: (1 - ny) * this.H };
   }
 
   setOppDrag(drag: { idx: number; x: number; y: number } | null) {
@@ -957,7 +1026,7 @@ export class Game {
     if (!force && now - this.lastDragSend < 40 && dx * dx + dy * dy < 36) return;
     this.lastDragSend = now;
     this.lastDragSentPos = { x: drag.x, y: drag.y };
-    this.onDragChange?.({ idx, x: Math.round(drag.x), y: Math.round(drag.y) });
+    this.onDragChange?.({ idx, x: drag.x / this.W, y: drag.y / this.H });
   }
 
   reset() {
@@ -985,11 +1054,13 @@ export class Game {
     this.lastHoverIdx = null;
     this.flipAnims = [];
     this.matchScore = {};
-    this.ctx.clearRect(0, 0, this.W, this.H);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   private start() {
     const loop = () => {
+      this.syncLayout();
       this.draw();
       this.raf = requestAnimationFrame(loop);
     };
@@ -1002,7 +1073,7 @@ export class Game {
     const N = cards.length;
     if (N === 0) return [];
     const pivotX = this.W / 2;
-    const pivotY = isLocal ? MY_PIVOT_Y : OPP_PIVOT_Y;
+    const pivotY = isLocal ? this.myPivotY : this.oppPivotY;
     // Spread shrinks as cards are played — 8 cards = full spread, fewer = tighter.
     // N=2 gets a fixed narrow spread so the two cards slightly overlap.
     const spread = N <= 1 ? 0 : N === 2 ? (10 * Math.PI / 180) : FAN_HALF_ANGLE * 2 * Math.min(N / 8, 1);
@@ -3080,7 +3151,7 @@ export class Game {
     }
     if (oppHoveredEntry) {
       const dx = oppHoveredEntry.cx - this.W / 2;
-      const dy = oppHoveredEntry.cy - OPP_PIVOT_Y;
+      const dy = oppHoveredEntry.cy - this.oppPivotY;
       const len = Math.sqrt(dx * dx + dy * dy);
       ctx.save();
       ctx.translate(oppHoveredEntry.cx + dx / len * HOVER_LIFT, oppHoveredEntry.cy + dy / len * HOVER_LIFT);
@@ -3108,7 +3179,7 @@ export class Game {
     }
     if (hoveredEntry) {
       const dx = hoveredEntry.cx - this.W / 2;
-      const dy = hoveredEntry.cy - MY_PIVOT_Y;
+      const dy = hoveredEntry.cy - this.myPivotY;
       const len = Math.sqrt(dx * dx + dy * dy);
       ctx.save();
       ctx.translate(hoveredEntry.cx + dx / len * HOVER_LIFT, hoveredEntry.cy + dy / len * HOVER_LIFT);
