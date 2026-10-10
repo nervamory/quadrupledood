@@ -19,8 +19,8 @@ type RecordedMatch = {
   applied: boolean;
 };
 
-const url = readEnv('VITE_SUPABASE_URL');
-const anonKey = readEnv('VITE_SUPABASE_ANON_KEY');
+const url = readEnv('VITE_SUPABASE_URL') || 'https://yjqqzvbvntkoyhyxlgle.supabase.co';
+const anonKey = readEnv('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_8QLrVCSi76bzsbhYIJ-ycA_lYlmDOLT';
 const configured = url.startsWith('https://') && anonKey.length >= 20;
 
 let client: SupabaseClient | null = null;
