@@ -93,6 +93,7 @@ function clearMatchRecord() {
 }
 
 function saveMatchResult(iWon: boolean) {
+  if (cpuMode) return;
   if (matchStatsRecorded) return;
   matchStatsRecorded = true;
   const gen = matchRecordGen;
@@ -272,6 +273,10 @@ function tryNextGame() {
 }
 
 function handleGameEnd(state: GameState) {
+  if (cpuMode) {
+    handleCpuGameEnd(state);
+    return;
+  }
   // Update match score
   if (state.winner !== null) {
     matchScore[state.winner] = (matchScore[state.winner] ?? 0) + 1;
