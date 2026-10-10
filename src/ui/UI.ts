@@ -17,6 +17,8 @@ export class UI {
   private show(screen: HTMLElement) {
     for (const s of this.allScreens()) s.classList.remove('active');
     screen.classList.add('active');
+    screen.scrollTop = 0;
+    window.scrollTo(0, 0);
   }
 
   showLobby()        { this.show(this.lobby); }

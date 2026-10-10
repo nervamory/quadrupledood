@@ -43,8 +43,21 @@
         min-height: 100dvh;
         overscroll-behavior: none;
       }
-      #app { text-align: center; width: 100%; max-width: 680px; }
+      #app { position: relative; z-index: 1; text-align: center; width: 100%; max-width: 680px; }
       canvas { display: block; background: transparent; }
+      /* Same cleared canvas surface as matchmaking, behind every screen,
+         so the lobby isn't a second paint of the page color. */
+      #page-bg {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        z-index: 0;
+        pointer-events: none;
+        background: transparent;
+      }
+      body:has(#game-screen.active) #page-bg { visibility: hidden; }
       #game-canvas {
         width: 100%;
         height: auto;
@@ -54,9 +67,6 @@
         -webkit-touch-callout: none;
         user-select: none;
       }
-      /* Game column reaches the window edges so the board, hands, and
-         background are one surface. The canvas stays transparent and the
-         page color shows through — a filled canvas composites as a second tone. */
       body:has(#game-screen.active) {
         height: 100dvh;
         max-height: 100dvh;
@@ -71,20 +81,38 @@
         align-items: center;
       }
       #game-screen.active {
+        position: relative;
+        z-index: 2;
         display: flex;
         flex-direction: column;
         width: min(680px, 100%);
         height: 100%;
         min-height: 0;
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
       }
+      /* Cover the whole window, including beside the hand and past the
+         680 column, with the matchmaking canvas instead of a CSS strip. */
       #game-screen.active #game-canvas {
-        flex: 1 1 0;
+        position: fixed;
+        inset: 0;
+        z-index: 1;
         width: 100%;
-        height: 0;
-        min-height: 0;
+        height: 100%;
+        height: 100dvh;
         aspect-ratio: auto;
+        flex: none;
+      }
+      #turn-status {
+        position: fixed;
+        left: 0;
+        right: 0;
+        z-index: 3;
+        margin: 0;
+        padding: 0;
+        transform: translateY(-50%);
+        text-align: center;
+        pointer-events: none;
+        font-family: var(--font-mono);
+        font-size: 14px;
       }
       .screen { display: none; }
       .screen.active { display: block; }
@@ -137,6 +165,23 @@
       }
       #settings-btn:hover,
       #game-menu-btn:hover { background: rgba(26, 26, 46, 0.95); color: #eee; }
+      #settings-screen.active {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: var(--bg);
+        padding: calc(56px + env(safe-area-inset-top, 0px)) 20px 40px;
+        text-align: center;
+      }
+      #settings-screen.active #settings-back-btn {
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        left: calc(8px + env(safe-area-inset-left, 0px));
+        z-index: 51;
+        margin: 0;
+      }
       #game-menu {
         display: none;
         position: absolute;
@@ -173,6 +218,7 @@
     </style>
   </head>
   <body>
+    <canvas id="page-bg" aria-hidden="true"></canvas>
     <div id="app">
       <div id="lobby-screen" class="screen active">
         <h2 class="wordmark"><img src="/assets/wordmark.png" alt="Quadruple dood"></h2>
@@ -205,11 +251,11 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v13.3</p>
+        <p style="margin-top:12px; color:#333; font-size:11px; font-family:var(--font-mono);">v13.5</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
-        <p id="turn-status" style="flex:0 0 auto; margin:0; padding:4px 0 8px; min-height:18px; font-family:var(--font-mono); font-size:14px; color:#eee;"></p>
+        <p id="turn-status"></p>
         <button id="game-menu-btn" type="button" aria-label="game settings" aria-haspopup="true" aria-expanded="false">
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.63-.94l-.36-2.54A.5.5 0 0014.3 2h-4.6a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.31 8.48a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.43 14.16a.5.5 0 00-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h4.6c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
@@ -247,6 +293,7 @@
         <p id="between-status" style="margin-top:10px; color:#555; font-size:13px;"></p>
       </div>
       <div id="settings-screen" class="screen">
+        <button id="settings-back-btn" type="button">back</button>
         <h2 class="red-title" style="--title-w:179px; margin-bottom:32px;"><img src="/assets/heading-settings.png" alt="settings"></h2>
         <div id="account-panel" hidden>
           <p style="color:#444; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;">account</p>
@@ -304,8 +351,6 @@
         <button id="foil-creator-btn" style="margin-top:8px;">custom foil creator</button>
         <br>
         <button id="card-version-btn" style="margin-top:8px;">card version select</button>
-        <br>
-        <button id="settings-back-btn" style="margin-top:12px;">back</button>
       </div>
       <div id="foil-creator-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:var(--bg);flex-direction:column;align-items:center;padding:40px 20px 60px;">
         <h2 class="red-title" style="--title-w:288px; margin-bottom:24px;"><img src="/assets/heading-foil-creator.png" alt="foil creator"></h2>
