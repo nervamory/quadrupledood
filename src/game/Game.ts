@@ -212,6 +212,7 @@ export class Game {
   private succubusPullAnims: { card: Card; fromX: number; fromY: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string }[] = [];
   private popAnims: { row: number; col: number; startTime: number }[] = [];
   private mermaidPullAnim: { card: Card; fromX: number; fromY: number; fromRot: number; toX: number; toY: number; toRow: number; toCol: number; startTime: number; pullIsBlack: boolean; landIsBlack: boolean; hiddenCardId: string } | null = null;
+  private batSpawnAnim: { card: Card; fromX: number; fromY: number; toX: number; toY: number; startTime: number; isBlack: boolean; hiddenCardId: string } | null = null;
   private captureShakeAnims: { row: number; col: number; startTime: number }[] = [];
   private vampireAnim: { vampX: number; vampY: number; cells: { row: number; col: number; fromX: number; fromY: number }[]; startTime: number; hiddenKeys: Set<string> } | null = null;
 
@@ -477,7 +478,7 @@ export class Game {
         done: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.oppDrag = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.oppDrag = null; }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -488,6 +489,7 @@ export class Game {
       this.detectSuccubusPull(this.state, state);
       this.detectPops(this.state, state);
       this.detectMermaidPull(this.state, state);
+      this.detectBatSpawn(state);
       this.detectCaptureBlocks(state);
       this.detectMirrorFlashes(state);
       this.detectVampireCapture(state);
@@ -923,6 +925,57 @@ export class Game {
     ctx.restore();
   }
 
+  private detectBatSpawn(newState: GameState) {
+    const spawn = newState.batSpawn;
+    if (!spawn) return;
+    const pad = (CELL - CARD) / 2;
+    const from = this.cellPos(spawn.fromRow, spawn.fromCol);
+    const to = this.cellPos(spawn.toRow, spawn.toCol);
+    const land = newState.board[spawn.toRow][spawn.toCol];
+    this.batSpawnAnim = {
+      card: spawn.card,
+      fromX: from.x + pad,
+      fromY: from.y + pad,
+      toX: to.x + pad,
+      toY: to.y + pad,
+      startTime: performance.now(),
+      isBlack: land && 'card' in land ? this.cardIsBlack(land.owner) : false,
+      hiddenCardId: spawn.card.id,
+    };
+  }
+
+  private drawBatSpawnAnim(now: number) {
+    if (!this.batSpawnAnim) return;
+    const CREATE_MS = 160;
+    const MOVE_MS = 280;
+    const { card, fromX, fromY, toX, toY, startTime, isBlack } = this.batSpawnAnim;
+    const elapsed = now - startTime;
+    if (elapsed >= CREATE_MS + MOVE_MS) {
+      this.batSpawnAnim = null;
+      return;
+    }
+
+    let x = fromX;
+    let y = fromY;
+    let scale = 1;
+    if (elapsed < CREATE_MS) {
+      const t = elapsed / CREATE_MS;
+      scale = 1 - (1 - t) * (1 - t); // ease-out grow
+    } else {
+      const t = (elapsed - CREATE_MS) / MOVE_MS;
+      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      x = fromX + (toX - fromX) * e;
+      y = fromY + (toY - fromY) * e;
+    }
+
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(x + CARD / 2, y + CARD / 2);
+    ctx.scale(scale, scale);
+    this.drawCard(-CARD / 2, -CARD / 2, card, isBlack);
+    ctx.restore();
+  }
+
   private detectVampireCapture(newState: GameState) {
     const vc = newState.vampireCaptures;
     if (!vc || vc.bloodCells.length === 0) return;
@@ -1068,6 +1121,7 @@ export class Game {
     this.succubusPullAnims = [];
     this.popAnims = [];
     this.mermaidPullAnim = null;
+    this.batSpawnAnim = null;
     this.captureShakeAnims = [];
     this.vampireAnim = null;
     this.oppHoverIdx = null;
@@ -3045,6 +3099,7 @@ export class Game {
         const cell = state.board[row][col];
         if (cell && 'card' in cell && this.mermaidPullAnim?.hiddenCardId === cell.card.id) continue;
         if (cell && 'card' in cell && this.succubusPullAnims.some(a => a.hiddenCardId === cell.card.id)) continue;
+        if (cell && 'card' in cell && this.batSpawnAnim?.hiddenCardId === cell.card.id) continue;
         if (this.vampireAnim?.hiddenKeys.has(`${row},${col}`)) continue;
         if (cell && 'card' in cell) {
           const pad = (CELL - CARD) / 2;
@@ -3306,6 +3361,9 @@ export class Game {
 
     // mermaid pull — card flies from opponent hand fan to board cell
     this.drawMermaidPullAnim(now);
+
+    // bat spawn — second bat grows out of the played card, then slides to its cell
+    this.drawBatSpawnAnim(now);
 
     // vampire drain — blood emojis fly toward vampire before squares become vampires
     this.drawVampireAnim(now);

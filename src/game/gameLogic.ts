@@ -1060,6 +1060,7 @@ export function placeCard(
   }
 
   // Bat: spawn one copy in a random touching empty cell
+  let batSpawn: GameState['batSpawn'] | undefined;
   if (card.type === 'bat') {
     const empty: [number, number][] = [];
     for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
@@ -1070,6 +1071,7 @@ export function placeCard(
       const [sr, sc] = empty[cardHash(card.id) % empty.length];
       const spawnCard: Card = { id: `bat-spawn-${row}-${col}-${card.id}`, direction: 'up', type: 'bat' };
       newBoard[sr][sc] = { card: spawnCard, owner: actorNr };
+      batSpawn = { card: spawnCard, fromRow: row, fromCol: col, toRow: sr, toCol: sc };
     }
   }
 
@@ -1135,11 +1137,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
 }
