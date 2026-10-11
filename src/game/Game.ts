@@ -63,7 +63,10 @@ const CARD_ART_FILES = [
 // (horizontal spread grows ~linearly with radius, vertical bulge only grows
 // with 1-cos(angle), which stays tiny at 9°).
 const FAN_RADIUS = 1750;
-const FAN_HALF_ANGLE = 9 * Math.PI / 180; // ±9°, 18° total spread
+const FAN_HALF_ANGLE = 9 * Math.PI / 180; // ±9°, 18° total spread at 8 cards
+// One step of that full fan (~18px overlap). Smaller hands keep the same
+// grip and sit in the center instead of stretching toward the edges.
+const FAN_STEP = (FAN_HALF_ANGLE * 2) / 7;
 const BASE_W = 680;
 const BASE_H = 700;
 const BASE_GRID_Y = 132;
@@ -1144,14 +1147,14 @@ export class Game {
 
   // Cards arc around a pivot point. Local hand: pivot below canvas, cards fan upward.
   // Opponent hand: pivot above canvas, cards fan downward toward center.
+  // Neighbor spacing matches a full 8-card fan (~18px overlap on a 96px card).
+  // Fewer cards keep that grip and sit in the middle; they don't stretch apart.
   private computeHandLayout(cards: Card[], isLocal: boolean): CardLayout[] {
     const N = cards.length;
     if (N === 0) return [];
     const pivotX = this.W / 2;
     const pivotY = isLocal ? this.myPivotY : this.oppPivotY;
-    // Spread shrinks as cards are played — 8 cards = full spread, fewer = tighter.
-    // N=2 gets a fixed narrow spread so the two cards slightly overlap.
-    const spread = N <= 1 ? 0 : N === 2 ? (10 * Math.PI / 180) : FAN_HALF_ANGLE * 2 * Math.min(N / 8, 1);
+    const spread = N <= 1 ? 0 : Math.min(FAN_HALF_ANGLE * 2, FAN_STEP * (N - 1));
 
     return cards.map((card, i) => {
       const t = N === 1 ? 0 : (i / (N - 1)) - 0.5; // −0.5 to +0.5
