@@ -93,6 +93,30 @@ type HellfireEmber = {
   size: number; life: number;
 };
 
+// Reused words. Bold in the tooltip, with a reminder box under it.
+const KEYWORDS: Record<string, string> = {
+  orthogonal: 'top, bottom, left, right directions',
+};
+
+type TipSegment = { text: string; keyword: string | null };
+
+function labelSegments(label: string): TipSegment[] {
+  const names = Object.keys(KEYWORDS);
+  if (names.length === 0) return [{ text: label, keyword: null }];
+  const body = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const re = new RegExp(`\\b(${body})\\b`, 'gi');
+  const out: TipSegment[] = [];
+  let last = 0;
+  for (const match of label.matchAll(re)) {
+    const i = match.index ?? 0;
+    if (i > last) out.push({ text: label.slice(last, i), keyword: null });
+    out.push({ text: match[0], keyword: match[0].toLowerCase() });
+    last = i + match[0].length;
+  }
+  if (last < label.length) out.push({ text: label.slice(last), keyword: null });
+  return out.length > 0 ? out : [{ text: label, keyword: null }];
+}
+
 const CARD_LABELS: Record<CardType, string> = {
   knife:   'immune to capture from its point',
   heart:   'becomes blood when captured',
@@ -3447,51 +3471,104 @@ export class Game {
     // hover tooltip
     if (this.hoverPos && !this.drag) {
       const hovered = this.findHoveredCard(this.hoverPos.x, this.hoverPos.y);
-      if (hovered) {
-        const name = hovered.type.replace(/-/g, ' ');
-        const namePrefix = `${name}: `;
-        const label = CARD_LABELS[hovered.type];
-        const pad = 8;
-        ctx.font = `bold 14px ${FONT_MONO}`;
-        const nameW = ctx.measureText(namePrefix).width;
-        ctx.font = `14px ${FONT_MONO}`;
-        const labelW = ctx.measureText(label).width;
-        const bw = nameW + labelW + pad * 2;
-        const bh = 24;
-        // A finger covering the press hides a tooltip drawn next to the card.
-        // Long-press tooltips sit at the top of the screen, over the opponent hand.
-        let bx = this.hoverPos.x - bw / 2;
-        let by = this.hoverPos.y - bh - 10;
-        if (this.inLongPress) {
-          bx = (W - bw) / 2;
-          // Below the settings button (8px offset + 36px button + gap), still
-          // at the top of the screen over the opponent hand.
-          const logicalPerCss = this.H / Math.max(1, this.canvas.clientHeight);
-          by = this.safeTopLogical + 50 * logicalPerCss;
-        }
-        bx = Math.max(4, Math.min(W - bw - 4, bx));
-        by = Math.max(4, by);
-        ctx.save();
-        ctx.globalAlpha = 0.88;
-        ctx.fillStyle = '#0a0a14';
-        ctx.beginPath();
-        ctx.roundRect(bx, by, bw, bh, 4);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.fillStyle = '#ccc';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        const textY = by + bh / 2;
-        ctx.font = `bold 14px ${FONT_MONO}`;
-        ctx.fillText(namePrefix, bx + pad, textY);
-        ctx.font = `14px ${FONT_MONO}`;
-        ctx.fillText(label, bx + pad + nameW, textY);
-        ctx.restore();
-      }
+      if (hovered) this.drawCardTooltip(W, hovered);
     }
 
+  }
+
+  private drawCardTooltip(W: number, card: Card) {
+    const hover = this.hoverPos;
+    if (!hover) return;
+    const ctx = this.ctx;
+    const name = card.type.replace(/-/g, ' ');
+    const namePrefix = `${name}: `;
+    const label = CARD_LABELS[card.type];
+    const segments = labelSegments(label);
+    const pad = 8;
+    const font = (bold: boolean) => `${bold ? 'bold ' : ''}14px ${FONT_MONO}`;
+
+    ctx.font = font(true);
+    const nameW = ctx.measureText(namePrefix).width;
+    let labelW = 0;
+    for (const seg of segments) {
+      ctx.font = font(seg.keyword !== null);
+      labelW += ctx.measureText(seg.text).width;
+    }
+
+    const keywords: string[] = [];
+    for (const seg of segments) {
+      if (seg.keyword && !keywords.includes(seg.keyword)) keywords.push(seg.keyword);
+    }
+
+    const line = 16;
+    const kwH = pad + line + 2 + line + pad;
+    const gap = 4;
+    let colW = nameW + labelW + pad * 2;
+    for (const key of keywords) {
+      ctx.font = font(true);
+      const titleW = ctx.measureText(key).width;
+      ctx.font = font(false);
+      const defW = ctx.measureText(KEYWORDS[key]).width;
+      colW = Math.max(colW, Math.max(titleW, defW) + pad * 2);
+    }
+    const bh = 24;
+    const totalH = bh + keywords.length * (gap + kwH);
+
+    // A finger covering the press hides a tooltip drawn next to the card.
+    // Long-press tooltips sit at the top of the screen, over the opponent hand.
+    let bx = hover.x - colW / 2;
+    let by = hover.y - totalH - 10;
+    if (this.inLongPress) {
+      bx = (W - colW) / 2;
+      const logicalPerCss = this.H / Math.max(1, this.canvas.clientHeight);
+      by = this.safeTopLogical + 50 * logicalPerCss;
+    }
+    bx = Math.max(4, Math.min(W - colW - 4, bx));
+    by = Math.max(4, Math.min(this.H - totalH - 4, by));
+
+    const roundBox = (x: number, y: number, w: number, h: number) => {
+      ctx.save();
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = '#0a0a14';
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 4);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    roundBox(bx, by, colW, bh);
+    ctx.save();
+    ctx.fillStyle = '#ccc';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const textY = by + bh / 2;
+    ctx.font = font(true);
+    ctx.fillText(namePrefix, bx + pad, textY);
+    let tx = bx + pad + nameW;
+    for (const seg of segments) {
+      ctx.font = font(seg.keyword !== null);
+      ctx.fillText(seg.text, tx, textY);
+      tx += ctx.measureText(seg.text).width;
+    }
+    ctx.restore();
+
+    let ky = by + bh + gap;
+    for (const key of keywords) {
+      roundBox(bx, ky, colW, kwH);
+      ctx.save();
+      ctx.fillStyle = '#ccc';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = font(true);
+      ctx.fillText(key, bx + pad, ky + pad + line / 2);
+      ctx.font = font(false);
+      ctx.fillText(KEYWORDS[key], bx + pad, ky + pad + line + 2 + line / 2);
+      ctx.restore();
+      ky += kwH + gap;
+    }
   }
 }
