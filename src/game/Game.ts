@@ -178,6 +178,7 @@ export class Game {
   private cardImages: Record<string, HTMLImageElement> = {};
   private invertedArt: Record<string, HTMLCanvasElement> = {};
   private scoreDigitImg = new Image();
+  private boardImg = new Image();
   private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
   private cardVersionCounts: Record<string, number> = {};
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -233,6 +234,7 @@ export class Game {
     this.ctx = ctx;
     void document.fonts.load('64px Felipa');
     this.scoreDigitImg.src = '/assets/score-digits.png';
+    this.boardImg.src = '/assets/board.png';
 
     for (const file of CARD_ART_FILES) {
       const img = new Image();
@@ -1191,6 +1193,35 @@ export class Game {
       x: this.gridX + c * (CELL + CELL_GAP),
       y: this.gridY + r * (CELL + CELL_GAP),
     };
+  }
+
+  private validDropAt(row: number, col: number): boolean {
+    if (!this.drag || !this.state) return false;
+    const target = this.state.board[row][col];
+    const isBlood = target !== null && 'blood' in target;
+    const isCard = target !== null && !isBlood;
+    return target === null
+      || (this.drag.card.type === 'bandage' && isBlood)
+      || (this.drag.card.type === 'web' && isCard);
+  }
+
+  private drawBoardBackdrop() {
+    const { ctx } = this;
+    const pad = 14;
+    const x = this.gridX - pad;
+    const y = this.gridY - pad;
+    const size = GRID + pad * 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, size, size, 18);
+    ctx.clip();
+    if (this.boardImg.complete && this.boardImg.naturalWidth > 0) {
+      ctx.drawImage(this.boardImg, x, y, size, size);
+    } else {
+      ctx.fillStyle = '#1e1030';
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // Inverse-rotate the mouse point into each card's local space, then AABB check.
@@ -3087,15 +3118,17 @@ export class Game {
 
     const myIsBlack = this.cardIsBlack(this.localNr);
 
+    this.drawBoardBackdrop();
+
     // grid
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
         const { x, y } = this.cellPos(row, col);
         ctx.beginPath();
         ctx.roundRect(x, y, CELL, CELL, 4);
-        ctx.fillStyle = '#1e1030';
+        ctx.fillStyle = 'rgba(8, 6, 14, 0.22)';
         ctx.fill();
-        ctx.strokeStyle = '#3d2070';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
@@ -3143,23 +3176,18 @@ export class Game {
       }
     }
 
-    // drop highlights while dragging
+    // drop highlight — only the square the card would land on
     if (this.drag) {
-      const isBandage = this.drag.card.type === 'bandage';
-      const isWeb = this.drag.card.type === 'web';
-      for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 4; col++) {
-          const cell = state.board[row][col];
-          const validDrop = !cell || (isBandage && cell && 'blood' in cell) || (isWeb && cell && !('blood' in cell));
-          if (validDrop) {
-            const { x, y } = this.cellPos(row, col);
-            ctx.beginPath();
-            ctx.roundRect(x, y, CELL, CELL, 4);
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-          }
-        }
+      const over = this.hitCell(this.drag.x, this.drag.y);
+      if (over && this.validDropAt(over.row, over.col)) {
+        const { x, y } = this.cellPos(over.row, over.col);
+        ctx.beginPath();
+        ctx.roundRect(x, y, CELL, CELL, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
       }
     }
 
