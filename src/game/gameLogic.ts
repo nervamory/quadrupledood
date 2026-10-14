@@ -34,7 +34,20 @@ function pick(pool: CardType[], n: number): CardType[] {
   return Array.from({ length: n }, () => pool[Math.floor(Math.random() * pool.length)]);
 }
 
+/** Named decks a random-preset pick can land on. */
+export const PRESET_DECKS: DeckType[] = [
+  'vampire', 'werewolf', 'ocean', 'bones', 'zombie', 'oni', 'spider',
+  'demon', 'clown', 'succubus', 'ghost', 'robot', 'dolphin',
+];
+
+const ALL_DEALT_CARDS: CardType[] = [...COMMON, ...RARE, ...FOIL];
+
 function dealHand(actorNr: number, deck: DeckType): Card[] {
+  if (deck === 'random-preset') {
+    const preset = PRESET_DECKS[Math.floor(Math.random() * PRESET_DECKS.length)];
+    return dealHand(actorNr, preset);
+  }
+
   let types: CardType[];
   switch (deck) {
     case 'debug':
@@ -83,7 +96,8 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
       types = ['dolphin', 'wave', 'anchor', 'anchor', 'knife', ...pick(COMMON, 4)];
       break;
     default:
-      types = ['knife', ...pick(COMMON, 4), ...pick(RARE, 3), ...pick(FOIL, 1)];
+      // 'random' — nine cards drawn from the full pool, duplicates allowed.
+      types = pick(ALL_DEALT_CARDS, 9);
   }
 
   for (let i = types.length - 1; i > 0; i--) {

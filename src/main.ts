@@ -1,7 +1,7 @@
 import { PhotonClient } from './network/PhotonClient';
 import { Game, DEFAULT_FOIL_STYLE } from './game/Game';
 import { UI } from './ui/UI';
-import { initGame, placeCard } from './game/gameLogic';
+import { initGame, placeCard, PRESET_DECKS } from './game/gameLogic';
 import type { GameState, DeckType } from './game/types';
 import {
   type CustomFoilParams,
@@ -118,7 +118,7 @@ function getSelectedDeck(): DeckType {
 
 const CPU_LOCAL_NR = 1;
 const CPU_OPP_NR   = 2;
-const CPU_DECKS: DeckType[] = ['vampire','werewolf','ocean','bones','zombie','oni','spider','knife','demon','clown','succubus','ghost','robot','dolphin'];
+const CPU_DECKS: DeckType[] = PRESET_DECKS;
 
 let cpuMode = false;
 let cpuMoveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -594,11 +594,16 @@ allCardsFoilToggle.addEventListener('change', () => {
 const deckSelect    = getElement<HTMLSelectElement>('deck-select');
 const prefDeckSelect = getElement<HTMLSelectElement>('pref-deck-select');
 const savedDeck = localStorage.getItem('deckPref') ?? 'random';
-deckSelect.value = savedDeck;
-prefDeckSelect.value = savedDeck;
+const deckOptions = new Set(Array.from(deckSelect.options, (o) => o.value));
+const initialDeck = deckOptions.has(savedDeck) ? savedDeck : 'random';
+if (initialDeck !== savedDeck) localStorage.setItem('deckPref', initialDeck);
+deckSelect.value = initialDeck;
+prefDeckSelect.value = initialDeck;
+getElement<HTMLSelectElement>('between-deck-select').value = initialDeck;
 prefDeckSelect.addEventListener('change', () => {
   localStorage.setItem('deckPref', prefDeckSelect.value);
   deckSelect.value = prefDeckSelect.value;
+  getElement<HTMLSelectElement>('between-deck-select').value = prefDeckSelect.value;
 });
 
 const cardArtToggle = getElement<HTMLInputElement>('card-art-toggle');
