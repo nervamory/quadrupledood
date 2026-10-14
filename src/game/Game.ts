@@ -1,6 +1,7 @@
 import type { GameState, Card, CardType, Direction } from './types';
 import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, loopingSheenPos, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
 import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
+import { CARD_LABELS, KEYWORDS, KEYWORD_ALIASES } from './tooltips';
 
 const CARD = 96;
 const CELL = 102;
@@ -93,19 +94,6 @@ type HellfireEmber = {
   size: number; life: number;
 };
 
-// Reused words. Bold in the tooltip, with a reminder box under it.
-const KEYWORDS: Record<string, string> = {
-  orthogonal: 'top, bottom, left, right directions',
-  touching: 'all 8 adjacent squares, including diagonals',
-  blood: 'a cell left when heart, brain, or bat is captured',
-  retrigger: "that card's play ability happens again",
-};
-
-// Surface forms that share one reminder. Longer forms are tried first.
-const KEYWORD_ALIASES: Record<string, string> = {
-  retriggers: 'retrigger',
-};
-
 type TipSegment = { text: string; keyword: string | null };
 
 function labelSegments(label: string): TipSegment[] {
@@ -127,55 +115,6 @@ function labelSegments(label: string): TipSegment[] {
   if (last < label.length) out.push({ text: label.slice(last), keyword: null });
   return out.length > 0 ? out : [{ text: label, keyword: null }];
 }
-
-const CARD_LABELS: Record<CardType, string> = {
-  knife:   'immune to capture from its point',
-  heart:   'becomes blood when captured',
-  eye:     "reveals opponent's hand",
-  tooth:   'immune when touching bone',
-  moon:    'flips all card ownership',
-  mirror:  'reflects captures back',
-  bandage: 'plays on blood cells',
-  vampire: 'captures all blood cells',
-  ghost:   'switches entire hands with opponent',
-  fog:     'hides nearby cards from opponent',
-  wolf:    "switches to orthogonal when moon's out",
-  squid:   'pops bubbles, they capture touching',
-  mermaid: 'pulls opponent card onto board',
-  bubbles: 'pops when captured; counter capture',
-  skull:   'immune when touching bone',
-  bone:    'immune when touching bone',
-  zombie:  'zombifies touching; converts next turn',
-  brain:   'becomes blood when captured',
-  gravestone: 'becomes zombie after one turn for owner',
-  oni:     'summons 2 flanking hand cards',
-  fire:    'wildfire: chain transforms in capture direction',
-  hand:    'captures in finger direction',
-  spider:  'captures all 8 touching cells',
-  web:     'replaces any played card',
-  egg:     'hatches capturing spider when attacked',
-  troll:   'captures 4 orthogonal neighbors',
-  dragon:  'pierces line, ignores mirrors',
-  alien:   'captures all knight-move positions',
-  imp:      'retriggers captured owned card',
-  hellfire: 'destroys all touching; self-destructs',
-  snake:    'multi-square capture',
-  clown:    'retriggers touching clowns',
-  'clown-car': 'spawns a clown each turn',
-  balloon:  'pops when captured',
-  succubus: 'pulls orthogonal closer before capturing',
-  lipstick: 'retriggers touching kisses',
-  kisses:   'captures one random touching card',
-  'crystal-ball': 'returns your last played card to hand',
-  candle:   'turns capturer into fire',
-  robot:    'flips all touching ownership each turn',
-  lightning: 'destroys one random touching card',
-  outlet:   'captures up & down; retriggers all lightnings on board',
-  bat:      'spawns a copy in a touching square; becomes blood when captured',
-  dolphin:  'leaps: skips nearest card to capture the one behind',
-  wave:     'sweeps entire row or column',
-  anchor:   'immune to capture',
-};
 
 type SwapCardAnim = {
   card: Card;
