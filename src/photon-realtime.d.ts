@@ -10,9 +10,11 @@ declare module 'photon-realtime' {
       onJoinRoom: () => void;
       onActorJoin: (actor: { actorNr: number }) => void;
       onActorLeave: (actor: { actorNr: number }, cleanup: boolean) => void;
+      onActorSuspend: (actor: { actorNr: number }) => void;
       onEvent: (code: number, content: unknown, actorNr: number) => void;
       onError: (errorCode: number, errorMsg: string) => void;
       connectToRegionMaster(region: string): void;
+      setUserId(userId: string): void;
       joinRoom(roomName: string, joinOptions: { createIfNotExists?: boolean; rejoin?: boolean }, createOptions: object): void;
       raiseEvent(code: number, data: unknown): void;
       leaveRoom(): void;

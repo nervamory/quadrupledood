@@ -19,7 +19,7 @@ import {
   probeVersionCount,
   resolvedVersion,
 } from './game/cardVersions';
-import { initAccount, recordMatch } from './account/account';
+import { accountUserId, initAccount, onAccountUser, recordMatch } from './account/account';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -48,6 +48,11 @@ function doLeave(status?: string) {
   gameState = null;
   matchScore = {};
   clearMatchRecord();
+  forgetSeat();
+  photon.clearResume();
+  awaitingResume = false;
+  clearRestoreTimer();
+  holdStatus(null);
   inRoom = false;
   gameStarted = false;
   photon.leave();
@@ -78,6 +83,81 @@ function clearReconnectWait() {
   if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
   const overlay = document.getElementById('reconnect-overlay');
   if (overlay) overlay.style.display = 'none';
+}
+
+const SEAT_KEY = 'qd-seat';
+let awaitingResume = false;
+let resumeStatus: string | null = null;
+let restoreTimer: ReturnType<typeof setTimeout> | null = null;
+
+function holdStatus(msg: string | null) {
+  resumeStatus = msg;
+  if (msg) ui.setStatus(msg);
+}
+
+function clearRestoreTimer() {
+  if (restoreTimer !== null) { clearTimeout(restoreTimer); restoreTimer = null; }
+}
+
+function armRestoreTimer() {
+  clearRestoreTimer();
+  restoreTimer = setTimeout(() => {
+    restoreTimer = null;
+    if (gameState) return;
+    awaitingResume = false;
+    doLeave(photon.hasActiveOpponent() ? "couldn't restore the match" : 'opponent left');
+  }, 12000);
+}
+
+function persistSeat() {
+  const id = accountUserId();
+  const room = photon.currentRoom();
+  if (!id || !room) return;
+  localStorage.setItem(SEAT_KEY, JSON.stringify({ userId: id, room, played: myPlayedDeck }));
+}
+
+function forgetSeat() {
+  localStorage.removeItem(SEAT_KEY);
+}
+
+function savedSeat(userId: string | null): { room: string; played: DeckType | null } | null {
+  if (!userId) return null;
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEAT_KEY) ?? '') as { userId?: string; room?: string; played?: DeckType | null };
+    if (raw.userId !== userId || typeof raw.room !== 'string' || !raw.room) return null;
+    return { room: raw.room, played: raw.played ?? null };
+  } catch {
+    return null;
+  }
+}
+
+function applyResume(state: GameState, score: Record<number, number>) {
+  clearRestoreTimer();
+  awaitingResume = false;
+  holdStatus(null);
+  gameState = state;
+  matchScore = score;
+  gameStarted = true;
+  game.setLocalActor(photon.actorNr);
+  game.setMatchScore(matchScore);
+  game.setState(state);
+  if (state.phase === 'playing') {
+    ui.showGame();
+    return;
+  }
+  const myWins = matchScore[photon.actorNr] ?? 0;
+  const oppNr = photon.allActorNrs.find(n => n !== photon.actorNr);
+  const oppWins = oppNr != null ? (matchScore[oppNr] ?? 0) : 0;
+  if (myWins >= 2 || oppWins >= 2) {
+    ui.showMatchOver({ myWins, oppWins, iWon: myWins >= 2 });
+    return;
+  }
+  const lastResult: 'win' | 'loss' | 'draw' =
+    state.winner === null ? 'draw'
+    : state.winner === photon.actorNr ? 'win'
+    : 'loss';
+  const lockedDeck = state.winner === photon.actorNr ? myPlayedDeck : null;
+  ui.showBetweenGames({ myWins, oppWins, lastResult, lockedDeck });
 }
 
 // Match state
@@ -256,6 +336,7 @@ function startGame(myDeck: DeckType, oppDeckUsed: DeckType) {
   const state = initGame(a1, a2, firstPlayer, deckOf[a1], deckOf[a2]);
   gameState = state;
   myPlayedDeck = myDeck;
+  persistSeat();
   game.setMatchScore(matchScore);
   game.startIdleSpin();
   game.setState(state);
@@ -328,6 +409,7 @@ function tryStartGame() {
   const state = initGame(a1, a2, firstPlayer, deckOf[a1], deckOf[a2]);
   gameState = state;
   myPlayedDeck = myDeck;
+  persistSeat();
   matchScore = {};
   game.setMatchScore(matchScore);
   game.setState(state);
@@ -336,24 +418,47 @@ function tryStartGame() {
 }
 
 const photon = new PhotonClient({
-  onJoined: (actorNr) => {
+  onJoined: (actorNr, resumed) => {
     inRoom = true;
     game.setLocalActor(actorNr);
     clearReconnectWait();
+    persistSeat();
+    if (photon.hasOtherPlayer()) photon.closeRoom();
+    if (resumed && gameState === null) {
+      awaitingResume = true;
+      holdStatus('rejoining match…');
+      ui.showGame();
+      armRestoreTimer();
+      return;
+    }
+    if (resumed && !photon.hasOtherPlayer()) startReconnectWait();
     if (gameState === null) {
       game.startIdleSpin();
       ui.showGame();
     }
   },
+  onResume: (state, score) => {
+    applyResume(state, score);
+  },
+  onResumeFailed: () => {
+    awaitingResume = false;
+    clearRestoreTimer();
+    holdStatus(null);
+    forgetSeat();
+    if (inRoom || gameState) doLeave('match already ended');
+    else ui.setStatus('match already ended');
+  },
   onPlayerJoined: (_actorNr) => {
     clearReconnectWait();
+    if (photon.hasOtherPlayer()) photon.closeRoom();
     photon.sendDeckPick(getSelectedDeck());
     photon.sendFoilPick(parseInt(foilSelect.value, 10), workingFoilParams);
-    if (photon.isMaster && gameState !== null && gameState.phase === 'playing') {
-      photon.sendGameStart(gameState);
-    } else {
-      tryStartGame();
+    if (awaitingResume) return;
+    if (gameState !== null) {
+      photon.sendResume(gameState, matchScore);
+      return;
     }
+    tryStartGame();
   },
   onPlayerLeft: (_actorNr) => {
     if (!inRoom) return;
@@ -365,10 +470,14 @@ const photon = new PhotonClient({
     gameState = state;
     myPlayedDeck = myReadyDeck ?? getSelectedDeck();
     game.setMatchScore(matchScore);
-    if (!isResync) {
+    if (!isResync && !awaitingResume) {
       game.startIdleSpin();
     }
+    awaitingResume = false;
+    clearRestoreTimer();
+    holdStatus(null);
     game.setState(state);
+    persistSeat();
     ui.showGame();
   },
   onCardPlaced: (actorNr, cardId, row, col) => {
@@ -408,18 +517,24 @@ const photon = new PhotonClient({
     ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
   },
   onLobbyUpdate: (count) => {
+    if (resumeStatus) {
+      ui.setStatus(resumeStatus);
+      return;
+    }
     ui.setStatus(`${count} ${count === 1 ? 'player' : 'players'} currently sacrificing`);
   },
   onStatusChange: (msg) => ui.setStatus(msg),
   onDisconnected: () => {
-    if (gameState !== null && gameState.phase === 'playing') {
+    if (!inRoom) return;
+    const matchOver = Object.values(matchScore).some(wins => wins >= 2);
+    if (gameState && !matchOver) {
       const overlay = document.getElementById('reconnect-overlay')!;
       const msg = document.getElementById('reconnect-msg')!;
       msg.textContent = 'connection lost\nreconnecting…';
       overlay.style.display = 'flex';
-    } else {
-      doLeave();
+      return;
     }
+    doLeave();
   },
   onOpponentHover: (idx) => {
     game.setOppHover(idx);
@@ -491,6 +606,13 @@ game.onPlaceCard = (cardId, row, col) => {
 
 getElement('join-btn').addEventListener('click', () => {
   clearMatchRecord();
+  if (!cpuMode) {
+    forgetSeat();
+    photon.clearResume();
+    awaitingResume = false;
+    clearRestoreTimer();
+    holdStatus(null);
+  }
   if (cpuMode) {
     matchScore = {};
     startCpuGame(getSelectedDeck());
@@ -573,6 +695,19 @@ getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode)
 
 // ── settings ──────────────────────────────────────────────────────────────────
 
+onAccountUser((userId) => {
+  if (!inRoom) {
+    const seat = savedSeat(userId);
+    if (seat) {
+      myPlayedDeck = seat.played;
+      photon.queueResume(seat.room);
+      holdStatus('rejoining match…');
+    } else {
+      photon.clearResume();
+    }
+  }
+  photon.setAccountUser(userId);
+});
 initAccount();
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');

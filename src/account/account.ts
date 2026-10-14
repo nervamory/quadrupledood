@@ -30,6 +30,7 @@ let signedIn = false;
 let statusText = '';
 let booted = false;
 let sessionGen = 0;
+const userListeners: Array<(userId: string | null) => void> = [];
 
 function readEnv(name: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string {
   const value = import.meta.env[name];
@@ -155,9 +156,13 @@ async function onSession(session: Session | null) {
     if (hadUser) statusText = 'logged out';
     else if (statusText === '…') statusText = '';
     paint();
+    emitUser();
     return;
   }
   signedIn = true;
+  const switched = session.user.id !== currentUserId;
+  currentUserId = session.user.id;
+  if (switched) emitUser();
 
   let profile = await loadProfile(session);
   if (gen !== sessionGen) return;
@@ -167,8 +172,6 @@ async function onSession(session: Session | null) {
     profile = await loadProfile(session);
     if (gen !== sessionGen) return;
   }
-  const switched = session.user.id !== currentUserId;
-  currentUserId = session.user.id;
   current = profile;
   if (!profile) {
     statusText = 'account not ready yet';
@@ -263,9 +266,25 @@ function parseRecorded(data: unknown): RecordedMatch | null {
   };
 }
 
+export function accountUserId(): string | null {
+  return signedIn ? currentUserId : null;
+}
+
+export function onAccountUser(cb: (userId: string | null) => void): void {
+  userListeners.push(cb);
+  if (booted) cb(accountUserId());
+}
+
+function emitUser() {
+  const id = accountUserId();
+  for (const cb of userListeners) cb(id);
+}
+
 export function initAccount(): void {
   if (!configured) {
+    booted = true;
     paint();
+    emitUser();
     return;
   }
   statusText = '…';
