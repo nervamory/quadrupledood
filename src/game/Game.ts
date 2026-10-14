@@ -96,21 +96,32 @@ type HellfireEmber = {
 // Reused words. Bold in the tooltip, with a reminder box under it.
 const KEYWORDS: Record<string, string> = {
   orthogonal: 'top, bottom, left, right directions',
+  touching: 'all 8 adjacent squares, including diagonals',
+  blood: 'a cell left when heart, brain, or bat is captured',
+  retrigger: "that card's play ability happens again",
+};
+
+// Surface forms that share one reminder. Longer forms are tried first.
+const KEYWORD_ALIASES: Record<string, string> = {
+  retriggers: 'retrigger',
 };
 
 type TipSegment = { text: string; keyword: string | null };
 
 function labelSegments(label: string): TipSegment[] {
-  const names = Object.keys(KEYWORDS);
-  if (names.length === 0) return [{ text: label, keyword: null }];
-  const body = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const forms = [...Object.keys(KEYWORD_ALIASES), ...Object.keys(KEYWORDS)]
+    .sort((a, b) => b.length - a.length);
+  if (forms.length === 0) return [{ text: label, keyword: null }];
+  const body = forms.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const re = new RegExp(`\\b(${body})\\b`, 'gi');
   const out: TipSegment[] = [];
   let last = 0;
   for (const match of label.matchAll(re)) {
     const i = match.index ?? 0;
+    const word = match[0].toLowerCase();
+    const key = KEYWORD_ALIASES[word] ?? word;
     if (i > last) out.push({ text: label.slice(last, i), keyword: null });
-    out.push({ text: match[0], keyword: match[0].toLowerCase() });
+    out.push({ text: match[0], keyword: key });
     last = i + match[0].length;
   }
   if (last < label.length) out.push({ text: label.slice(last), keyword: null });
