@@ -128,6 +128,11 @@
         border: 1px solid #333;
         cursor: pointer;
       }
+      button, select {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
       button:hover { background: #222240; }
       @media (hover: none) { button:hover { background: #1a1a2e; } }
         #status { margin-top: 10px; color: #555; font-size: 13px; }
@@ -274,7 +279,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v15.2</p>
+        <p id="lobby-version">v15.3</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
