@@ -184,6 +184,8 @@ export class Game {
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartClientPos: { x: number; y: number } | null = null;
   private inLongPress = false;
+  private safeTopLogical = 0;
+  private safeTopKey = '';
 
   private flipAnims: FlipAnim[] = [];
 
@@ -401,6 +403,7 @@ export class Game {
     this.gridY = BASE_GRID_Y + extra / 2;
     this.gridX = (logicalW - GRID) / 2;
     this.layoutHands();
+    this.updateSafeTop(cssW, cssH);
 
     const bw = Math.max(1, Math.round(cssW * dpr));
     const bh = Math.max(1, Math.round(cssH * dpr));
@@ -417,6 +420,19 @@ export class Game {
     const box = this.canvas.getBoundingClientRect();
     const cssPerLogical = box.height / this.H;
     this.onTurnAnchor?.(box.top + (this.myHandCy + CARD / 2) * cssPerLogical);
+  }
+
+  // Notch inset in logical pixels. Remeasured when the canvas size changes.
+  private updateSafeTop(cssW: number, cssH: number) {
+    const key = `${Math.round(cssW)}x${Math.round(cssH)}`;
+    if (key === this.safeTopKey) return;
+    this.safeTopKey = key;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);';
+    document.body.appendChild(probe);
+    const css = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    probe.remove();
+    this.safeTopLogical = css * (this.H / Math.max(1, cssH));
   }
 
   private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
@@ -3442,8 +3458,19 @@ export class Game {
         const labelW = ctx.measureText(label).width;
         const bw = nameW + labelW + pad * 2;
         const bh = 24;
-        const bx = Math.max(4, Math.min(W - bw - 4, this.hoverPos.x - bw / 2));
-        const by = Math.max(4, this.hoverPos.y - bh - 10);
+        // A finger covering the press hides a tooltip drawn next to the card.
+        // Long-press tooltips sit at the top of the screen, over the opponent hand.
+        let bx = this.hoverPos.x - bw / 2;
+        let by = this.hoverPos.y - bh - 10;
+        if (this.inLongPress) {
+          bx = (W - bw) / 2;
+          // Below the settings button (8px offset + 36px button + gap), still
+          // at the top of the screen over the opponent hand.
+          const logicalPerCss = this.H / Math.max(1, this.canvas.clientHeight);
+          by = this.safeTopLogical + 50 * logicalPerCss;
+        }
+        bx = Math.max(4, Math.min(W - bw - 4, bx));
+        by = Math.max(4, by);
         ctx.save();
         ctx.globalAlpha = 0.88;
         ctx.fillStyle = '#0a0a14';
