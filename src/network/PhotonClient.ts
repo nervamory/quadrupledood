@@ -49,7 +49,7 @@ export type NetworkCallbacks = {
   onStatusChange: (msg: string) => void;
   onDisconnected: () => void;
   onOpponentHover: (idx: number | null) => void;
-  onOpponentDrag: (drag: { idx: number; x: number; y: number } | null) => void;
+  onOpponentDrag: (drag: { idx: number; x: number; y: number; t?: number } | null) => void;
   onReady: (actorNr: number, deck: DeckType) => void;
   onFoilPick?: (style: number, params: CustomFoilParams) => void;
   onRematch?: () => void;
@@ -206,9 +206,10 @@ export class PhotonClient {
         const { idx } = content as { idx: number | null };
         this.cb.onOpponentHover(idx);
       } else if (code === EV_DRAG) {
-        const drag = content as { idx?: number | null; x?: number; y?: number } | null;
+        const drag = content as { idx?: number | null; x?: number; y?: number; t?: number } | null;
         if (drag && typeof drag.idx === 'number' && drag.idx >= 0 && drag.x != null && drag.y != null) {
-          this.cb.onOpponentDrag({ idx: drag.idx, x: drag.x, y: drag.y });
+          const t = typeof drag.t === 'number' && Number.isFinite(drag.t) ? drag.t : undefined;
+          this.cb.onOpponentDrag({ idx: drag.idx, x: drag.x, y: drag.y, t });
         } else {
           this.cb.onOpponentDrag(null);
         }
@@ -333,7 +334,7 @@ export class PhotonClient {
     this.lbc.raiseEvent(EV_HOVER, { idx });
   }
 
-  sendDrag(drag: { idx: number; x: number; y: number } | null) {
+  sendDrag(drag: { idx: number; x: number; y: number; t?: number } | null) {
     this.lbc.raiseEvent(EV_DRAG, drag ?? { idx: null });
   }
 

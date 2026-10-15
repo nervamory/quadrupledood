@@ -482,7 +482,7 @@ const photon = new PhotonClient({
   },
   onCardPlaced: (actorNr, cardId, row, col) => {
     if (!gameState) return;
-    game.setOppDrag(null);
+    game.clearOppDrag();
     gameState = placeCard(gameState, actorNr, cardId, row, col);
     game.setState(gameState);
     if (gameState.phase === 'finished') handleGameEnd(gameState);

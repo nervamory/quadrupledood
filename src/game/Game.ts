@@ -80,7 +80,7 @@ const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
 // Opponent drag arrives as sparse, jittery packets. Stay this far behind the
 // newest sample and walk the in-between positions, instead of snapping.
-const OPP_DRAG_DELAY = 150;
+const OPP_DRAG_DELAY = 120;
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
@@ -1194,7 +1194,7 @@ export class Game {
       if (behind > 400) {
         this.oppDragPlayT = Math.max(this.oppDragSamples[0].t, desired);
       } else if (behind > 0) {
-        const speed = this.oppDragRelease ? 3 : behind > 220 ? 1.35 : 1;
+        const speed = behind > 220 ? 1.25 : 1;
         this.oppDragPlayT = Math.min(newest, this.oppDragPlayT + Math.min(behind, dt * speed));
       }
       if (this.oppDragRelease && newest - this.oppDragPlayT <= 0.5) this.oppDragSettled = true;
@@ -1565,6 +1565,9 @@ export class Game {
     if (!this.drag) return;
     if (!this.state) { this.drag = null; this.emitDrag(true); return; }
     const { x, y } = this.toCanvasXY(e.clientX, e.clientY);
+    this.drag.x = x;
+    this.drag.y = y;
+    this.emitDrag(true);
     const cell = this.hitCell(x, y);
     if (cell) {
       const target = this.state.board[cell.row][cell.col];
@@ -1648,6 +1651,9 @@ export class Game {
       const touch = e.changedTouches[0];
       if (touch) {
         const { x, y } = this.toCanvasXY(touch.clientX, touch.clientY);
+        this.drag.x = x;
+        this.drag.y = y;
+        this.emitDrag(true);
         const cell = this.hitCell(x, y);
         if (cell) {
           const target = this.state.board[cell.row][cell.col];
