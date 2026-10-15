@@ -116,6 +116,20 @@ function labelSegments(label: string): TipSegment[] {
   return out.length > 0 ? out : [{ text: label, keyword: null }];
 }
 
+// Card line first, then keywords named inside those reminders. A keyword
+// already shown is not added again, so a definition can mention itself.
+function expandKeywords(label: string): string[] {
+  const keywords: string[] = [];
+  const addFrom = (text: string) => {
+    for (const seg of labelSegments(text)) {
+      if (seg.keyword && KEYWORDS[seg.keyword] && !keywords.includes(seg.keyword)) keywords.push(seg.keyword);
+    }
+  };
+  addFrom(label);
+  for (let i = 0; i < keywords.length; i++) addFrom(KEYWORDS[keywords[i]]);
+  return keywords;
+}
+
 type SwapCardAnim = {
   card: Card;
   fromX: number; fromY: number; fromRotation: number;
@@ -3445,20 +3459,21 @@ export class Game {
       labelW += ctx.measureText(seg.text).width;
     }
 
-    const keywords: string[] = [];
-    for (const seg of segments) {
-      if (seg.keyword && !keywords.includes(seg.keyword)) keywords.push(seg.keyword);
-    }
+    const keywords = expandKeywords(label);
 
     const line = 16;
     const kwH = pad + line + 2 + line + pad;
     const gap = 4;
     let colW = nameW + labelW + pad * 2;
-    for (const key of keywords) {
+    const defs = keywords.map(key => labelSegments(KEYWORDS[key]));
+    for (let i = 0; i < keywords.length; i++) {
       ctx.font = font(true);
-      const titleW = ctx.measureText(key).width;
-      ctx.font = font(false);
-      const defW = ctx.measureText(KEYWORDS[key]).width;
+      const titleW = ctx.measureText(keywords[i]).width;
+      let defW = 0;
+      for (const seg of defs[i]) {
+        ctx.font = font(seg.keyword !== null);
+        defW += ctx.measureText(seg.text).width;
+      }
       colW = Math.max(colW, Math.max(titleW, defW) + pad * 2);
     }
     const bh = 24;
@@ -3507,16 +3522,21 @@ export class Game {
     ctx.restore();
 
     let ky = by + bh + gap;
-    for (const key of keywords) {
+    for (let i = 0; i < keywords.length; i++) {
       roundBox(bx, ky, colW, kwH);
       ctx.save();
       ctx.fillStyle = '#ccc';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.font = font(true);
-      ctx.fillText(key, bx + pad, ky + pad + line / 2);
-      ctx.font = font(false);
-      ctx.fillText(KEYWORDS[key], bx + pad, ky + pad + line + 2 + line / 2);
+      ctx.fillText(keywords[i], bx + pad, ky + pad + line / 2);
+      let dx = bx + pad;
+      const defY = ky + pad + line + 2 + line / 2;
+      for (const seg of defs[i]) {
+        ctx.font = font(seg.keyword !== null);
+        ctx.fillText(seg.text, dx, defY);
+        dx += ctx.measureText(seg.text).width;
+      }
       ctx.restore();
       ky += kwH + gap;
     }
