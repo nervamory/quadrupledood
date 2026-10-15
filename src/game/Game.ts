@@ -78,6 +78,9 @@ const BASE_MY_HAND_CY = 623;
 const IDLE_SPEED       = Math.PI / 600;  // rad/ms — one rotation per ~1.2 s
 const LANDING_DURATION = 3200;           // ms for landing spin
 const SPIN_HOLD        = 1100;           // ms to hold settled result before showing board
+// Opponent drag arrives as sparse, jittery packets. Stay this far behind the
+// newest sample and walk the in-between positions, instead of snapping.
+const OPP_DRAG_DELAY = 150;
 
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
@@ -159,8 +162,16 @@ export class Game {
   private matchScore: Record<number, number> = {};
   oppHoverIdx: number | null = null;
   private oppDrag: { idx: number; x: number; y: number } | null = null;
+  private oppDragIdx: number | null = null;
+  private oppDragSamples: { t: number; x: number; y: number }[] = [];
+  private oppDragPlayT: number | null = null;
+  private oppDragPlayAt = 0;
+  private oppDragRelease = false;
+  private oppDragSettled = false;
+  private oppDragSynthBase = 0;
   private lastDragSend = 0;
   private lastDragSentPos = { x: 0, y: 0 };
+  private dragT0 = 0;
   colorblindMode = false;
   cardArtMode = true;
   private cardImages: Record<string, HTMLImageElement> = {};
@@ -212,7 +223,7 @@ export class Game {
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
   onHoverChange?: (idx: number | null) => void;
-  onDragChange?: (drag: { idx: number; x: number; y: number } | null) => void;
+  onDragChange?: (drag: { idx: number; x: number; y: number; t?: number } | null) => void;
   onStatusTextChange?: (text: string, color: string) => void;
   onTurnAnchor?: (cardBottomCss: number) => void;
   private lastStatusText: string | null = null;
@@ -487,7 +498,7 @@ export class Game {
         done: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.oppDrag = null; }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.clearOppDrag(); }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -1008,14 +1019,12 @@ export class Game {
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out toward vampire
     const ctx = this.ctx;
     ctx.save();
-    ctx.font = '34px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     ctx.globalAlpha = 1 - t;
+    const s = 28;
     for (const { fromX, fromY } of this.vampireAnim.cells) {
       const x = fromX + (this.vampireAnim.vampX - fromX) * e;
       const y = fromY + (this.vampireAnim.vampY - fromY) * e;
-      ctx.fillText('🩸', x, y);
+      this.drawBloodSquare(x - s / 2, y - s / 2, s, 4);
     }
     ctx.restore();
   }
@@ -1082,11 +1091,119 @@ export class Game {
     return { x: (1 - nx) * this.W, y: (1 - ny) * this.H };
   }
 
-  setOppDrag(drag: { idx: number; x: number; y: number } | null) {
-    if (!drag) { this.oppDrag = null; return; }
-    const p = this.mapOppDragPoint(drag.x, drag.y);
-    this.oppDrag = { idx: drag.idx, x: p.x, y: p.y };
+  setOppDrag(drag: { idx: number; x: number; y: number; t?: number } | null) {
+    if (!drag) { this.releaseOppDrag(); return; }
+    if (this.oppDragIdx !== drag.idx) {
+      this.oppDragIdx = drag.idx;
+      this.oppDragSamples = [];
+      this.oppDragPlayT = null;
+      this.oppDragPlayAt = 0;
+      this.oppDragSynthBase = performance.now();
+    }
+    this.oppDragRelease = false;
+    this.oppDragSettled = false;
+    this.pushOppDragSample(drag.x, drag.y, drag.t);
     this.oppHoverIdx = null;
+  }
+
+  // Drop the ghost immediately (card was placed, or the match reset).
+  clearOppDrag() {
+    this.oppDrag = null;
+    this.oppDragIdx = null;
+    this.oppDragSamples = [];
+    this.oppDragPlayT = null;
+    this.oppDragPlayAt = 0;
+    this.oppDragRelease = false;
+    this.oppDragSettled = false;
+  }
+
+  private releaseOppDrag() {
+    if (this.oppDragIdx == null || this.oppDragSamples.length === 0) {
+      this.clearOppDrag();
+      return;
+    }
+    this.oppDragRelease = true;
+  }
+
+  private pushOppDragSample(x: number, y: number, t: number | undefined) {
+    const prev = this.oppDragSamples[this.oppDragSamples.length - 1];
+    let stamp: number;
+    if (typeof t === 'number' && Number.isFinite(t)) {
+      stamp = t;
+    } else {
+      const now = performance.now();
+      stamp = prev ? Math.max(prev.t + 16, now - this.oppDragSynthBase) : 0;
+    }
+    // Same card grabbed again: sender clock restarts at 0.
+    if (prev && stamp < prev.t - 40) {
+      this.oppDragSamples = [];
+      this.oppDragPlayT = null;
+      this.oppDragPlayAt = 0;
+      this.oppDragSynthBase = performance.now();
+    } else if (prev && stamp <= prev.t) {
+      prev.x = x;
+      prev.y = y;
+      return;
+    }
+    this.oppDragSamples.push({ t: stamp, x, y });
+    while (
+      this.oppDragSamples.length > 2 &&
+      this.oppDragPlayT != null &&
+      this.oppDragSamples[1].t <= this.oppDragPlayT
+    ) {
+      this.oppDragSamples.shift();
+    }
+  }
+
+  private dragSampleAt(t: number): { x: number; y: number } {
+    const s = this.oppDragSamples;
+    if (t <= s[0].t) return s[0];
+    for (let i = 1; i < s.length; i++) {
+      const b = s[i];
+      if (t > b.t) continue;
+      const a = s[i - 1];
+      const span = b.t - a.t;
+      const u = span > 0 ? (t - a.t) / span : 1;
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+    }
+    return s[s.length - 1];
+  }
+
+  // Advance the playback clock toward "newest sample − delay" at wall-clock
+  // speed. Packets can arrive in bursts; the ghost still moves through each
+  // known point. A long stall snaps back to the delay line so we don't
+  // replay the whole gesture.
+  private stepOppDrag(now: number) {
+    if (this.oppDragSettled) { this.clearOppDrag(); return; }
+    if (this.oppDragIdx == null || this.oppDragSamples.length === 0) {
+      this.oppDrag = null;
+      return;
+    }
+    const newest = this.oppDragSamples[this.oppDragSamples.length - 1].t;
+    const gate = (release: boolean) => newest - (release ? 0 : OPP_DRAG_DELAY);
+    if (this.oppDragPlayT == null) {
+      // A burst that arrived before the first paint starts on the delay
+      // line. A normal first packet (t = 0) still starts at the grab point.
+      this.oppDragPlayT = Math.max(this.oppDragSamples[0].t, gate(this.oppDragRelease));
+      this.oppDragPlayAt = now;
+    } else {
+      const dt = Math.min(250, Math.max(0, now - this.oppDragPlayAt));
+      this.oppDragPlayAt = now;
+      const desired = gate(this.oppDragRelease);
+      const behind = desired - this.oppDragPlayT;
+      if (behind > 400) {
+        this.oppDragPlayT = Math.max(this.oppDragSamples[0].t, desired);
+      } else if (behind > 0) {
+        const speed = this.oppDragRelease ? 3 : behind > 220 ? 1.35 : 1;
+        this.oppDragPlayT = Math.min(newest, this.oppDragPlayT + Math.min(behind, dt * speed));
+      }
+      if (this.oppDragRelease && newest - this.oppDragPlayT <= 0.5) this.oppDragSettled = true;
+    }
+    const playT = this.oppDragPlayT;
+    if (playT == null) return;
+    const pos = this.dragSampleAt(playT);
+    const mapped = this.mapOppDragPoint(pos.x, pos.y);
+    this.oppDrag = { idx: this.oppDragIdx, x: mapped.x, y: mapped.y };
   }
 
   private emitDrag(force = false) {
@@ -1104,12 +1221,16 @@ export class Game {
       return;
     }
     const now = performance.now();
+    if (this.lastDragSend === 0) this.dragT0 = now;
     const dx = drag.x - this.lastDragSentPos.x;
     const dy = drag.y - this.lastDragSentPos.y;
-    if (!force && now - this.lastDragSend < 40 && dx * dx + dy * dy < 36) return;
+    // Steady samples. Playback smoothing covers the gaps; flooding the
+    // socket with every mousemove just arrives as a jittery burst.
+    if (!force && now - this.lastDragSend < 32) return;
+    if (!force && dx * dx + dy * dy < 4) return;
     this.lastDragSend = now;
     this.lastDragSentPos = { x: drag.x, y: drag.y };
-    this.onDragChange?.({ idx, x: drag.x / this.W, y: drag.y / this.H });
+    this.onDragChange?.({ idx, x: drag.x / this.W, y: drag.y / this.H, t: Math.round(now - this.dragT0) });
   }
 
   reset() {
@@ -1134,7 +1255,7 @@ export class Game {
     this.captureShakeAnims = [];
     this.vampireAnim = null;
     this.oppHoverIdx = null;
-    this.oppDrag = null;
+    this.clearOppDrag();
     this.lastHoverIdx = null;
     this.flipAnims = [];
     this.matchScore = {};
@@ -1218,6 +1339,17 @@ export class Game {
     if (this.boardImg.complete && this.boardImg.naturalWidth > 0) {
       ctx.drawImage(this.boardImg, x, y, size, size);
     }
+  }
+
+  private drawBloodSquare(x: number, y: number, size = CELL, radius = 4) {
+    const ctx = this.ctx;
+    const g = ctx.createLinearGradient(x, y, x, y + size);
+    g.addColorStop(0, '#ff2440');
+    g.addColorStop(1, '#1a0004');
+    ctx.beginPath();
+    ctx.roundRect(x, y, size, size, radius);
+    ctx.fillStyle = g;
+    ctx.fill();
   }
 
   // Inverse-rotate the mouse point into each card's local space, then AABB check.
@@ -3111,6 +3243,7 @@ export class Game {
 
   private draw() {
     const now = performance.now();
+    this.stepOppDrag(now);
 
     if (this.spinAnim) {
       if (this.spinAnim.mode === 'idle' || !this.spinAnim.done) { this.drawSpin(now); return; }
@@ -3177,10 +3310,7 @@ export class Game {
             if (cell.zombified) this.drawZombifiedOverlay(x + pad + shake, y + pad, now);
           }
         } else if (cell && 'blood' in cell) {
-          ctx.font = '51px serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🩸', x + CELL / 2, y + CELL / 2);
+          this.drawBloodSquare(x, y);
         }
       }
     }
@@ -3405,7 +3535,7 @@ export class Game {
     // bat spawn — second bat grows out of the played card, then slides to its cell
     this.drawBatSpawnAnim(now);
 
-    // vampire drain — blood emojis fly toward vampire before squares become vampires
+    // vampire drain — blood squares fly toward vampire before they become vampires
     this.drawVampireAnim(now);
 
     // ghost swap animation — flying cards drawn above everything except drag
