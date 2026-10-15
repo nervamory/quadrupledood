@@ -521,7 +521,11 @@ const photon = new PhotonClient({
       ui.setStatus(resumeStatus);
       return;
     }
-    ui.setStatus(`${count} ${count === 1 ? 'player' : 'players'} currently sacrificing`);
+    ui.setStatus(
+      count === 0
+        ? 'awaiting sacrifice...'
+        : `${count} ${count === 1 ? 'player' : 'players'} currently sacrificing`
+    );
   },
   onStatusChange: (msg) => ui.setStatus(msg),
   onDisconnected: () => {
