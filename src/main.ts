@@ -753,6 +753,13 @@ cardArtToggle.addEventListener('change', () => {
   localStorage.setItem('cardArtMode', String(cardArtToggle.checked));
 });
 
+const cardBackSelect = getElement<HTMLSelectElement>('card-back-select');
+cardBackSelect.value = localStorage.getItem('cardBack') === 'gilded' ? 'gilded' : 'skull';
+game.setCardBack(cardBackSelect.value);
+cardBackSelect.addEventListener('change', () => {
+  game.setCardBack(cardBackSelect.value);
+});
+
 const colorblindToggle = getElement<HTMLInputElement>('colorblind-toggle');
 colorblindToggle.checked = localStorage.getItem('colorblindMode') === 'true';
 game.setColorblindMode(colorblindToggle.checked);

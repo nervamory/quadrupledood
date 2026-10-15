@@ -3,10 +3,13 @@ import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, loopingShe
 import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
 import { CARD_LABELS, KEYWORDS, KEYWORD_ALIASES } from './tooltips';
 
-const CARD = 96;
-const CELL = 102;
-const CELL_GAP = 10;
-const GRID = 4 * CELL + 3 * CELL_GAP; // 438
+// Hand fan keeps a readable overlap. Board squares (CELL) and the cards on
+// them (CARD) grow into the width the side scores used to occupy.
+let HAND = 96;
+let CARD = 96;
+let CELL = 102;
+let CELL_GAP = 10;
+let GRID = 4 * CELL + 3 * CELL_GAP;
 
 // Trattatello/Luminari are Mac-only. Title/scores use rasterized Trattatello
 // assets; Felipa is the self-hosted chancery fallback for remaining UI.
@@ -14,9 +17,15 @@ const FONT_DISPLAY = 'Trattatello, Luminari, Felipa, fantasy';
 const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Monaco, monospace';
 const SCORE_DIGIT_W = 78;
 const SCORE_DIGIT_H = 100;
-const SCORE_DIGIT_DRAW_H = 50;
+let SCORE_DIGIT_DRAW_H = 52;
 const GILDED_GOLD = '#c99a3d'; // same mid-gold as drawGildedEdge
 export const DEFAULT_FOIL_STYLE = 4; // gilded edges
+
+type CardBackId = 'skull' | 'gilded';
+
+function loadCardBack(): CardBackId {
+  return localStorage.getItem('cardBack') === 'gilded' ? 'gilded' : 'skull';
+}
 
 // Deck "rares" that always show foil. Wolf is foil only while a moon is out.
 const ALWAYS_FOIL_TYPES = new Set<CardType>([
@@ -56,18 +65,13 @@ const CARD_ART_FILES = [
   'wave-v2','web-v2','werewolf-v2','wolf-v2','zombie-v2',
 ];
 
-// Fan layout constants. The logical playfield is at least 680×700 and grows
-// with the window so each hand can sit in the gap between the board and the
-// window edge. Kept a shallow arc (vs. the original ±28°) so the bigger
-// CARD/CELL size still fits without clipping; FAN_RADIUS is very large so
-// cards still spread across nearly the full width at that shallow angle
-// (horizontal spread grows ~linearly with radius, vertical bulge only grows
-// with 1-cos(angle), which stays tiny at 9°).
+// Fan layout. Radius stays large so the arc is shallow; the half-angle is
+// fitted each frame so the hand spans the column. Overlap is capped so the
+// capture arrows on the covered edge stay visible. Board size is separate
+// and grows with the window.
 const FAN_RADIUS = 1750;
-const FAN_HALF_ANGLE = 9 * Math.PI / 180; // ±9°, 18° total spread at 8 cards
-// One step of that full fan (~18px overlap). Smaller hands keep the same
-// grip and sit in the center instead of stretching toward the edges.
-const FAN_STEP = (FAN_HALF_ANGLE * 2) / 7;
+let FAN_HALF_ANGLE = 9 * Math.PI / 180;
+let FAN_STEP = (FAN_HALF_ANGLE * 2) / 7;
 const BASE_W = 680;
 const BASE_H = 700;
 const BASE_GRID_Y = 132;
@@ -148,6 +152,8 @@ export class Game {
   private gridY = BASE_GRID_Y;
   private myHandCy = BASE_MY_HAND_CY;
   private oppHandCy = BASE_OPP_HAND_CY;
+  private scoreBlockTop = 8;
+  private scoreColSpread = 130;
 
   private state: GameState | null = null;
   private localNr = 0;
@@ -178,12 +184,18 @@ export class Game {
   private invertedArt: Record<string, HTMLCanvasElement> = {};
   private scoreDigitImg = new Image();
   private boardImg = new Image();
+  private cardBack: CardBackId = loadCardBack();
+  private cardBackImgs: Record<CardBackId, HTMLImageElement> = {
+    skull: new Image(),
+    gilded: new Image(),
+  };
   private cardVersionPrefs: Record<string, number> = loadVersionPrefs();
   private cardVersionCounts: Record<string, number> = {};
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartClientPos: { x: number; y: number } | null = null;
   private inLongPress = false;
   private safeTopLogical = 0;
+  private safeBottomLogical = 0;
   private safeTopKey = '';
 
   private flipAnims: FlipAnim[] = [];
@@ -236,6 +248,8 @@ export class Game {
     void document.fonts.load('64px Felipa');
     this.scoreDigitImg.src = '/assets/score-digits.png';
     this.boardImg.src = '/assets/board.png';
+    this.cardBackImgs.skull.src = '/assets/card-back.png';
+    this.cardBackImgs.gilded.src = '/assets/card-back-gilded.jpg';
 
     for (const file of CARD_ART_FILES) {
       const img = new Image();
@@ -274,6 +288,10 @@ export class Game {
 
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
   setCardArtMode(enabled: boolean) { this.cardArtMode = enabled; }
+  setCardBack(id: string) {
+    this.cardBack = id === 'gilded' ? 'gilded' : 'skull';
+    localStorage.setItem('cardBack', this.cardBack);
+  }
 
   private loadVersionImage(baseKey: string, version: number) {
     this.ensureArt(versionedArtKey(baseKey, version));
@@ -352,35 +370,126 @@ export class Game {
   // Edge cards sit further toward the window than the center card.
   private cardOuterReach(): number {
     const a = FAN_HALF_ANGLE;
-    return FAN_RADIUS * (1 - Math.cos(a)) + (CARD / 2) * (Math.sin(a) + Math.cos(a));
+    return FAN_RADIUS * (1 - Math.cos(a)) + (HAND / 2) * (Math.sin(a) + Math.cos(a));
   }
 
-  // Center each hand in the gap between the board and the window, without
-  // crossing the board or clipping the canvas.
-  private layoutHands() {
-    const boardTop = this.gridY;
-    const boardBottom = this.gridY + GRID;
-    const inner = CARD / 2;
-    const outer = this.cardOuterReach();
-    const boardPad = 10;
-    const edgePad = 2;
+  // Largest shallow fan whose cards stay inside halfLimit. Null when the
+  // covered edge would hide capture arrows (overlap past ~30px).
+  private fanForHand(hand: number, halfLimit: number): { half: number; outer: number; stepDist: number; innerEdge: number } | null {
+    const maxHalf = 10 * Math.PI / 180;
+    const minHalf = 5 * Math.PI / 180;
+    const reach = (a: number) => FAN_RADIUS * Math.sin(a) + (hand / 2) * (Math.sin(a) + Math.cos(a));
+    if (reach(minHalf) > halfLimit) return null;
+    let half = maxHalf;
+    if (reach(half) > halfLimit) {
+      let lo = minHalf;
+      let hi = maxHalf;
+      for (let i = 0; i < 22; i++) {
+        const mid = (lo + hi) / 2;
+        if (reach(mid) > halfLimit) hi = mid;
+        else lo = mid;
+      }
+      half = lo;
+    }
+    const stepDist = FAN_RADIUS * Math.sin((half * 2) / 7);
+    if (hand - stepDist > 30) return null;
+    const outer = FAN_RADIUS * (1 - Math.cos(half)) + (hand / 2) * (Math.sin(half) + Math.cos(half));
+    const innerEdge = FAN_RADIUS * Math.sin(half) - (hand / 2) * (Math.sin(half) + Math.cos(half));
+    return { half, outer, stepDist, innerEdge };
+  }
 
-    let opp = boardTop / 2;
-    opp = Math.min(opp, boardTop - inner - boardPad);
-    opp = Math.max(opp, outer + edgePad);
+  // Grow the board into spare width and height. Hands stay a short gap off
+  // the board; the score sits above the opponent hand, in the fan's opening.
+  private fitPlayfield() {
+    const edge = 6;
+    const statusLane = 22;
+    const usableTop = this.safeTopLogical + edge;
+    const usableBottom = this.H - this.safeBottomLogical - edge - statusLane;
+    const usableH = Math.max(220, usableBottom - usableTop);
+    const halfLimit = this.W / 2 - 14;
+    const maxGridW = this.W - 28;
 
-    let my = (boardBottom + this.H) / 2;
-    my = Math.max(my, boardBottom + inner + boardPad);
-    my = Math.min(my, this.H - outer - edgePad);
+    const handGap = 14;
+    const scoreGap = 8;
+    const scoreBlock = 72;
 
-    this.oppHandCy = opp;
-    this.myHandCy = my;
+    type Metrics = {
+      hand: number; card: number; cell: number; gap: number; grid: number;
+      half: number; outer: number; topNeed: number; botNeed: number;
+      digitH: number; spread: number;
+      handGap: number; scoreGap: number; scoreBlock: number;
+    };
+
+    const measure = (hand: number): Metrics | null => {
+      const fan = this.fanForHand(hand, halfLimit);
+      if (!fan) return null;
+      const topNeed = Math.max(
+        fan.outer + handGap + hand / 2,
+        scoreBlock + scoreGap + handGap + hand,
+      );
+      const botNeed = fan.outer + handGap + hand / 2;
+      const maxGridH = usableH - topNeed - botNeed;
+      if (maxGridH < 260) return null;
+      const gap = Math.min(maxGridW, maxGridH) >= 520 ? 10 : 8;
+      const cell = Math.floor((Math.min(maxGridW, maxGridH) - 3 * gap) / 4);
+      if (cell < hand + 4) return null;
+      const grid = 4 * cell + 3 * gap;
+      const card = Math.min(cell - 4, Math.max(hand, cell - 6));
+      const digitH = Math.min(50, Math.max(42, Math.round(cell * 0.34)));
+      const numHalf = digitH * (SCORE_DIGIT_W / SCORE_DIGIT_H);
+      const spread = Math.max(110, Math.min(158, fan.innerEdge - numHalf - 16));
+      return {
+        hand, card, cell, gap, grid, half: fan.half, outer: fan.outer, topNeed, botNeed, digitH, spread,
+        handGap, scoreGap, scoreBlock,
+      };
+    };
+
+    let best: Metrics | null = null;
+    for (let hand = 112; hand >= 88; hand -= 2) {
+      const m = measure(hand);
+      if (!m) continue;
+      if (!best || m.cell > best.cell || (m.cell === best.cell && m.hand > best.hand)) best = m;
+    }
+    if (!best) {
+      const hand = 88;
+      const half = 8.5 * Math.PI / 180;
+      const outer = FAN_RADIUS * (1 - Math.cos(half)) + (hand / 2) * (Math.sin(half) + Math.cos(half));
+      const topNeed = 60 + 4 + 8 + hand;
+      const botNeed = outer + 8 + hand / 2;
+      const gap = 8;
+      const room = Math.max(200, usableH - topNeed - botNeed);
+      const cell = Math.floor((Math.min(maxGridW, room) - 3 * gap) / 4);
+      const card = Math.max(64, cell - 4);
+      best = {
+        hand: Math.min(hand, card), card, cell, gap, grid: 4 * cell + 3 * gap, half, outer, topNeed, botNeed,
+        digitH: 44, spread: 120, handGap: 8, scoreGap: 4, scoreBlock: 60,
+      };
+    }
+
+    HAND = best.hand;
+    CARD = best.card;
+    CELL = best.cell;
+    CELL_GAP = best.gap;
+    GRID = best.grid;
+    FAN_HALF_ANGLE = best.half;
+    FAN_STEP = (FAN_HALF_ANGLE * 2) / 7;
+    SCORE_DIGIT_DRAW_H = best.digitH;
+
+    const slack = usableH - (best.topNeed + best.grid + best.botNeed);
+    const origin = usableTop + Math.max(0, slack) / 2;
+    this.gridY = origin + best.topNeed;
+    this.gridX = (this.W - GRID) / 2;
+    this.oppHandCy = this.gridY - best.handGap - HAND / 2;
+    this.myHandCy = this.gridY + GRID + best.handGap + HAND / 2;
+    const centerTop = this.oppHandCy - HAND / 2;
+    this.scoreBlockTop = centerTop - best.scoreGap - best.scoreBlock;
+    this.scoreColSpread = best.spread;
   }
 
   // Map the canvas element onto a logical playfield. The canvas itself covers
   // the window (one surface, same as matchmaking). The board stays in a
-  // centered column at most 680 wide. Extra height is split above and below
-  // the board so the hands sit in those gaps.
+  // centered column at most 680 wide and grows when the window is tall enough
+  // for the hands to stay tucked against it.
   private syncLayout() {
     const cssW = this.canvas.clientWidth;
     const cssH = this.canvas.clientHeight;
@@ -396,13 +505,10 @@ export class Game {
       logicalW = Math.max(BASE_W, BASE_H * (playW / playH));
     }
 
-    const extra = Math.max(0, logicalH - BASE_H);
     this.W = logicalW;
     this.H = logicalH;
-    this.gridY = BASE_GRID_Y + extra / 2;
-    this.gridX = (logicalW - GRID) / 2;
-    this.layoutHands();
-    this.updateSafeTop(cssW, cssH);
+    this.updateSafeInsets(cssW, cssH);
+    this.fitPlayfield();
 
     const bw = Math.max(1, Math.round(cssW * dpr));
     const bh = Math.max(1, Math.round(cssH * dpr));
@@ -418,20 +524,24 @@ export class Game {
 
     const box = this.canvas.getBoundingClientRect();
     const cssPerLogical = box.height / this.H;
-    this.onTurnAnchor?.(box.top + (this.myHandCy + CARD / 2) * cssPerLogical);
+    this.onTurnAnchor?.(box.top + (this.myHandCy + this.cardOuterReach()) * cssPerLogical);
   }
 
-  // Notch inset in logical pixels. Remeasured when the canvas size changes.
-  private updateSafeTop(cssW: number, cssH: number) {
+  // Notch and home-indicator insets in logical pixels. Remeasured when the canvas size changes.
+  private updateSafeInsets(cssW: number, cssH: number) {
     const key = `${Math.round(cssW)}x${Math.round(cssH)}`;
     if (key === this.safeTopKey) return;
     this.safeTopKey = key;
     const probe = document.createElement('div');
-    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);';
+    probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
     document.body.appendChild(probe);
-    const css = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    const cs = getComputedStyle(probe);
+    const top = parseFloat(cs.paddingTop) || 0;
+    const bot = parseFloat(cs.paddingBottom) || 0;
     probe.remove();
-    this.safeTopLogical = css * (this.H / Math.max(1, cssH));
+    const k = this.H / Math.max(1, cssH);
+    this.safeTopLogical = top * k;
+    this.safeBottomLogical = bot * k;
   }
 
   private toCanvasXY(clientX: number, clientY: number): { x: number; y: number } {
@@ -1297,6 +1407,19 @@ export class Game {
     });
   }
 
+  // Hand cards stay smaller than board cards so eight of them can fan
+  // without covering each other's capture arrows.
+  private drawFanCard(cx: number, cy: number, rotation: number, card: Card, isBlack: boolean, faceDown = false) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    const s = CARD > 0 ? HAND / CARD : 1;
+    if (s !== 1) ctx.scale(s, s);
+    this.drawCard(-CARD / 2, -CARD / 2, card, isBlack, faceDown);
+    ctx.restore();
+  }
+
   // Seat across the table is whoever isn't blackPlayer (actor1). Card color
   // is independent: you are always white, opponent always black.
   private get viewFlipped(): boolean {
@@ -1332,7 +1455,8 @@ export class Game {
 
   private drawBoardBackdrop(cx?: number, cy?: number) {
     const { ctx } = this;
-    const pad = 22;
+    const room = Math.min(this.gridX, this.W - (this.gridX + GRID));
+    const pad = cx != null ? 22 : Math.min(22, Math.max(8, room - 4));
     const size = GRID + pad * 2;
     const x = cx != null ? cx - size / 2 : this.gridX - pad;
     const y = cy != null ? cy - size / 2 : this.gridY - pad;
@@ -1364,7 +1488,7 @@ export class Game {
       const cos = Math.cos(-rotation), sin = Math.sin(-rotation);
       const lx = dx * cos - dy * sin;
       const ly = dx * sin + dy * cos;
-      if (lx >= -CARD / 2 && lx < CARD / 2 && ly >= -CARD / 2 && ly < CARD / 2)
+      if (lx >= -HAND / 2 && lx < HAND / 2 && ly >= -HAND / 2 && ly < HAND / 2)
         return i;
     }
     return null;
@@ -1391,7 +1515,7 @@ export class Game {
       const sin = Math.sin(-rotation);
       const lx = dx * cos - dy * sin;
       const ly = dx * sin + dy * cos;
-      if (lx >= -CARD / 2 && lx < CARD / 2 && ly >= -CARD / 2 && ly < CARD / 2) {
+      if (lx >= -HAND / 2 && lx < HAND / 2 && ly >= -HAND / 2 && ly < HAND / 2) {
         return { layout: layout[i], idx: i };
       }
     }
@@ -1505,7 +1629,7 @@ export class Game {
         const cos = Math.cos(-rotation); const sin = Math.sin(-rotation);
         const lx = dx * cos - dy * sin;
         const ly = dx * sin + dy * cos;
-        if (lx >= -CARD / 2 && lx < CARD / 2 && ly >= -CARD / 2 && ly < CARD / 2)
+        if (lx >= -HAND / 2 && lx < HAND / 2 && ly >= -HAND / 2 && ly < HAND / 2)
           return layout[i].card;
       }
       return null;
@@ -2080,26 +2204,28 @@ export class Game {
     }
 
     if (faceDown) {
+      const id = this.cardBack;
+      const back = this.cardBackImgs[id];
+      ctx.save();
       ctx.beginPath();
       ctx.roundRect(x, y, CARD, CARD, 6);
-      ctx.fillStyle = '#7349ac';
-      ctx.fill();
-      ctx.save();
       ctx.clip();
-      ctx.strokeStyle = '#5a3090';
-      ctx.lineWidth = 1;
-      for (let d = -CARD; d < CARD * 2; d += 10) {
-        ctx.beginPath();
-        ctx.moveTo(x + d, y);
-        ctx.lineTo(x + d + CARD, y + CARD);
-        ctx.stroke();
+      if (back.complete && back.naturalWidth > 0) {
+        ctx.drawImage(back, x, y, CARD, CARD);
+      } else {
+        ctx.fillStyle = id === 'gilded' ? '#6e2244' : '#7a1de8';
+        ctx.fill();
       }
       ctx.restore();
-      ctx.beginPath();
-      ctx.roundRect(x, y, CARD, CARD, 6);
-      ctx.strokeStyle = '#9060cc';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      if (id === 'gilded') {
+        this.drawGildedEdge(x, y);
+      } else {
+        ctx.beginPath();
+        ctx.roundRect(x, y, CARD, CARD, 6);
+        ctx.strokeStyle = '#4a0d8a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
       return;
     }
 
@@ -3170,6 +3296,35 @@ export class Game {
     }
   }
 
+  private drawScoreMeta(cx: number, y: number, label: string, wins: number) {
+    const ctx = this.ctx;
+    const r = 5.5;
+    const pipGap = 6;
+    const pipsW = r * 4 + pipGap;
+    ctx.font = `14px ${FONT_MONO}`;
+    ctx.fillStyle = '#bbb';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const labelW = ctx.measureText(label).width;
+    const space = 8;
+    let x = cx - (labelW + space + pipsW) / 2;
+    ctx.fillText(label, x, y);
+    x += labelW + space + r;
+    for (let i = 0; i < 2; i++) {
+      ctx.beginPath();
+      ctx.arc(x + i * (r * 2 + pipGap), y, r, 0, Math.PI * 2);
+      if (i < wins) {
+        ctx.fillStyle = '#cc1111';
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+    ctx.textAlign = 'center';
+  }
+
   private drawSpin(now: number) {
     const { ctx, W, H } = this;
     const spinAnim = this.spinAnim;
@@ -3391,20 +3546,21 @@ export class Game {
       if (this.oppDrag && i === this.oppDrag.idx) continue;
       if (i === this.oppHoverIdx) { oppHoveredEntry = l; continue; }
       ctx.save();
-      ctx.translate(l.cx, l.cy);
-      ctx.rotate(l.rotation);
-      this.drawCard(-CARD / 2, -CARD / 2, l.card, oppIsBlack, !myEyeActive);
+      this.drawFanCard(l.cx, l.cy, l.rotation, l.card, oppIsBlack, !myEyeActive);
       ctx.restore();
     }
     if (oppHoveredEntry) {
       const dx = oppHoveredEntry.cx - this.W / 2;
       const dy = oppHoveredEntry.cy - this.oppPivotY;
       const len = Math.sqrt(dx * dx + dy * dy);
-      ctx.save();
-      ctx.translate(oppHoveredEntry.cx + dx / len * HOVER_LIFT, oppHoveredEntry.cy + dy / len * HOVER_LIFT);
-      ctx.rotate(oppHoveredEntry.rotation);
-      this.drawCard(-CARD / 2, -CARD / 2, oppHoveredEntry.card, oppIsBlack, !myEyeActive);
-      ctx.restore();
+      this.drawFanCard(
+        oppHoveredEntry.cx + dx / len * HOVER_LIFT,
+        oppHoveredEntry.cy + dy / len * HOVER_LIFT,
+        oppHoveredEntry.rotation,
+        oppHoveredEntry.card,
+        oppIsBlack,
+        !myEyeActive,
+      );
     }
 
     // my hand — face-up fan at bottom; hovered card drawn last so it layers on top
@@ -3419,85 +3575,58 @@ export class Game {
       if (this.cbReturnAnim?.hiddenId === l.card.id) continue;
       if (l.card.id === hoveredId) { hoveredEntry = l; continue; }
       ctx.save();
-      ctx.translate(l.cx, l.cy);
-      ctx.rotate(l.rotation);
-      this.drawCard(-CARD / 2, -CARD / 2, l.card, myIsBlack);
+      this.drawFanCard(l.cx, l.cy, l.rotation, l.card, myIsBlack);
       ctx.restore();
     }
     if (hoveredEntry) {
       const dx = hoveredEntry.cx - this.W / 2;
       const dy = hoveredEntry.cy - this.myPivotY;
       const len = Math.sqrt(dx * dx + dy * dy);
-      ctx.save();
-      ctx.translate(hoveredEntry.cx + dx / len * HOVER_LIFT, hoveredEntry.cy + dy / len * HOVER_LIFT);
-      ctx.rotate(hoveredEntry.rotation);
-      this.drawCard(-CARD / 2, -CARD / 2, hoveredEntry.card, myIsBlack);
-      ctx.restore();
+      this.drawFanCard(
+        hoveredEntry.cx + dx / len * HOVER_LIFT,
+        hoveredEntry.cy + dy / len * HOVER_LIFT,
+        hoveredEntry.rotation,
+        hoveredEntry.card,
+        myIsBlack,
+      );
     }
 
-    // scores — big numbers flanking the grid, colored by player
+    // scores — top center, above the opponent hand. Left is you, right is opp.
     const cells = state.board.flat();
     const scoreOf = (nr: number) => cells.filter(c => c && 'card' in c && c.owner === nr && !c.zombified).length;
 
-    // left = local player, right = opponent
     const scoreMy  = scoreOf(this.localNr);
     const scoreOpp = oppNr !== undefined ? scoreOf(oppNr) : 0;
-
-    const scoreCy = this.gridY + GRID / 2;
-    const leftX   = this.gridX / 2;
-    const rightX  = this.gridX + GRID + this.gridX / 2;
+    const leftX  = this.W / 2 - this.scoreColSpread;
+    const rightX = this.W / 2 + this.scoreColSpread;
+    const digitY = this.scoreBlockTop + SCORE_DIGIT_DRAW_H / 2;
+    const metaY  = this.scoreBlockTop + SCORE_DIGIT_DRAW_H + 12;
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    ctx.fillStyle = '#cc1111';
     const SCORE_BOUNCE_MS = 220;
     const scoreScale = (animStart: number | null) => {
       if (animStart === null) return 1;
       const t = Math.min((now - animStart) / SCORE_BOUNCE_MS, 1);
       if (t >= 1) return 1;
-      return 1 + 0.28 * Math.sin(t * Math.PI); // arc: 1 → 1.28 → 1
+      return 1 + 0.28 * Math.sin(t * Math.PI);
     };
     for (const [cx, score, s] of [[leftX, scoreMy, scoreScale(this.scoreAnimMy)], [rightX, scoreOpp, scoreScale(this.scoreAnimOpp)]] as [number, number, number][]) {
       ctx.save();
-      ctx.translate(cx, scoreCy - 10);
+      ctx.translate(cx, digitY);
       ctx.scale(s, s);
       this.drawScoreNumber(score);
       ctx.restore();
     }
 
     ctx.font = `14px ${FONT_MONO}`;
-    ctx.fillStyle = '#aaa';
-    ctx.fillText((myIsBlack ? '⬛ ' : '⬜ ') + 'you', leftX, scoreCy + 46);
-    ctx.fillText((myIsBlack ? '⬜ ' : '⬛ ') + 'opp', rightX, scoreCy + 46);
+    const myWins  = this.matchScore[this.localNr] ?? 0;
+    const oppWins = oppNr !== undefined ? (this.matchScore[oppNr] ?? 0) : 0;
+    this.drawScoreMeta(leftX, metaY, (myIsBlack ? '⬛ ' : '⬜ ') + 'you', myWins);
+    this.drawScoreMeta(rightX, metaY, (myIsBlack ? '⬜ ' : '⬛ ') + 'opp', oppWins);
 
-    // match win circles — 2 per side, filled = won, empty = not yet
-    {
-      const myWins  = this.matchScore[this.localNr] ?? 0;
-      const oppWins = oppNr !== undefined ? (this.matchScore[oppNr] ?? 0) : 0;
-      const circleR   = 6;
-      const circleGap = 6;
-      const circleY   = scoreCy + 74;
-      const totalW    = 2 * circleR * 2 + circleGap;
-      for (const [cx, wins] of [[leftX, myWins], [rightX, oppWins]] as [number, number][]) {
-        const startX = cx - totalW / 2 + circleR;
-        for (let i = 0; i < 2; i++) {
-          ctx.beginPath();
-          ctx.arc(startX + i * (circleR * 2 + circleGap), circleY, circleR, 0, Math.PI * 2);
-          if (i < wins) {
-            ctx.fillStyle = '#cc1111';
-            ctx.fill();
-          } else {
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-          }
-        }
-      }
-    }
-
-    // turn / result — surfaced to an HTML element below the canvas (see onStatusTextChange)
-    // instead of drawn on canvas, since that space is now too tight for legible text.
+    // turn / result — surfaced to an HTML element below the hand (see onStatusTextChange)
     {
       const isMyTurn = state.currentTurn === this.localNr;
       const statusMsg = state.phase === 'finished'
