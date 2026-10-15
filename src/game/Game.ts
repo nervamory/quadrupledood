@@ -3216,21 +3216,9 @@ export class Game {
       // knife_e points east; the 🔪 glyph points SE. +π/4 maps KNIFE_ANGLES onto the asset.
       ctx.rotate(angle + Math.PI / 4);
       const size = 280;
-      const r = 18;
-      ctx.beginPath();
-      ctx.roundRect(-size / 2, -size / 2, size, size, r);
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fill();
-      ctx.strokeStyle = '#c8c8c8';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(-size / 2, -size / 2, size, size, r);
-      ctx.clip();
-      const pad = 18;
-      ctx.drawImage(img, -size / 2 + pad, -size / 2 + pad, size - pad * 2, size - pad * 2);
-      ctx.restore();
+      const inv = this.invertedArtCanvas(`spin-knife@${img.src}`, img);
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(inv ?? img, -size / 2, -size / 2, size, size);
     } else {
       ctx.rotate(angle);
       ctx.font = '160px serif';
