@@ -1211,21 +1211,13 @@ export class Game {
 
   private drawBoardBackdrop() {
     const { ctx } = this;
-    const pad = 14;
+    const pad = 22;
     const x = this.gridX - pad;
     const y = this.gridY - pad;
     const size = GRID + pad * 2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x, y, size, size, 18);
-    ctx.clip();
     if (this.boardImg.complete && this.boardImg.naturalWidth > 0) {
       ctx.drawImage(this.boardImg, x, y, size, size);
-    } else {
-      ctx.fillStyle = '#1e1030';
-      ctx.fill();
     }
-    ctx.restore();
   }
 
   // Inverse-rotate the mouse point into each card's local space, then AABB check.
