@@ -1209,12 +1209,12 @@ export class Game {
       || (this.drag.card.type === 'web' && isCard);
   }
 
-  private drawBoardBackdrop() {
+  private drawBoardBackdrop(cx?: number, cy?: number) {
     const { ctx } = this;
     const pad = 22;
-    const x = this.gridX - pad;
-    const y = this.gridY - pad;
     const size = GRID + pad * 2;
+    const x = cx != null ? cx - size / 2 : this.gridX - pad;
+    const y = cy != null ? cy - size / 2 : this.gridY - pad;
     if (this.boardImg.complete && this.boardImg.naturalWidth > 0) {
       ctx.drawImage(this.boardImg, x, y, size, size);
     }
@@ -3038,6 +3038,7 @@ export class Game {
     if (!spinAnim) return;
 
     ctx.clearRect(0, 0, W, H);
+    this.drawBoardBackdrop(W / 2, H / 2);
 
     let angle: number;
 
