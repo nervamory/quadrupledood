@@ -2248,7 +2248,7 @@ export class Game {
     const cx = x + CARD / 2;
     const cy = y + CARD / 2;
     const m = 6;
-    const ts = 4;
+    const ts = 10;
 
     if (card.type === 'heart') {
       if (this.cardArtMode) {
@@ -2350,7 +2350,7 @@ export class Game {
         ctx.restore();
       }
       // Left and right capture indicators
-      const m = 6; const ts = 4;
+      const m = 6; const ts = 10;
       ctx.fillStyle = fg;
       ctx.beginPath();
       ctx.moveTo(x + m, cy);
@@ -2379,7 +2379,7 @@ export class Game {
         ctx.restore();
       }
       // Diagonal-down indicators at bottom-left and bottom-right corners
-      const m = 7; const ts = 4;
+      const m = 7; const ts = 10;
       ctx.fillStyle = fg;
       ctx.beginPath(); // bottom-left corner → points ↙
       ctx.moveTo(x + m, y + CARD - m);
@@ -2408,7 +2408,7 @@ export class Game {
         ctx.fillText('🐺', 0, (wm.actualBoundingBoxAscent - wm.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
-      const mc = 7; const ts = 4;
+      const mc = 7; const ts = 10;
       ctx.fillStyle = fg;
       if (moonIsOut) {
         // Cardinal indicators — werewolf mode
@@ -3512,7 +3512,7 @@ export class Game {
             ctx.restore();
           }
           const ccx = xc + CARD / 2, ccy = yc + CARD / 2;
-          const m = 6, ts = 4;
+          const m = 6, ts = 10;
           ctx.fillStyle = GILDED_GOLD;
           ctx.beginPath();
           switch (visDir) {
