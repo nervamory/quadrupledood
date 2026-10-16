@@ -28,6 +28,17 @@ function getElement<T extends HTMLElement>(id: string): T {
 }
 
 const ui = new UI();
+
+// One-time apply so a previous visit doesn't keep the old defaults.
+// Changing a setting after this still saves over it.
+if (localStorage.getItem('settingsDefaults') !== '17.3') {
+  localStorage.setItem('cardArtMode', 'true');
+  localStorage.setItem('cardBack', 'gilded');
+  localStorage.setItem('cpuMode', 'false');
+  localStorage.setItem('foilStyle', '4');
+  localStorage.setItem('allCardsFoil', 'true');
+  localStorage.setItem('settingsDefaults', '17.3');
+}
 const game = new Game(getElement<HTMLCanvasElement>('game-canvas'));
 
 let gameState: GameState | null = null;
@@ -723,7 +734,7 @@ foilSelect.addEventListener('change', () => {
 });
 
 const allCardsFoilToggle = getElement<HTMLInputElement>('all-cards-foil-toggle');
-allCardsFoilToggle.checked = localStorage.getItem('allCardsFoil') === 'true';
+allCardsFoilToggle.checked = localStorage.getItem('allCardsFoil') !== 'false';
 game.setAllCardsFoil(allCardsFoilToggle.checked);
 allCardsFoilToggle.addEventListener('change', () => {
   game.setAllCardsFoil(allCardsFoilToggle.checked);
@@ -754,7 +765,7 @@ cardArtToggle.addEventListener('change', () => {
 });
 
 const cardBackSelect = getElement<HTMLSelectElement>('card-back-select');
-cardBackSelect.value = localStorage.getItem('cardBack') === 'gilded' ? 'gilded' : 'skull';
+cardBackSelect.value = localStorage.getItem('cardBack') === 'skull' ? 'skull' : 'gilded';
 game.setCardBack(cardBackSelect.value);
 cardBackSelect.addEventListener('change', () => {
   game.setCardBack(cardBackSelect.value);

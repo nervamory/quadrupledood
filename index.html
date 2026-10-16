@@ -279,7 +279,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v17.2</p>
+        <p id="lobby-version">v17.3</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -346,7 +346,6 @@
           <label style="color:#555; font-size:13px; text-align:right;">default deck</label>
           <select id="pref-deck-select">
             <option value="random-preset">random preset</option>
-            <option value="random">full random</option>
             <option value="vampire">vampire deck</option>
             <option value="werewolf">werewolf deck</option>
             <option value="ocean">ocean deck</option>
@@ -360,13 +359,14 @@
             <option value="ghost">ghost deck</option>
             <option value="robot">robot deck</option>
             <option value="dolphin">dolphin deck</option>
+            <option value="random">full random</option>
           </select>
           <label style="color:#555; font-size:13px; text-align:right;">card art</label>
-          <input type="checkbox" id="card-art-toggle">
+          <input type="checkbox" id="card-art-toggle" checked>
           <label style="color:#555; font-size:13px; text-align:right;">card back</label>
           <select id="card-back-select">
             <option value="skull">skull</option>
-            <option value="gilded">gilded</option>
+            <option value="gilded" selected>gilded</option>
           </select>
           <label style="color:#555; font-size:13px; text-align:right;">colorblind colors</label>
           <input type="checkbox" id="colorblind-toggle">
@@ -378,10 +378,10 @@
             <option value="1">dark holo</option>
             <option value="2">rainbow rare</option>
             <option value="3">custom</option>
-            <option value="4">gilded edges</option>
+            <option value="4" selected>gilded edges</option>
           </select>
           <label style="color:#555; font-size:13px; text-align:right;">all cards foil</label>
-          <input type="checkbox" id="all-cards-foil-toggle">
+          <input type="checkbox" id="all-cards-foil-toggle" checked>
         </div>
         <button id="foil-creator-btn" style="margin-top:8px;">custom foil creator</button>
         <br>

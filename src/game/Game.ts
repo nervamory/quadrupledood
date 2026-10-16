@@ -24,7 +24,11 @@ export const DEFAULT_FOIL_STYLE = 4; // gilded edges
 type CardBackId = 'skull' | 'gilded';
 
 function loadCardBack(): CardBackId {
-  return localStorage.getItem('cardBack') === 'gilded' ? 'gilded' : 'skull';
+  return localStorage.getItem('cardBack') === 'skull' ? 'skull' : 'gilded';
+}
+
+function loadAllCardsFoil(): boolean {
+  return localStorage.getItem('allCardsFoil') !== 'false';
 }
 
 // Deck "rares" that always show foil. Wolf is foil only while a moon is out.
@@ -1805,7 +1809,7 @@ export class Game {
   };
 
   private foilStyle = Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? String(DEFAULT_FOIL_STYLE), 10)));
-  private allCardsFoil = localStorage.getItem('allCardsFoil') === 'true';
+  private allCardsFoil = loadAllCardsFoil();
   private customFoilParams: CustomFoilParams = loadCustomFoilParams();
   private oppFoilStyle = DEFAULT_FOIL_STYLE;
   private oppCustomFoilParams: CustomFoilParams = { ...DEFAULT_CUSTOM_FOIL };
