@@ -222,6 +222,19 @@
         background: rgba(26, 26, 46, 0.95);
         color: #eee;
       }
+      #settings-fields {
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 12px 6px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      #pref-deck-select,
+      #card-back-select,
+      #foil-style-select {
+        width: 180px;
+      }
       #game-menu {
         display: none;
         position: absolute;
@@ -291,7 +304,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v17.4</p>
+        <p id="lobby-version">v17.5</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -358,7 +371,7 @@
           </div>
           <p id="account-status" aria-live="polite"></p>
         </div>
-        <div style="display:grid; grid-template-columns:auto auto; gap:12px 6px; align-items:center; margin-bottom:20px;">
+        <div id="settings-fields">
           <label style="color:#555; font-size:13px; text-align:right;">default deck</label>
           <select id="pref-deck-select">
             <option value="random-preset">random preset</option>
