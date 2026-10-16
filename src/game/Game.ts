@@ -157,7 +157,6 @@ export class Game {
   private myHandCy = BASE_MY_HAND_CY;
   private oppHandCy = BASE_OPP_HAND_CY;
   private scoreBlockTop = 8;
-  private scoreColSpread = 130;
 
   private state: GameState | null = null;
   private localNr = 0;
@@ -379,7 +378,7 @@ export class Game {
 
   // Largest shallow fan whose cards stay inside halfLimit. Null when the
   // covered edge would hide capture arrows (overlap past ~30px).
-  private fanForHand(hand: number, halfLimit: number): { half: number; outer: number; stepDist: number; innerEdge: number } | null {
+  private fanForHand(hand: number, halfLimit: number): { half: number; outer: number; stepDist: number } | null {
     const maxHalf = 10 * Math.PI / 180;
     const minHalf = 5 * Math.PI / 180;
     const reach = (a: number) => FAN_RADIUS * Math.sin(a) + (hand / 2) * (Math.sin(a) + Math.cos(a));
@@ -398,12 +397,12 @@ export class Game {
     const stepDist = FAN_RADIUS * Math.sin((half * 2) / 7);
     if (hand - stepDist > 30) return null;
     const outer = FAN_RADIUS * (1 - Math.cos(half)) + (hand / 2) * (Math.sin(half) + Math.cos(half));
-    const innerEdge = FAN_RADIUS * Math.sin(half) - (hand / 2) * (Math.sin(half) + Math.cos(half));
-    return { half, outer, stepDist, innerEdge };
+    return { half, outer, stepDist };
   }
 
   // Grow the board into spare width and height. Hands stay a short gap off
-  // the board; the score sits above the opponent hand, in the fan's opening.
+  // the board. The score is a centered pair fully above the opponent fan,
+  // including the edge cards that rise higher than the middle card.
   private fitPlayfield() {
     const edge = 6;
     const statusLane = 22;
@@ -414,23 +413,20 @@ export class Game {
     const maxGridW = this.W - 28;
 
     const handGap = 14;
-    const scoreGap = 8;
-    const scoreBlock = 72;
+    const scoreGap = 36;
+    const scoreBlock = 92;
 
     type Metrics = {
       hand: number; card: number; cell: number; gap: number; grid: number;
       half: number; outer: number; topNeed: number; botNeed: number;
-      digitH: number; spread: number;
+      digitH: number;
       handGap: number; scoreGap: number; scoreBlock: number;
     };
 
     const measure = (hand: number): Metrics | null => {
       const fan = this.fanForHand(hand, halfLimit);
       if (!fan) return null;
-      const topNeed = Math.max(
-        fan.outer + handGap + hand / 2,
-        scoreBlock + scoreGap + handGap + hand,
-      );
+      const topNeed = scoreBlock + scoreGap + fan.outer + handGap + hand / 2;
       const botNeed = fan.outer + handGap + hand / 2;
       const maxGridH = usableH - topNeed - botNeed;
       if (maxGridH < 260) return null;
@@ -440,10 +436,8 @@ export class Game {
       const grid = 4 * cell + 3 * gap;
       const card = Math.min(cell - 4, Math.max(hand, cell - 6));
       const digitH = Math.min(50, Math.max(42, Math.round(cell * 0.34)));
-      const numHalf = digitH * (SCORE_DIGIT_W / SCORE_DIGIT_H);
-      const spread = Math.max(110, Math.min(158, fan.innerEdge - numHalf - 16));
       return {
-        hand, card, cell, gap, grid, half: fan.half, outer: fan.outer, topNeed, botNeed, digitH, spread,
+        hand, card, cell, gap, grid, half: fan.half, outer: fan.outer, topNeed, botNeed, digitH,
         handGap, scoreGap, scoreBlock,
       };
     };
@@ -458,7 +452,7 @@ export class Game {
       const hand = 88;
       const half = 8.5 * Math.PI / 180;
       const outer = FAN_RADIUS * (1 - Math.cos(half)) + (hand / 2) * (Math.sin(half) + Math.cos(half));
-      const topNeed = 60 + 4 + 8 + hand;
+      const topNeed = 92 + 36 + outer + 8 + hand / 2;
       const botNeed = outer + 8 + hand / 2;
       const gap = 8;
       const room = Math.max(200, usableH - topNeed - botNeed);
@@ -466,7 +460,7 @@ export class Game {
       const card = Math.max(64, cell - 4);
       best = {
         hand: Math.min(hand, card), card, cell, gap, grid: 4 * cell + 3 * gap, half, outer, topNeed, botNeed,
-        digitH: 44, spread: 120, handGap: 8, scoreGap: 4, scoreBlock: 60,
+        digitH: 44, handGap: 8, scoreGap: 36, scoreBlock: 92,
       };
     }
 
@@ -480,14 +474,14 @@ export class Game {
     SCORE_DIGIT_DRAW_H = best.digitH;
 
     const slack = usableH - (best.topNeed + best.grid + best.botNeed);
-    const origin = usableTop + Math.max(0, slack) / 2;
+    // Spare height sits mostly under your hand, so the score stays near the top.
+    const origin = usableTop + Math.max(0, slack) * 0.15;
     this.gridY = origin + best.topNeed;
     this.gridX = (this.W - GRID) / 2;
     this.oppHandCy = this.gridY - best.handGap - HAND / 2;
     this.myHandCy = this.gridY + GRID + best.handGap + HAND / 2;
-    const centerTop = this.oppHandCy - HAND / 2;
-    this.scoreBlockTop = centerTop - best.scoreGap - best.scoreBlock;
-    this.scoreColSpread = best.spread;
+    const edgeTop = this.oppHandCy - best.outer;
+    this.scoreBlockTop = edgeTop - best.scoreGap - best.scoreBlock;
   }
 
   // Map the canvas element onto a logical playfield. The canvas itself covers
@@ -3300,23 +3294,20 @@ export class Game {
     }
   }
 
-  private drawScoreMeta(cx: number, y: number, label: string, wins: number) {
+  private drawScoreMeta(cx: number, labelY: number, pipY: number, label: string, wins: number) {
     const ctx = this.ctx;
-    const r = 5.5;
-    const pipGap = 6;
-    const pipsW = r * 4 + pipGap;
-    ctx.font = `14px ${FONT_MONO}`;
+    const r = 5;
+    const pipGap = 5;
+    ctx.font = `13px ${FONT_MONO}`;
     ctx.fillStyle = '#bbb';
-    ctx.textAlign = 'left';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const labelW = ctx.measureText(label).width;
-    const space = 8;
-    let x = cx - (labelW + space + pipsW) / 2;
-    ctx.fillText(label, x, y);
-    x += labelW + space + r;
+    ctx.fillText(label, cx, labelY);
+    const step = r * 2 + pipGap;
+    let x = cx - step / 2;
     for (let i = 0; i < 2; i++) {
       ctx.beginPath();
-      ctx.arc(x + i * (r * 2 + pipGap), y, r, 0, Math.PI * 2);
+      ctx.arc(x + i * step, pipY, r, 0, Math.PI * 2);
       if (i < wins) {
         ctx.fillStyle = '#cc1111';
         ctx.fill();
@@ -3326,7 +3317,6 @@ export class Game {
         ctx.stroke();
       }
     }
-    ctx.textAlign = 'center';
   }
 
   private drawSpin(now: number) {
@@ -3601,10 +3591,16 @@ export class Game {
 
     const scoreMy  = scoreOf(this.localNr);
     const scoreOpp = oppNr !== undefined ? scoreOf(oppNr) : 0;
-    const leftX  = this.W / 2 - this.scoreColSpread;
-    const rightX = this.W / 2 + this.scoreColSpread;
+    const digitW = SCORE_DIGIT_DRAW_H * (SCORE_DIGIT_W / SCORE_DIGIT_H);
+    const widthOf = (n: number) => Math.max(1, String(n).length) * digitW;
+    const gutter = 28;
+    const pairW = widthOf(scoreMy) + gutter + widthOf(scoreOpp);
+    const mid = this.gridX + GRID / 2;
+    const leftX = mid - pairW / 2 + widthOf(scoreMy) / 2;
+    const rightX = mid + pairW / 2 - widthOf(scoreOpp) / 2;
     const digitY = this.scoreBlockTop + SCORE_DIGIT_DRAW_H / 2;
-    const metaY  = this.scoreBlockTop + SCORE_DIGIT_DRAW_H + 12;
+    const labelY = this.scoreBlockTop + SCORE_DIGIT_DRAW_H + 11;
+    const pipY = labelY + 16;
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -3627,8 +3623,8 @@ export class Game {
     ctx.font = `14px ${FONT_MONO}`;
     const myWins  = this.matchScore[this.localNr] ?? 0;
     const oppWins = oppNr !== undefined ? (this.matchScore[oppNr] ?? 0) : 0;
-    this.drawScoreMeta(leftX, metaY, (myIsBlack ? '⬛ ' : '⬜ ') + 'you', myWins);
-    this.drawScoreMeta(rightX, metaY, (myIsBlack ? '⬜ ' : '⬛ ') + 'opp', oppWins);
+    this.drawScoreMeta(leftX, labelY, pipY, (myIsBlack ? '⬛ ' : '⬜ ') + 'you', myWins);
+    this.drawScoreMeta(rightX, labelY, pipY, (myIsBlack ? '⬜ ' : '⬛ ') + 'opp', oppWins);
 
     // turn / result — surfaced to an HTML element below the hand (see onStatusTextChange)
     {
