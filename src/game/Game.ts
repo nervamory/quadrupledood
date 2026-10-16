@@ -3,8 +3,8 @@ import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, loopingShe
 import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
 import { CARD_LABELS, KEYWORDS, KEYWORD_ALIASES } from './tooltips';
 
-// Hand fan keeps a readable overlap. Board squares (CELL) and the cards on
-// them (CARD) grow into the width the side scores used to occupy.
+// Phones keep a readable fan overlap, so hand cards stay under the square.
+// On a wide desktop, hand cards and board cards both match the square (CELL).
 let HAND = 96;
 let CARD = 96;
 let CELL = 102;
@@ -377,8 +377,8 @@ export class Game {
   }
 
   // Largest shallow fan whose cards stay inside halfLimit. Null when the
-  // covered edge would hide capture arrows (overlap past ~30px).
-  private fanForHand(hand: number, halfLimit: number): { half: number; outer: number; stepDist: number } | null {
+  // covered edge would hide capture arrows (overlap past maxOverlap).
+  private fanForHand(hand: number, halfLimit: number, maxOverlap = 30): { half: number; outer: number; stepDist: number } | null {
     const maxHalf = 10 * Math.PI / 180;
     const minHalf = 5 * Math.PI / 180;
     const reach = (a: number) => FAN_RADIUS * Math.sin(a) + (hand / 2) * (Math.sin(a) + Math.cos(a));
@@ -395,9 +395,16 @@ export class Game {
       half = lo;
     }
     const stepDist = FAN_RADIUS * Math.sin((half * 2) / 7);
-    if (hand - stepDist > 30) return null;
+    if (hand - stepDist > maxOverlap) return null;
     const outer = FAN_RADIUS * (1 - Math.cos(half)) + (hand / 2) * (Math.sin(half) + Math.cos(half));
     return { half, outer, stepDist };
+  }
+
+  // A mouse or trackpad on a wide window can fan cards at square size.
+  // Phones and narrow windows keep the tighter hand.
+  private wideDesktop(): boolean {
+    if (this.canvas.clientWidth < 800) return false;
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   }
 
   // Grow the board into spare width and height. Hands stay a short gap off
@@ -462,6 +469,31 @@ export class Game {
         hand: Math.min(hand, card), card, cell, gap, grid: 4 * cell + 3 * gap, half, outer, topNeed, botNeed,
         digitH: 44, handGap: 8, scoreGap: 36, scoreBlock: 92,
       };
+    }
+
+    // Desktop: grow cards up to the square. The board shrinks only when a
+    // full-size fan would not fit above and below it.
+    if (this.wideDesktop()) {
+      for (let size = 168; size >= 80; size--) {
+        const fan = this.fanForHand(size, halfLimit, size * 0.72);
+        if (!fan) continue;
+        const topNeed = scoreBlock + scoreGap + fan.outer + handGap + size / 2;
+        const botNeed = fan.outer + handGap + size / 2;
+        const room = Math.min(maxGridW, usableH - topNeed - botNeed);
+        if (room < 240) continue;
+        const gap = room >= 520 ? 10 : 8;
+        const grid = 4 * size + 3 * gap;
+        if (grid > room) continue;
+        if (size >= best.hand) {
+          best = {
+            hand: size, card: size, cell: size, gap, grid,
+            half: fan.half, outer: fan.outer, topNeed, botNeed,
+            digitH: Math.min(50, Math.max(42, Math.round(size * 0.34))),
+            handGap, scoreGap, scoreBlock,
+          };
+        }
+        break;
+      }
     }
 
     HAND = best.hand;
@@ -1405,8 +1437,8 @@ export class Game {
     });
   }
 
-  // Hand cards stay smaller than board cards so eight of them can fan
-  // without covering each other's capture arrows.
+  // Fan cards draw at HAND. On desktop HAND matches the square; on a phone
+  // it stays smaller so eight cards can overlap without hiding every arrow.
   private drawFanCard(cx: number, cy: number, rotation: number, card: Card, isBlack: boolean, faceDown = false) {
     const ctx = this.ctx;
     ctx.save();
