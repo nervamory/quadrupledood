@@ -21,18 +21,27 @@ export class UI {
     window.scrollTo(0, 0);
   }
 
-  showLobby()        { this.show(this.lobby); }
+  showLobby()        { this.clearTurnStatus(); this.show(this.lobby); }
   showGame()         { this.show(this.gameScreen); }
-  showSettings()     { this.show(this.settingsScreen); }
-  showFoilCreator()  { this.show(this.foilCreatorScreen); }
-  showCardVersionSelect() { this.show(this.cardVersionScreen); }
+  showSettings()     { this.clearTurnStatus(); this.show(this.settingsScreen); }
+  showFoilCreator()  { this.clearTurnStatus(); this.show(this.foilCreatorScreen); }
+  showCardVersionSelect() { this.clearTurnStatus(); this.show(this.cardVersionScreen); }
+
+  private clearTurnStatus() {
+    const el = document.getElementById('turn-status');
+    if (el) {
+      el.textContent = '';
+      el.style.color = '';
+    }
+  }
 
   showBetweenGames(opts: {
     myWins: number;
     oppWins: number;
-    lastResult: 'win' | 'loss' | 'draw';
+    lastResult: 'win' | 'loss' | 'draw' | 'rematch';
     lockedDeck: DeckType | null;
   }) {
+    this.clearTurnStatus();
     const scoreEl = document.getElementById('between-score')!;
     const resultEl = document.getElementById('between-result')!;
     const noteEl = document.getElementById('between-deck-note')!;
@@ -41,6 +50,7 @@ export class UI {
     scoreEl.textContent = `${opts.myWins} — ${opts.oppWins}`;
     resultEl.textContent = opts.lastResult === 'win' ? 'you won that game'
       : opts.lastResult === 'loss' ? 'you lost that game'
+      : opts.lastResult === 'rematch' ? 'rematch'
       : 'that game was a draw';
 
     if (opts.lockedDeck !== null) {
@@ -59,6 +69,7 @@ export class UI {
   }
 
   showMatchOver(opts: { myWins: number; oppWins: number; iWon: boolean }) {
+    this.clearTurnStatus();
     document.getElementById('matchover-result')!.textContent =
       opts.iWon ? 'sacrifice complete' : 'you have been sacrificed';
     document.getElementById('matchover-score')!.textContent =

@@ -1,4 +1,4 @@
-import type { GameState, Card, CardType, Direction } from './types';
+import type { GameState, BoardCell, Card, CardType, Direction } from './types';
 import { type CustomFoilParams, drawCustomFoil, loadCustomFoilParams, loopingSheenPos, DEFAULT_CUSTOM_FOIL } from '../foil/customFoil';
 import { loadVersionPrefs, resolvedVersion, versionedArtKey } from './cardVersions';
 import { CARD_LABELS, KEYWORDS, KEYWORD_ALIASES } from './tooltips';
@@ -97,6 +97,9 @@ type FlipAnim = {
   startTime: number;
   oldCard: Card; oldIsBlack: boolean;
   newCard: Card; newIsBlack: boolean;
+  oldFaceDown?: boolean;
+  newFaceDown?: boolean;
+  kind?: 'normal' | 'robot';
 };
 
 type HellfireEmber = {
@@ -724,31 +727,48 @@ export class Game {
     const now = performance.now();
     const FIRE_STAGGER_MS = 150;
     const MOON_STAGGER_MS = 70;
+    const ROBOT_STAGGER_MS = 55;
     const fireChain = newState.fireChain ?? [];
     const candleFirePos = newState.candleFirePos;
     const isCandlePlay = !!candleFirePos;
     const moonPos = newState.moonPos;
+    const robotFlipSet = new Set((newState.robotFlips ?? []).map(([rr, cc]) => `${rr},${cc}`));
+    const robotPulse = newState.robotPulse ?? [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         const old = oldState.board[r][c];
         const next = newState.board[r][c];
         if (old && 'card' in old && next && 'card' in next && old.owner !== next.owner && !next.zombified) {
+          const oldFogged = this.isFoggedOnBoard(oldState.board, r, c) && !this.isNearFireIn(oldState, r, c);
+          const newFogged = this.isFoggedOnBoard(newState.board, r, c) && !this.isNearFireIn(newState, r, c);
+          // Stay hidden under fog — a face flip would flash the card then hide it again.
+          if (oldFogged && newFogged) continue;
+
           this.flipAnims = this.flipAnims.filter(f => !(f.row === r && f.col === c));
+          const isRobot = robotFlipSet.has(`${r},${c}`);
           const isCandleCell = isCandlePlay && candleFirePos![0] === r && candleFirePos![1] === c;
           const chainIdx = fireChain.findIndex(([fr, fc]) => fr === r && fc === c);
           const moonDist = moonPos ? Math.abs(r - moonPos[0]) + Math.abs(c - moonPos[1]) : -1;
+          const robotDist = robotPulse.length
+            ? Math.min(...robotPulse.map(([rr, cc]) => Math.abs(r - rr) + Math.abs(c - cc)))
+            : -1;
           const delay = isCandleCell
             ? FIRE_STAGGER_MS
             : chainIdx >= 0
               ? (isCandlePlay ? chainIdx + 2 : chainIdx) * FIRE_STAGGER_MS
-              : moonDist > 0
-                ? (moonDist - 1) * MOON_STAGGER_MS
-                : 0;
+              : isRobot && robotDist >= 0
+                ? robotDist * ROBOT_STAGGER_MS
+                : moonDist > 0
+                  ? (moonDist - 1) * MOON_STAGGER_MS
+                  : 0;
           this.flipAnims.push({
             row: r, col: c,
             startTime: now + delay,
             oldCard: old.card, oldIsBlack: this.cardIsBlack(old.owner),
             newCard: next.card, newIsBlack: this.cardIsBlack(next.owner),
+            oldFaceDown: oldFogged,
+            newFaceDown: newFogged,
+            kind: isRobot ? 'robot' : 'normal',
           });
         }
       }
@@ -1564,9 +1584,7 @@ export class Game {
     return null;
   }
 
-  private isNearFire(row: number, col: number): boolean {
-    if (!this.state) return false;
-    const board = this.state.board;
+  private isNearFireOnBoard(board: BoardCell[][], row: number, col: number): boolean {
     for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -1576,11 +1594,18 @@ export class Game {
     return false;
   }
 
+  private isNearFire(row: number, col: number): boolean {
+    if (!this.state) return false;
+    return this.isNearFireOnBoard(this.state.board, row, col);
+  }
+
+  private isNearFireIn(state: GameState, row: number, col: number): boolean {
+    return this.isNearFireOnBoard(state.board, row, col);
+  }
+
   // A cell is fogged for localNr if any touching cell has a fog card owned by the opponent.
   // Computed dynamically so stale fogged state (e.g. after moon flip or succubus move) can't mislead.
-  private isFoggedFor(row: number, col: number): boolean {
-    if (!this.state) return false;
-    const board = this.state.board;
+  private isFoggedOnBoard(board: BoardCell[][], row: number, col: number): boolean {
     for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
       const nr = row + dr; const nc = col + dc;
       if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
@@ -1588,6 +1613,11 @@ export class Game {
       if (cell && 'card' in cell && cell.card.type === 'fog' && cell.owner !== this.localNr) return true;
     }
     return false;
+  }
+
+  private isFoggedFor(row: number, col: number): boolean {
+    if (!this.state) return false;
+    return this.isFoggedOnBoard(this.state.board, row, col);
   }
 
   // Mirrors oni placement logic in gameLogic.ts — returns the cells where hands will land.
@@ -3200,18 +3230,20 @@ export class Game {
         ctx.fillText('🌊', 0, (wvm.actualBoundingBoxAscent - wvm.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
+      // Same double-arrow axis marks as snake (both ends of the sweep)
       ctx.fillStyle = fg;
+      const ts2 = ts * 0.7;
       const isHoriz = card.direction === 'left' || card.direction === 'right';
       if (isHoriz) {
-        // Left arrow
         ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill();
-        // Right arrow
+        ctx.beginPath(); ctx.moveTo(x + m + ts * 2.5, cy); ctx.lineTo(x + m + ts * 2.5 + ts2 * 1.5, cy - ts2); ctx.lineTo(x + m + ts * 2.5 + ts2 * 1.5, cy + ts2); ctx.fill();
         ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + CARD - m - ts * 2.5, cy); ctx.lineTo(x + CARD - m - ts * 2.5 - ts2 * 1.5, cy - ts2); ctx.lineTo(x + CARD - m - ts * 2.5 - ts2 * 1.5, cy + ts2); ctx.fill();
       } else {
-        // Up arrow
         ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill();
-        // Down arrow
+        ctx.beginPath(); ctx.moveTo(cx, y + m + ts * 2.5); ctx.lineTo(cx - ts2, y + m + ts * 2.5 + ts2 * 1.5); ctx.lineTo(cx + ts2, y + m + ts * 2.5 + ts2 * 1.5); ctx.fill();
         ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(cx, y + CARD - m - ts * 2.5); ctx.lineTo(cx - ts2, y + CARD - m - ts * 2.5 - ts2 * 1.5); ctx.lineTo(cx + ts2, y + CARD - m - ts * 2.5 - ts2 * 1.5); ctx.fill();
       }
       return;
     }
@@ -3458,19 +3490,38 @@ export class Game {
           const pad = (CELL - CARD) / 2;
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
           if (flip) {
-            const FLIP_DUR = 340;
-            const t = Math.min((now - flip.startTime) / FLIP_DUR, 1);
-            const scaleX = Math.abs(Math.cos(Math.PI * t));
-            ctx.save();
-            ctx.translate(x + pad + CARD / 2, y + pad + CARD / 2);
-            ctx.scale(scaleX, 1);
-            if (t < 0.5) {
-              this.drawCard(-CARD / 2, -CARD / 2, flip.oldCard, flip.oldIsBlack);
+            const isRobot = flip.kind === 'robot';
+            const FLIP_DUR = isRobot ? 520 : 340;
+            const rawT = (now - flip.startTime) / FLIP_DUR;
+            if (rawT < 0) {
+              // Waiting on stagger — keep showing the old face until the switch starts.
+              this.drawCard(x + pad, y + pad, flip.oldCard, flip.oldIsBlack, !!flip.oldFaceDown);
             } else {
-              this.drawCard(-CARD / 2, -CARD / 2, flip.newCard, flip.newIsBlack);
+              const t = Math.min(rawT, 1);
+              const scaleX = Math.abs(Math.cos(Math.PI * t));
+              ctx.save();
+              ctx.translate(x + pad + CARD / 2, y + pad + CARD / 2);
+              ctx.scale(scaleX, 1);
+              if (t < 0.5) {
+                this.drawCard(-CARD / 2, -CARD / 2, flip.oldCard, flip.oldIsBlack, !!flip.oldFaceDown);
+              } else {
+                this.drawCard(-CARD / 2, -CARD / 2, flip.newCard, flip.newIsBlack, !!flip.newFaceDown);
+              }
+              ctx.restore();
+              if (isRobot) {
+                // Electric scan / switch flash so robot ownership swaps read differently from captures.
+                const flash = t < 0.5 ? t * 2 : (1 - t) * 2;
+                const scanY = y + pad + (CARD * t);
+                ctx.save();
+                ctx.globalAlpha = 0.18 + 0.35 * flash;
+                ctx.fillStyle = '#7ef0ff';
+                ctx.fillRect(x + pad, scanY - 3, CARD, 6);
+                ctx.globalAlpha = 0.12 * flash;
+                ctx.fillRect(x + pad, y + pad, CARD, CARD);
+                ctx.restore();
+              }
+              if (t >= 1) this.flipAnims = this.flipAnims.filter(f => f !== flip);
             }
-            ctx.restore();
-            if (t >= 1) this.flipAnims = this.flipAnims.filter(f => f !== flip);
           } else {
             const fogged = this.isFoggedFor(row, col) && !this.isNearFire(row, col);
             const shake = (() => {
@@ -3486,6 +3537,27 @@ export class Game {
           }
         } else if (cell && 'blood' in cell) {
           this.drawBloodSquare(x, y);
+        }
+      }
+    }
+
+    // Robot source glow while ownership switches are playing out
+    {
+      const robotFlip = this.flipAnims.find(f => f.kind === 'robot');
+      if (robotFlip && now >= robotFlip.startTime) {
+        const ROBOT_DUR = 520;
+        const t = Math.min((now - robotFlip.startTime) / ROBOT_DUR, 1);
+        const pulse = 0.3 + 0.45 * Math.sin(t * Math.PI);
+        for (const [rr, cc] of (state.robotPulse ?? [])) {
+          const { x: rx, y: ry } = this.cellPos(rr, cc);
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.strokeStyle = '#7ef0ff';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.roundRect(rx + 2, ry + 2, CELL - 4, CELL - 4, 5);
+          ctx.stroke();
+          ctx.restore();
         }
       }
     }
@@ -3769,17 +3841,14 @@ export class Game {
     const bh = 24;
     const totalH = bh + keywords.length * (gap + kwH);
 
-    // A finger covering the press hides a tooltip drawn next to the card.
-    // Long-press tooltips sit at the top of the screen, over the opponent hand.
+    // Prefer above the press so a finger doesn't cover it; fall below if needed.
     let bx = hover.x - colW / 2;
-    let by = hover.y - totalH - 10;
-    if (this.inLongPress) {
-      bx = (W - colW) / 2;
-      const logicalPerCss = this.H / Math.max(1, this.canvas.clientHeight);
-      by = this.safeTopLogical + 50 * logicalPerCss;
+    let by = hover.y - totalH - 14;
+    if (by < this.safeTopLogical + 4) {
+      by = hover.y + 14;
     }
     bx = Math.max(4, Math.min(W - colW - 4, bx));
-    by = Math.max(4, Math.min(this.H - totalH - 4, by));
+    by = Math.max(this.safeTopLogical + 4, Math.min(this.H - totalH - 4, by));
 
     const roundBox = (x: number, y: number, w: number, h: number) => {
       ctx.save();

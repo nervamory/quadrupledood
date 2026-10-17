@@ -230,10 +230,11 @@ export class PhotonClient {
     };
 
     this.lbc.onError = (errorCode: number, errorMsg: string) => {
+      // 1001 = WebSocket "Going Away" (master peer drop / tab background / clean leave).
       // 1003/1004 = WebSocket "unsupported data"/"reserved" close codes fired on clean disconnects.
       // 2003/2004 = Photon internal disconnect codes (e.g. leaving a room intentionally).
-      // All four are expected non-fatal conditions; surface anything else to the user.
-      if (errorCode === 1003 || errorCode === 1004 || errorCode === 2003 || errorCode === 2004) return;
+      // These are expected non-fatal conditions; surface anything else to the user.
+      if (errorCode === 1001 || errorCode === 1003 || errorCode === 1004 || errorCode === 2003 || errorCode === 2004) return;
       if (this.resuming && JOIN_MISS.has(errorCode)) {
         this.resuming = false;
         this.pendingResumeRoom = null;

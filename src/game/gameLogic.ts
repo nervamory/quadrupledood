@@ -140,24 +140,31 @@ function dealHand(actorNr: number, deck: DeckType): Card[] {
   });
 }
 
-function triggerRobots(board: BoardCell[][]): void {
+function triggerRobots(board: BoardCell[][]): { flips: [number, number][]; pulse: [number, number][] } {
+  const flips: [number, number][] = [];
+  const pulse: [number, number][] = [];
   const seen = new Set<number>();
   for (const row of board) for (const cell of row) if (cell && 'card' in cell) seen.add(cell.owner);
-  if (seen.size < 2) return;
+  if (seen.size < 2) return { flips, pulse };
   const [p1, p2] = [...seen];
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
       const cell = board[r][c];
       if (!cell || !('card' in cell) || cell.card.type !== 'robot') continue;
+      let pulsed = false;
       for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]] as [number,number][]) {
         const nr = r + dr, nc = c + dc;
         if (nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
         const neighbor = board[nr][nc];
         if (!neighbor || 'blood' in neighbor || neighbor.zombified) continue;
         board[nr][nc] = { ...neighbor, owner: neighbor.owner === p1 ? p2 : p1 };
+        if (!flips.some(([fr, fc]) => fr === nr && fc === nc)) flips.push([nr, nc]);
+        pulsed = true;
       }
+      if (pulsed) pulse.push([r, c]);
     }
   }
+  return { flips, pulse };
 }
 
 function triggerLightnings(board: BoardCell[][], seedId: string): void {
@@ -1090,7 +1097,9 @@ export function placeCard(
   }
 
   // Robot: flip all 8 touching cells for every robot on the board
-  triggerRobots(newBoard);
+  const { flips: robotFlips, pulse: robotPulse } = triggerRobots(newBoard);
+  const robotFlipField = robotFlips.length ? robotFlips : undefined;
+  const robotPulseField = robotPulse.length ? robotPulse : undefined;
 
   // Pending changes: split existing into "resolves this turn" vs "keep"
   const toResolve = state.pendingChanges.filter(p => p.resolveAfterActor === actorNr);
@@ -1151,11 +1160,11 @@ export function placeCard(
     const [p1, p2] = playerNrs;
     const winner = counts[p1] > counts[p2] ? p1 : counts[p2] > counts[p1] ? p2 : null;
     const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
+    return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, robotFlips: robotFlipField, robotPulse: robotPulseField, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, phase: 'finished', winner, currentTurn: -1 };
   }
 
   // Skip otherPlayer's turn if they have no playable moves
   const nextTurn = otherCanPlay ? otherPlayer : actorNr;
   const hellfirePos: [number, number] | undefined = card.type === 'hellfire' ? [row, col] : undefined;
-  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
+  return { ...state, board: newBoard, hands: newHands, pendingChanges: newPending, lastPlayed: newLastPlayed, fireChain: [..._fireChain], hellfirePos, candleFirePos: _candleFirePos ?? undefined, crystalBallReturn, lightningTargets: _lightningTargets.length ? [..._lightningTargets] : undefined, moonPos: card.type === 'moon' ? [row, col] as [number, number] : undefined, robotFlips: robotFlipField, robotPulse: robotPulseField, succubusPulls: _succubusPulls.length ? [..._succubusPulls] : undefined, mermaidPull, batSpawn, captureBlocks: _captureBlocks.length ? [..._captureBlocks] : undefined, mirrorFlashes: _mirrorFlashes.length ? [..._mirrorFlashes] : undefined, vampireCaptures: _vampireBloodCells.length ? { vampRow: row, vampCol: col, bloodCells: [..._vampireBloodCells] } : undefined, currentTurn: nextTurn };
 }

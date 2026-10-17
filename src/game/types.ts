@@ -31,6 +31,10 @@ export type GameState = {
   candleFirePos?: [number, number];
   lightningTargets?: [number, number][];
   moonPos?: [number, number];
+  /** Cells whose ownership was switched by robots this turn. */
+  robotFlips?: [number, number][];
+  /** Robot positions that caused at least one flip this turn. */
+  robotPulse?: [number, number][];
   succubusPulls?: { fromRow: number; fromCol: number; toRow: number; toCol: number; card: Card }[];
   mermaidPull?: { card: Card; toRow: number; toCol: number };
   batSpawn?: { card: Card; fromRow: number; fromCol: number; toRow: number; toCol: number };

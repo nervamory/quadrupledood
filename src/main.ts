@@ -232,20 +232,22 @@ function getCpuMove(state: GameState): { cardId: string; row: number; col: numbe
 
   const scoreCard = (card: typeof hand[0], row: number, col: number): number => {
     const t = card.type;
+    // Prefer emptying knives early — they're the basic capture piece.
+    const knifeBias = t === 'knife' ? 0.35 : 0;
     if (t === 'spider' || t === 'moon') {
       let s = 0;
       for (const [dr, dc] of Object.values(CPU_DIR_OFFSETS)) if (isOppCard(row + dr, col + dc)) s++;
-      return s;
+      return s + knifeBias;
     }
     if (t === 'troll' || t === 'heart') {
       let s = 0;
       for (const dir of ['up','down','left','right'] as const) {
         const [dr, dc] = CPU_DIR_OFFSETS[dir]; if (isOppCard(row + dr, col + dc)) s++;
       }
-      return s;
+      return s + knifeBias;
     }
     const [dr, dc] = CPU_DIR_OFFSETS[card.direction];
-    return isOppCard(row + dr, col + dc) ? 1 : 0;
+    return (isOppCard(row + dr, col + dc) ? 1 : 0) + knifeBias;
   };
 
   const moves: { cardId: string; row: number; col: number; score: number }[] = [];
@@ -327,6 +329,8 @@ function doCpuLeave() {
   oppReadyDeck = null;
   game.reset();
   ui.showLobby();
+  // Don't leave a stale Photon master-peer error (e.g. 1001) on the lobby status.
+  ui.setStatus('awaiting sacrifice...');
 }
 
 // ── match helpers ─────────────────────────────────────────────────────────────
@@ -525,7 +529,7 @@ const photon = new PhotonClient({
     myReadyDeck = null;
     oppReadyDeck = null;
     getElement<HTMLButtonElement>('ready-btn').disabled = false;
-    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
+    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'rematch', lockedDeck: null });
   },
   onLobbyUpdate: (count) => {
     if (resumeStatus) {
@@ -696,12 +700,12 @@ getElement('rematch-btn').addEventListener('click', () => {
   myReadyDeck = null;
   oppReadyDeck = null;
   if (cpuMode) {
-    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
+    ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'rematch', lockedDeck: null });
     return;
   }
   photon.sendRematch();
   getElement<HTMLButtonElement>('ready-btn').disabled = true;
-  ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'draw', lockedDeck: null });
+  ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'rematch', lockedDeck: null });
 });
 
 getElement('matchover-leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
