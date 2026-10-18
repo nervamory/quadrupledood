@@ -3842,10 +3842,12 @@ export class Game {
     const totalH = bh + keywords.length * (gap + kwH);
 
     // Prefer above the press so a finger doesn't cover it; fall below if needed.
+    // Long-press needs a bigger gap — fingertip sits well above the touch point.
+    const fingerGap = this.inLongPress ? 72 : 14;
     let bx = hover.x - colW / 2;
-    let by = hover.y - totalH - 14;
+    let by = hover.y - totalH - fingerGap;
     if (by < this.safeTopLogical + 4) {
-      by = hover.y + 14;
+      by = hover.y + fingerGap;
     }
     bx = Math.max(4, Math.min(W - colW - 4, bx));
     by = Math.max(this.safeTopLogical + 4, Math.min(this.H - totalH - 4, by));
