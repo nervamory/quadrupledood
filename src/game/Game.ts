@@ -3475,8 +3475,7 @@ export class Game {
         const { x, y } = this.cellPos(row, col);
         ctx.beginPath();
         ctx.roundRect(x, y, CELL, CELL, 4);
-        // Match the torn-edge board outline charcoal sampled from board.png
-        ctx.fillStyle = '#31414e';
+        ctx.fillStyle = '#31414e'; // board outline charcoal
         ctx.fill();
         ctx.strokeStyle = '#31414e';
         ctx.lineWidth = 1;
