@@ -273,7 +273,7 @@ export class PhotonClient {
 
   /** Publish the account name on this seat. Empty clears it back to the guest labels. */
   setDisplayName(name: string | null) {
-    this.displayName = (name ?? '').trim().slice(0, 24);
+    this.displayName = (name ?? '').trim().slice(0, 12);
     this.publishDisplayName();
   }
 

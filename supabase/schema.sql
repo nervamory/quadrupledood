@@ -18,7 +18,7 @@ create table if not exists public.profiles (
   draws integer not null default 0,
   last_match_at timestamptz,
   updated_at timestamptz not null default now(),
-  constraint display_name_len check (char_length(display_name) between 1 and 24),
+  constraint display_name_len check (char_length(display_name) between 1 and 12),
   constraint profile_counts_nonnegative check (wins >= 0 and losses >= 0 and draws >= 0)
 );
 
@@ -52,7 +52,7 @@ as $$
 declare
   name text;
 begin
-  name := left(coalesce(nullif(split_part(coalesce(new.email, ''), '@', 1), ''), 'player'), 24);
+  name := left(coalesce(nullif(split_part(coalesce(new.email, ''), '@', 1), ''), 'player'), 12);
   insert into public.profiles (id, display_name)
   values (new.id, name)
   on conflict (id) do nothing;

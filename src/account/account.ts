@@ -66,9 +66,11 @@ function formatRecord(wins: number, losses: number, draws: number): string {
   return parts.join(' · ');
 }
 
+const NAME_MAX = 12;
+
 function cleanName(raw: string): string | null {
   const name = raw.trim().replace(/\s+/g, ' ');
-  if (name.length < 1 || name.length > 24) return null;
+  if (name.length < 1 || name.length > NAME_MAX) return null;
   if (/[\u0000-\u001F\u007F]/.test(name)) return null;
   return name;
 }
@@ -216,7 +218,7 @@ async function saveName() {
   const button = el<HTMLButtonElement>('account-save-btn');
   if (button.disabled) return;
   if (!name) {
-    statusText = 'use 1–24 characters';
+    statusText = `use 1–${NAME_MAX} characters`;
     paint();
     return;
   }
@@ -230,7 +232,7 @@ async function saveName() {
   button.disabled = false;
   if (error) {
     statusText = error.message.toLowerCase().includes('display_name')
-      ? 'use 1–24 characters'
+      ? `use 1–${NAME_MAX} characters`
       : "couldn't save that name";
     paint();
     return;
