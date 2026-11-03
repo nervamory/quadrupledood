@@ -31,6 +31,7 @@ let statusText = '';
 let booted = false;
 let sessionGen = 0;
 const userListeners: Array<(userId: string | null) => void> = [];
+const nameListeners: Array<(name: string | null) => void> = [];
 
 function readEnv(name: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string {
   const value = import.meta.env[name];
@@ -157,6 +158,7 @@ async function onSession(session: Session | null) {
     else if (statusText === '…') statusText = '';
     paint();
     emitUser();
+    emitName();
     return;
   }
   signedIn = true;
@@ -176,10 +178,12 @@ async function onSession(session: Session | null) {
   if (!profile) {
     statusText = 'account not ready yet';
     paint();
+    emitName();
     return;
   }
   if (switched) statusText = '';
   paint(switched);
+  emitName();
 }
 
 async function sendLink() {
@@ -235,6 +239,7 @@ async function saveName() {
   el<HTMLInputElement>('account-name').value = name;
   statusText = 'name saved';
   paint();
+  emitName();
 }
 
 async function logOut() {
@@ -270,6 +275,21 @@ export function accountUserId(): string | null {
   return signedIn ? currentUserId : null;
 }
 
+export function accountDisplayName(): string | null {
+  const name = signedIn && current ? current.displayName.trim() : '';
+  return name ? name : null;
+}
+
+export function onAccountName(cb: (name: string | null) => void): void {
+  nameListeners.push(cb);
+  if (booted) cb(accountDisplayName());
+}
+
+function emitName() {
+  const name = accountDisplayName();
+  for (const cb of nameListeners) cb(name);
+}
+
 export function onAccountUser(cb: (userId: string | null) => void): void {
   userListeners.push(cb);
   if (booted) cb(accountUserId());
@@ -285,6 +305,7 @@ export function initAccount(): void {
     booted = true;
     paint();
     emitUser();
+    emitName();
     return;
   }
   statusText = '…';
@@ -331,6 +352,7 @@ export async function recordMatch(result: MatchResult): Promise<RecordStatus> {
       draws: recorded.draws,
     };
     paint();
+    emitName();
   }
   return 'saved';
 }

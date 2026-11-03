@@ -19,7 +19,7 @@ import {
   probeVersionCount,
   resolvedVersion,
 } from './game/cardVersions';
-import { accountUserId, initAccount, onAccountUser, recordMatch } from './account/account';
+import { accountUserId, initAccount, onAccountName, onAccountUser, recordMatch } from './account/account';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -67,6 +67,7 @@ function doLeave(status?: string) {
   inRoom = false;
   gameStarted = false;
   photon.leave();
+  syncSeatNames();
   game.reset();
   ui.showLobby();
   if (status) ui.setStatus(status);
@@ -290,6 +291,7 @@ function startCpuGame(myDeck: DeckType) {
   gameState = state;
   myPlayedDeck = myDeck;
   game.setLocalActor(CPU_LOCAL_NR);
+  syncSeatNames();
   game.setMatchScore(matchScore);
   game.startIdleSpin();
   game.setState(state);
@@ -337,6 +339,22 @@ function doCpuLeave() {
 
 function clearEndTimer() {
   if (endTransitionTimer !== null) { clearTimeout(endTransitionTimer); endTransitionTimer = null; }
+}
+
+let myDisplayName: string | null = null;
+
+function syncSeatNames() {
+  const names: Record<number, string> = {};
+  if (cpuMode) {
+    if (myDisplayName) names[CPU_LOCAL_NR] = myDisplayName;
+  } else if (inRoom) {
+    for (const nr of photon.allActorNrs) {
+      const fromNet = photon.actorName(nr);
+      if (fromNet) names[nr] = fromNet;
+    }
+    if (myDisplayName && photon.actorNr > 0) names[photon.actorNr] = myDisplayName;
+  }
+  game.setSeatNames(names);
 }
 
 function startGame(myDeck: DeckType, oppDeckUsed: DeckType) {
@@ -436,6 +454,7 @@ const photon = new PhotonClient({
   onJoined: (actorNr, resumed) => {
     inRoom = true;
     game.setLocalActor(actorNr);
+    syncSeatNames();
     clearReconnectWait();
     persistSeat();
     if (photon.hasOtherPlayer()) photon.closeRoom();
@@ -464,6 +483,7 @@ const photon = new PhotonClient({
     else ui.setStatus('match already ended');
   },
   onPlayerJoined: (_actorNr) => {
+    syncSeatNames();
     clearReconnectWait();
     if (photon.hasOtherPlayer()) photon.closeRoom();
     photon.sendDeckPick(getSelectedDeck());
@@ -474,6 +494,9 @@ const photon = new PhotonClient({
       return;
     }
     tryStartGame();
+  },
+  onPlayerName: () => {
+    syncSeatNames();
   },
   onPlayerLeft: (_actorNr) => {
     if (!inRoom) return;
@@ -713,6 +736,12 @@ getElement('matchover-leave-btn').addEventListener('click', () => { if (cpuMode)
 getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode) { doCpuLeave(); return; } doLeave(); });
 
 // ── settings ──────────────────────────────────────────────────────────────────
+
+onAccountName((name) => {
+  myDisplayName = name;
+  photon.setDisplayName(name);
+  syncSeatNames();
+});
 
 onAccountUser((userId) => {
   if (!inRoom) {

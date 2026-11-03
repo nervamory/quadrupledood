@@ -53,6 +53,7 @@ export type NetworkCallbacks = {
   onReady: (actorNr: number, deck: DeckType) => void;
   onFoilPick?: (style: number, params: CustomFoilParams) => void;
   onRematch?: () => void;
+  onPlayerName?: () => void;
 };
 
 const MAX_RETRIES = 3;
@@ -75,6 +76,7 @@ export class PhotonClient {
   private restartUserId: string | null | undefined = undefined;
   private pendingResumeRoom: string | null = null;
   private resuming = false;
+  private displayName = '';
 
   constructor(private cb: NetworkCallbacks) {
     this.lbc = new LoadBalancing.LoadBalancingClient(
@@ -168,6 +170,7 @@ export class PhotonClient {
 
     this.lbc.onJoinRoom = () => {
       this.roomName = (this.lbc.myRoom() as { name?: string } | null)?.name ?? null;
+      this.publishDisplayName();
       const resumed = this.resuming;
       this.resuming = false;
       this.pendingResumeRoom = null;
@@ -182,6 +185,10 @@ export class PhotonClient {
 
     this.lbc.onActorJoin = (actor: { actorNr: number }) => {
       this.cb.onPlayerJoined(actor.actorNr);
+    };
+
+    this.lbc.onActorPropertiesChange = () => {
+      this.cb.onPlayerName?.();
     };
 
     this.lbc.onActorLeave = (actor: { actorNr: number }, cleanup: boolean) => {
@@ -262,6 +269,21 @@ export class PhotonClient {
     this.boundUserId = userId;
     this.lbc.setUserId(userId ?? `guest-${Math.random().toString(36).slice(2)}`);
     this.lbc.connectToRegionMaster('us');
+  }
+
+  /** Publish the account name on this seat. Empty clears it back to the guest labels. */
+  setDisplayName(name: string | null) {
+    this.displayName = (name ?? '').trim().slice(0, 24);
+    this.publishDisplayName();
+  }
+
+  private publishDisplayName() {
+    const actor = this.lbc.myActor();
+    if (actor.name !== this.displayName) actor.setName(this.displayName);
+  }
+
+  actorName(actorNr: number): string {
+    return (this.lbc.myRoomActors()[actorNr]?.name ?? '').trim();
   }
 
   /** Connect as this account. A logged-in id is what a later refresh uses to reclaim the seat. */

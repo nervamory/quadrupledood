@@ -12,6 +12,7 @@ declare module 'photon-realtime' {
       onActorLeave: (actor: { actorNr: number }, cleanup: boolean) => void;
       onActorSuspend: (actor: { actorNr: number }) => void;
       onEvent: (code: number, content: unknown, actorNr: number) => void;
+      onActorPropertiesChange: (actor: { actorNr: number }) => void;
       onError: (errorCode: number, errorMsg: string) => void;
       connectToRegionMaster(region: string): void;
       setUserId(userId: string): void;
@@ -20,9 +21,9 @@ declare module 'photon-realtime' {
       leaveRoom(): void;
       disconnect(): void;
       isJoinedToRoom(): boolean;
-      myActor(): { actorNr: number };
+      myActor(): { actorNr: number; name: string; setName(name: string): void };
       myRoom(): { playerCount: number; name: string } | null;
-      myRoomActors(): Record<number, { actorNr: number }>;
+      myRoomActors(): Record<number, { actorNr: number; name?: string }>;
       myRoomMasterActorNr(): number;
       availableRooms(): Array<{ name: string; playerCount: number; maxPlayers: number; isOpen: boolean }>;
     }

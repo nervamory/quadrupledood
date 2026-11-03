@@ -172,6 +172,7 @@ export class Game {
   ) | null = null;
   private lastHoverIdx: number | null = null;
   private matchScore: Record<number, number> = {};
+  private seatNames: Record<number, string> = {};
   oppHoverIdx: number | null = null;
   private oppDrag: { idx: number; x: number; y: number } | null = null;
   private oppDragIdx: number | null = null;
@@ -290,6 +291,33 @@ export class Game {
   setLocalActor(actorNr: number) {
     this.localNr = actorNr;
     if (!this.raf) this.start();
+  }
+
+  setSeatNames(names: Record<number, string>) {
+    const next: Record<number, string> = {};
+    for (const [nr, name] of Object.entries(names)) {
+      const clean = name.trim();
+      if (clean) next[Number(nr)] = clean;
+    }
+    this.seatNames = next;
+  }
+
+  private seatLabel(actorNr: number, fallback: string): string {
+    return this.seatNames[actorNr] || fallback;
+  }
+
+  private opponentNr(): number | undefined {
+    if (this.state) {
+      const fromState = Object.keys(this.state.hands).map(Number).find(n => n !== this.localNr);
+      if (fromState !== undefined) return fromState;
+    }
+    return Object.keys(this.seatNames).map(Number).find(n => n !== this.localNr && n > 0);
+  }
+
+  private goesFirst(label: string): string {
+    if (label === 'you') return 'you go first';
+    if (label === 'opponent') return 'opponent goes first';
+    return `${label} goes first`;
   }
 
   setColorblindMode(enabled: boolean) { this.colorblindMode = enabled; }
@@ -3358,11 +3386,27 @@ export class Game {
     }
   }
 
-  private drawScoreMeta(cx: number, labelY: number, pipY: number, label: string, wins: number) {
+  private fitSeatLabel(label: string, maxWidth: number): { text: string; size: number; width: number } {
+    const ctx = this.ctx;
+    let size = 13;
+    let text = label;
+    const widthOf = (value: string, px: number) => {
+      ctx.font = `${px}px ${FONT_MONO}`;
+      return ctx.measureText(value).width;
+    };
+    while (size > 10 && widthOf(text, size) > maxWidth) size -= 1;
+    if (widthOf(text, size) > maxWidth) {
+      while (text.length > 1 && widthOf(text + '…', size) > maxWidth) text = text.slice(0, -1);
+      if (text !== label) text += '…';
+    }
+    return { text, size, width: widthOf(text, size) };
+  }
+
+  private drawScoreMeta(cx: number, labelY: number, pipY: number, label: string, wins: number, fontSize: number) {
     const ctx = this.ctx;
     const r = 5;
     const pipGap = 5;
-    ctx.font = `13px ${FONT_MONO}`;
+    ctx.font = `${fontSize}px ${FONT_MONO}`;
     ctx.fillStyle = '#bbb';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -3393,14 +3437,18 @@ export class Game {
 
     let angle: number;
 
+    const myLabel = this.seatLabel(this.localNr, 'you');
+    const oppActor = this.opponentNr();
+    const oppLabel = oppActor !== undefined ? this.seatLabel(oppActor, 'opponent') : 'opponent';
+
     if (spinAnim.mode === 'idle') {
       angle = (now - spinAnim.startTime) * IDLE_SPEED;
       ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#555';
-      ctx.fillText('opponent', W / 2, 52);
+      ctx.fillText(oppLabel, W / 2, 52);
       ctx.fillStyle = '#555';
-      ctx.fillText('you', W / 2, H - 52);
+      ctx.fillText(myLabel, W / 2, H - 52);
     } else {
       const elapsed = now - spinAnim.startTime;
       const t = Math.min(elapsed / LANDING_DURATION, 1);
@@ -3421,9 +3469,9 @@ export class Game {
       ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = (settled && !isMyTurn) ? '#eee' : '#555';
-      ctx.fillText((settled && !isMyTurn) ? 'opponent goes first' : 'opponent', W / 2, 52);
+      ctx.fillText((settled && !isMyTurn) ? this.goesFirst(oppLabel) : oppLabel, W / 2, 52);
       ctx.fillStyle = (settled && isMyTurn) ? '#eee' : '#555';
-      ctx.fillText((settled && isMyTurn) ? 'you go first' : 'you', W / 2, H - 52);
+      ctx.fillText((settled && isMyTurn) ? this.goesFirst(myLabel) : myLabel, W / 2, H - 52);
 
       if (settled && elapsed - LANDING_DURATION >= SPIN_HOLD) spinAnim.done = true;
     }
@@ -3698,10 +3746,16 @@ export class Game {
     const digitW = SCORE_DIGIT_DRAW_H * (SCORE_DIGIT_W / SCORE_DIGIT_H);
     const widthOf = (n: number) => Math.max(1, String(n).length) * digitW;
     const gutter = 28;
-    const pairW = widthOf(scoreMy) + gutter + widthOf(scoreOpp);
+    const maxPair = Math.min(GRID, this.W - 24);
+    const maxCol = Math.max(48, (maxPair - gutter) / 2);
+    const myLabel = this.fitSeatLabel((myIsBlack ? '⬛ ' : '⬜ ') + this.seatLabel(this.localNr, 'you'), maxCol);
+    const oppLabel = this.fitSeatLabel((myIsBlack ? '⬜ ' : '⬛ ') + (oppNr !== undefined ? this.seatLabel(oppNr, 'opp') : 'opp'), maxCol);
+    const myCol = Math.max(widthOf(scoreMy), myLabel.width);
+    const oppCol = Math.max(widthOf(scoreOpp), oppLabel.width);
+    const pairW = myCol + gutter + oppCol;
     const mid = this.gridX + GRID / 2;
-    const leftX = mid - pairW / 2 + widthOf(scoreMy) / 2;
-    const rightX = mid + pairW / 2 - widthOf(scoreOpp) / 2;
+    const leftX = mid - pairW / 2 + myCol / 2;
+    const rightX = mid + pairW / 2 - oppCol / 2;
     const digitY = this.scoreBlockTop + SCORE_DIGIT_DRAW_H / 2;
     const labelY = this.scoreBlockTop + SCORE_DIGIT_DRAW_H + 11;
     const pipY = labelY + 16;
@@ -3727,15 +3781,21 @@ export class Game {
     ctx.font = `14px ${FONT_MONO}`;
     const myWins  = this.matchScore[this.localNr] ?? 0;
     const oppWins = oppNr !== undefined ? (this.matchScore[oppNr] ?? 0) : 0;
-    this.drawScoreMeta(leftX, labelY, pipY, (myIsBlack ? '⬛ ' : '⬜ ') + 'you', myWins);
-    this.drawScoreMeta(rightX, labelY, pipY, (myIsBlack ? '⬜ ' : '⬛ ') + 'opp', oppWins);
+    this.drawScoreMeta(leftX, labelY, pipY, myLabel.text, myWins, myLabel.size);
+    this.drawScoreMeta(rightX, labelY, pipY, oppLabel.text, oppWins, oppLabel.size);
 
     // turn / result — surfaced to an HTML element below the hand (see onStatusTextChange)
     {
       const isMyTurn = state.currentTurn === this.localNr;
+      const mine = this.seatLabel(this.localNr, 'you');
+      const theirs = oppNr !== undefined ? this.seatLabel(oppNr, 'opponent') : 'opponent';
       const statusMsg = state.phase === 'finished'
-        ? (state.winner === null ? 'draw!' : state.winner === this.localNr ? 'you win!' : 'you lose.')
-        : (isMyTurn ? 'your turn' : "opponent's turn");
+        ? (state.winner === null ? 'draw!'
+          : state.winner === this.localNr ? (mine === 'you' ? 'you win!' : `${mine} wins!`)
+          : (theirs === 'opponent' ? 'you lose.' : `${theirs} wins!`))
+        : (isMyTurn
+          ? (mine === 'you' ? 'your turn' : `${mine}'s turn`)
+          : (theirs === 'opponent' ? "opponent's turn" : `${theirs}'s turn`));
       const statusColor = state.phase === 'finished' ? '#fff' : isMyTurn ? '#eee' : '#444';
       if (statusMsg !== this.lastStatusText) {
         this.lastStatusText = statusMsg;
