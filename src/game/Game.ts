@@ -12,9 +12,10 @@ let CELL_GAP = 10;
 let GRID = 4 * CELL + 3 * CELL_GAP;
 
 // Trattatello/Luminari are Mac-only. Title/scores use rasterized Trattatello
-// assets; Felipa is the self-hosted chancery fallback for remaining UI.
+// assets; Felipa is the self-hosted chancery fallback for those.
+// UI copy uses Cutive Mono. Score digits stay on the raster face.
 const FONT_DISPLAY = 'Trattatello, Luminari, Felipa, fantasy';
-const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Monaco, monospace';
+const FONT_MONO = '"Cutive Mono", ui-monospace, "SF Mono", Menlo, Monaco, monospace';
 const SCORE_DIGIT_W = 78;
 const SCORE_DIGIT_H = 100;
 let SCORE_DIGIT_DRAW_H = 52;
@@ -253,6 +254,7 @@ export class Game {
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
     void document.fonts.load('64px Felipa');
+    void document.fonts.load('14px "Cutive Mono"');
     this.scoreDigitImg.src = '/assets/score-digits.png';
     this.boardImg.src = '/assets/board.png';
     this.cardBackImgs.skull.src = '/assets/card-back.png';
