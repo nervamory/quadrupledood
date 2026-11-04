@@ -893,7 +893,7 @@ function canPlay(board: BoardCell[][], hand: Card[]): boolean {
   });
 }
 
-export function initGame(actor1: number, actor2: number, firstPlayer: number, deck1: DeckType = 'random', deck2: DeckType = 'random'): GameState {
+export function initGame(actor1: number, actor2: number, firstPlayer: number, deck1: DeckType = 'random-preset', deck2: DeckType = 'random-preset'): GameState {
   _lastPlayed = {};
   _lastPlayedPos = {};
   const board: BoardCell[][] = Array.from({ length: 4 }, () => Array<BoardCell>(4).fill(null));

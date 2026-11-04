@@ -776,9 +776,9 @@ allCardsFoilToggle.addEventListener('change', () => {
 
 const deckSelect    = getElement<HTMLSelectElement>('deck-select');
 const prefDeckSelect = getElement<HTMLSelectElement>('pref-deck-select');
-const savedDeck = localStorage.getItem('deckPref') ?? 'random';
+const savedDeck = localStorage.getItem('deckPref') ?? 'random-preset';
 const deckOptions = new Set(Array.from(deckSelect.options, (o) => o.value));
-const initialDeck = deckOptions.has(savedDeck) ? savedDeck : 'random';
+const initialDeck = deckOptions.has(savedDeck) ? savedDeck : 'random-preset';
 if (initialDeck !== savedDeck) localStorage.setItem('deckPref', initialDeck);
 deckSelect.value = initialDeck;
 prefDeckSelect.value = initialDeck;
