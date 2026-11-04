@@ -128,7 +128,10 @@ function paint(fillName = false) {
   who.textContent = current.email;
   lobby.hidden = false;
   lobby.textContent = `${current.displayName} · ${formatRecord(current.wins, current.losses, current.draws)}`;
-  if (fillName) nameInput.value = current.displayName;
+  const savedName = current.displayName;
+  const nameDirty = nameInput.value.trim() !== '' && nameInput.value !== savedName;
+  const nameFocused = document.activeElement === nameInput;
+  if (fillName || !(nameFocused || nameDirty)) nameInput.value = savedName;
 }
 
 async function loadProfile(session: Session): Promise<Profile | null> {
