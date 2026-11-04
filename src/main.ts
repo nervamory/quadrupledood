@@ -296,7 +296,14 @@ function startCpuGame(myDeck: DeckType) {
   game.startIdleSpin();
   game.setState(state);
   ui.showGame();
-  if (state.currentTurn === CPU_OPP_NR) scheduleCpuMove();
+  if (state.currentTurn === CPU_OPP_NR) {
+    // Settling the knife reads the live turn. A CPU move during the spin
+    // flips that and the blade jumps to the other seat.
+    cpuMoveTimer = setTimeout(() => {
+      cpuMoveTimer = null;
+      scheduleCpuMove();
+    }, game.spinMsRemaining());
+  }
 }
 
 function handleCpuGameEnd(state: GameState) {

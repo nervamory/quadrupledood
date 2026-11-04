@@ -653,6 +653,15 @@ export class Game {
     this.spinAnim = { mode: 'idle', startTime: performance.now() };
   }
 
+  /** Time left until the opening knife leaves the screen. */
+  spinMsRemaining(): number {
+    const spin = this.spinAnim;
+    if (!spin) return 0;
+    if (spin.mode === 'idle') return LANDING_DURATION + SPIN_HOLD;
+    const elapsed = performance.now() - spin.startTime;
+    return Math.max(0, LANDING_DURATION + SPIN_HOLD - elapsed);
+  }
+
   setState(state: GameState | null) {
     if (state && this.spinAnim?.mode === 'idle') {
       const now = performance.now();
