@@ -3447,9 +3447,9 @@ export class Game {
       angle = (now - spinAnim.startTime) * IDLE_SPEED;
       ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#555';
+      ctx.fillStyle = '#ddd';
       ctx.fillText(oppLabel, W / 2, 52);
-      ctx.fillStyle = '#555';
+      ctx.fillStyle = '#ddd';
       ctx.fillText(myLabel, W / 2, H - 52);
     } else {
       const elapsed = now - spinAnim.startTime;
@@ -3470,9 +3470,9 @@ export class Game {
 
       ctx.font = `14px ${FONT_MONO}`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = (settled && !isMyTurn) ? '#eee' : '#555';
+      ctx.fillStyle = (settled && !isMyTurn) ? '#fff' : '#ddd';
       ctx.fillText((settled && !isMyTurn) ? this.goesFirst(oppLabel) : oppLabel, W / 2, 52);
-      ctx.fillStyle = (settled && isMyTurn) ? '#eee' : '#555';
+      ctx.fillStyle = (settled && isMyTurn) ? '#fff' : '#ddd';
       ctx.fillText((settled && isMyTurn) ? this.goesFirst(myLabel) : myLabel, W / 2, H - 52);
 
       if (settled && elapsed - LANDING_DURATION >= SPIN_HOLD) spinAnim.done = true;
@@ -3798,7 +3798,7 @@ export class Game {
         : (isMyTurn
           ? (mine === 'you' ? 'your turn' : `${mine}'s turn`)
           : (theirs === 'opponent' ? "opponent's turn" : `${theirs}'s turn`));
-      const statusColor = state.phase === 'finished' ? '#fff' : isMyTurn ? '#eee' : '#444';
+      const statusColor = state.phase === 'finished' ? '#fff' : isMyTurn ? '#eee' : '#ddd';
       if (statusMsg !== this.lastStatusText) {
         this.lastStatusText = statusMsg;
         this.onStatusTextChange?.(statusMsg, statusColor);
