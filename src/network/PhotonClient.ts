@@ -54,7 +54,16 @@ export type NetworkCallbacks = {
   onFoilPick?: (style: number, params: CustomFoilParams) => void;
   onRematch?: () => void;
   onPlayerName?: () => void;
+  onAltarFull: () => void;
 };
+
+// Photon's free-tier cap. The 21st connection is refused with this code.
+const CCU_LIMIT = 32757;
+
+function isCcuLimit(errorCode: number, errorMsg: string): boolean {
+  if (errorCode === CCU_LIMIT) return true;
+  return /ccu|concurrent users/i.test(errorMsg);
+}
 
 const MAX_RETRIES = 3;
 const ROOM_CREATE = { maxPlayers: 2, playerTTL: 90000, emptyRoomLiveTime: 90000 };
@@ -77,6 +86,7 @@ export class PhotonClient {
   private pendingResumeRoom: string | null = null;
   private resuming = false;
   private displayName = '';
+  private ccuFull = false;
 
   constructor(private cb: NetworkCallbacks) {
     this.lbc = new LoadBalancing.LoadBalancingClient(
@@ -118,7 +128,9 @@ export class PhotonClient {
         }
         if (!this.intentionalDisconnect) {
           this.cb.onDisconnected();
-          if (this.retryCount < MAX_RETRIES && this.roomName) {
+          if (this.ccuFull && !this.roomName) {
+            this.gaveUp = true;
+          } else if (this.retryCount < MAX_RETRIES && this.roomName) {
             this.retryCount++;
             this.pendingReconnectRoom = this.roomName;
             this.cb.onStatusChange('rechanneling…');
@@ -138,6 +150,7 @@ export class PhotonClient {
       if (state === State.JoinedLobby) {
         this.retryCount = 0;
         this.gaveUp = false;
+        this.ccuFull = false;
       }
 
       if (this.inLobby && !wasInLobby) {
@@ -242,6 +255,12 @@ export class PhotonClient {
       // 2003/2004 = Photon internal disconnect codes (e.g. leaving a room intentionally).
       // These are expected non-fatal conditions; surface anything else to the user.
       if (errorCode === 1001 || errorCode === 1003 || errorCode === 1004 || errorCode === 2003 || errorCode === 2004) return;
+      if (isCcuLimit(errorCode, errorMsg)) {
+        this.ccuFull = true;
+        this.pendingMatchmaking = false;
+        this.cb.onAltarFull();
+        return;
+      }
       if (this.resuming && JOIN_MISS.has(errorCode)) {
         this.resuming = false;
         this.pendingResumeRoom = null;
@@ -323,12 +342,19 @@ export class PhotonClient {
     }
   }
 
-  joinMatchmaking() {
+  isAltarFull(): boolean {
+    return this.ccuFull;
+  }
+
+  /** False when the free-tier cap is already known, so the lobby can offer another way to play. */
+  joinMatchmaking(): boolean {
+    if (this.ccuFull) return false;
     if (this.inLobby) {
       this.doMatchmaking();
     } else {
       this.pendingMatchmaking = true;
     }
+    return true;
   }
 
   // Debug mode: join a specific named room

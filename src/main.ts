@@ -214,6 +214,7 @@ const CPU_DECKS: DeckType[] = PRESET_DECKS;
 
 let cpuMode = false;
 let cpuMoveTimer: ReturnType<typeof setTimeout> | null = null;
+let wantsHumanQueue = false;
 
 const CPU_DIR_OFFSETS: Record<string, [number, number]> = {
   up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1],
@@ -505,6 +506,10 @@ const photon = new PhotonClient({
   onPlayerName: () => {
     syncSeatNames();
   },
+  onAltarFull: () => {
+    ui.setStatus('the altar is full');
+    if (wantsHumanQueue) showAltarOffer();
+  },
   onPlayerLeft: (_actorNr) => {
     if (!inRoom) return;
     clearEndTimer();
@@ -562,6 +567,7 @@ const photon = new PhotonClient({
     ui.showBetweenGames({ myWins: 0, oppWins: 0, lastResult: 'rematch', lockedDeck: null });
   },
   onLobbyUpdate: (count) => {
+    if (!photon.isAltarFull()) hideAltarOffer();
     if (resumeStatus) {
       ui.setStatus(resumeStatus);
       return;
@@ -653,6 +659,17 @@ game.onPlaceCard = (cardId, row, col) => {
 
 // ── lobby button ──────────────────────────────────────────────────────────────
 
+const fullOffer = getElement('full-offer');
+
+function showAltarOffer() {
+  fullOffer.hidden = false;
+  ui.setStatus('');
+}
+
+function hideAltarOffer() {
+  fullOffer.hidden = true;
+}
+
 getElement('join-btn').addEventListener('click', () => {
   clearMatchRecord();
   if (!cpuMode) {
@@ -663,6 +680,8 @@ getElement('join-btn').addEventListener('click', () => {
     holdStatus(null);
   }
   if (cpuMode) {
+    wantsHumanQueue = false;
+    hideAltarOffer();
     matchScore = {};
     startCpuGame(getSelectedDeck());
     return;
@@ -672,8 +691,17 @@ getElement('join-btn').addEventListener('click', () => {
     if (!roomName) return;
     photon.connectAndJoin(roomName);
   } else {
-    photon.joinMatchmaking();
+    wantsHumanQueue = true;
+    if (!photon.joinMatchmaking()) showAltarOffer();
   }
+});
+
+getElement('full-cpu-btn').addEventListener('click', () => {
+  wantsHumanQueue = false;
+  hideAltarOffer();
+  clearMatchRecord();
+  matchScore = {};
+  startCpuGame(getSelectedDeck());
 });
 
 const gameMenuBtn = getElement<HTMLButtonElement>('game-menu-btn');
