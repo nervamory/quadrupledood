@@ -251,6 +251,35 @@
         background: rgba(26, 26, 46, 0.95);
         color: #eee;
       }
+      #sound-toggle {
+        position: fixed;
+        z-index: 260;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: calc(8px + env(safe-area-inset-right, 0px));
+        width: 36px;
+        height: 36px;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 20, 0.82);
+        color: #ccc;
+      }
+      #sound-toggle:hover { background: rgba(26, 26, 46, 0.95); color: #eee; }
+      #sound-toggle .icon-off { display: none; }
+      #sound-toggle[aria-pressed="false"] .icon-on { display: none; }
+      #sound-toggle[aria-pressed="false"] .icon-off { display: block; }
+      /* Sit one button-width plus a gap to the left of the corner settings/back control. */
+      body:has(#lobby-screen.active) #sound-toggle,
+      body:has(#settings-screen.active) #sound-toggle {
+        right: calc(8px + 36px + 8px + env(safe-area-inset-right, 0px));
+      }
+      /* Game gear is pinned to the play column, not the viewport corner. */
+      body:has(#game-screen.active) #sound-toggle {
+        top: 8px;
+        right: calc((100% - min(680px, 100%)) / 2 + 52px);
+      }
       #settings-fields {
         display: grid;
         grid-template-columns: auto auto;
@@ -301,6 +330,23 @@
   </head>
   <body>
     <canvas id="page-bg" aria-hidden="true"></canvas>
+    <button id="sound-toggle" type="button" aria-pressed="true" aria-label="sound on">
+      <svg class="icon-on" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M3 9.5v5h3.2L11 19V5L6.2 9.5H3z"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M14.8 9.2a3.6 3.6 0 0 1 0 5.6"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M17.4 6.8a7.2 7.2 0 0 1 0 10.4"/>
+      </svg>
+      <svg class="icon-off" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M3 9.5v5h3.2L11 19V5L6.2 9.5H3z"/>
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 10l4.5 4.5M20.5 10L16 14.5"/>
+      </svg>
+    </button>
+    <script>
+      if (localStorage.getItem('soundEnabled') === 'false') {
+        document.getElementById('sound-toggle').setAttribute('aria-pressed', 'false');
+        document.getElementById('sound-toggle').setAttribute('aria-label', 'sound off');
+      }
+    </script>
     <div id="app">
       <div id="lobby-screen" class="screen active">
         <h2 class="wordmark"><img src="/assets/wordmark.png" alt="Quadruple dood"></h2>
@@ -337,7 +383,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v19.0</p>
+        <p id="lobby-version">v20.0</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -446,7 +492,7 @@
         <br>
         <button id="card-version-btn" style="margin-top:8px;">card version select</button>
       </div>
-      <div id="foil-creator-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:transparent;flex-direction:column;align-items:center;padding:40px 20px 60px;">
+      <div id="foil-creator-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:transparent;flex-direction:column;align-items:center;padding:calc(56px + env(safe-area-inset-top, 0px)) 20px 60px;">
         <h2 class="red-title" style="--title-w:288px; margin-bottom:24px;"><img src="/assets/heading-foil-creator.png" alt="foil creator"></h2>
         <canvas id="foil-preview" width="204" height="204" style="border:1px solid #333; border-radius:8px; margin-bottom:24px;"></canvas>
         <div style="display:grid; grid-template-columns:auto 1fr auto; gap:10px 12px; align-items:center; width:100%; max-width:420px; margin-bottom:24px;">
@@ -556,7 +602,7 @@
         <button id="foil-save-btn">save as custom</button>
         <button id="foil-creator-back-btn" style="margin-top:8px;">back</button>
       </div>
-      <div id="card-version-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:transparent;flex-direction:column;align-items:center;padding:40px 20px 60px;">
+      <div id="card-version-screen" class="screen" style="position:fixed;inset:0;overflow-y:auto;background:transparent;flex-direction:column;align-items:center;padding:calc(56px + env(safe-area-inset-top, 0px)) 20px 60px;">
         <h2 class="red-title" style="--title-w:434px; margin-bottom:24px;"><img src="/assets/heading-card-version.png" alt="card version select"></h2>
         <div id="card-version-list" style="width:100%; max-width:480px; margin-bottom:20px; color:#555; font-size:12px; text-align:center;">loading…</div>
         <button id="card-version-back-btn">back</button>

@@ -169,8 +169,9 @@ export class Game {
   private raf = 0;
   private spinAnim: (
     | { mode: 'idle';    startTime: number }
-    | { mode: 'landing'; startTime: number; startAngle: number; totalAngle: number; target: number; done: boolean }
+    | { mode: 'landing'; startTime: number; startAngle: number; totalAngle: number; target: number; done: boolean; announced: boolean }
   ) | null = null;
+  private knifeLoopOn = false;
   private lastHoverIdx: number | null = null;
   private matchScore: Record<number, number> = {};
   private seatNames: Record<number, string> = {};
@@ -246,6 +247,8 @@ export class Game {
   onDragChange?: (drag: { idx: number; x: number; y: number; t?: number } | null) => void;
   onStatusTextChange?: (text: string, color: string) => void;
   onTurnAnchor?: (cardBottomCss: number) => void;
+  onKnifeLoop?: (on: boolean) => void;
+  onKnifeSelect?: () => void;
   private lastStatusText: string | null = null;
   private playOffsetX = 0;
 
@@ -651,6 +654,13 @@ export class Game {
 
   startIdleSpin() {
     this.spinAnim = { mode: 'idle', startTime: performance.now() };
+    this.setKnifeLoop(true);
+  }
+
+  private setKnifeLoop(on: boolean) {
+    if (this.knifeLoopOn === on) return;
+    this.knifeLoopOn = on;
+    this.onKnifeLoop?.(on);
   }
 
   /** Time left until the opening knife leaves the screen. */
@@ -678,9 +688,10 @@ export class Game {
         totalAngle: 3 * 2 * Math.PI + clockwiseDist,
         target,
         done: false,
+        announced: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.clearOppDrag(); }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.clearOppDrag(); this.setKnifeLoop(false); }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -1440,6 +1451,7 @@ export class Game {
     this.onStatusTextChange?.('', '#eee');
     this.drag = null;
     this.spinAnim = null;
+    this.setKnifeLoop(false);
     this.ghostSwapAnim = null;
     this.hellfireAnim = null;
     this.cbReturnAnim = null;
@@ -3484,6 +3496,11 @@ export class Game {
       ctx.fillStyle = (settled && isMyTurn) ? '#fff' : '#ddd';
       ctx.fillText((settled && isMyTurn) ? this.goesFirst(myLabel) : myLabel, W / 2, H - 52);
 
+      if (settled && !spinAnim.announced) {
+        spinAnim.announced = true;
+        this.setKnifeLoop(false);
+        this.onKnifeSelect?.();
+      }
       if (settled && elapsed - LANDING_DURATION >= SPIN_HOLD) spinAnim.done = true;
     }
 

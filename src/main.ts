@@ -2,7 +2,8 @@ import { PhotonClient } from './network/PhotonClient';
 import { Game, DEFAULT_FOIL_STYLE } from './game/Game';
 import { UI } from './ui/UI';
 import { initGame, placeCard, PRESET_DECKS } from './game/gameLogic';
-import type { GameState, DeckType } from './game/types';
+import type { GameState, DeckType, BoardCell } from './game/types';
+import { audio, installButtonSounds } from './audio/audio';
 import {
   type CustomFoilParams,
   drawCustomFoil,
@@ -40,6 +41,9 @@ if (localStorage.getItem('settingsDefaults') !== '17.3') {
   localStorage.setItem('settingsDefaults', '17.3');
 }
 const game = new Game(getElement<HTMLCanvasElement>('game-canvas'));
+audio.preload();
+audio.bindToggle(getElement<HTMLButtonElement>('sound-toggle'));
+installButtonSounds();
 
 let gameState: GameState | null = null;
 let oppDeck: DeckType | null = null;
@@ -278,9 +282,9 @@ function scheduleCpuMove() {
     if (!gameState || gameState.currentTurn !== CPU_OPP_NR || gameState.phase !== 'playing') return;
     const move = getCpuMove(gameState);
     if (!move) return;
-    gameState = placeCard(gameState, CPU_OPP_NR, move.cardId, move.row, move.col);
-    game.setState(gameState);
-    if (gameState.phase === 'finished') handleCpuGameEnd(gameState);
+    const next = applyPlacedCard(CPU_OPP_NR, move.cardId, move.row, move.col);
+    if (!next) return;
+    if (next.phase === 'finished') handleCpuGameEnd(next);
   }, 600);
 }
 
@@ -533,9 +537,8 @@ const photon = new PhotonClient({
   onCardPlaced: (actorNr, cardId, row, col) => {
     if (!gameState) return;
     game.clearOppDrag();
-    gameState = placeCard(gameState, actorNr, cardId, row, col);
-    game.setState(gameState);
-    if (gameState.phase === 'finished') handleGameEnd(gameState);
+    const next = applyPlacedCard(actorNr, cardId, row, col);
+    if (next?.phase === 'finished') handleGameEnd(next);
   },
   onDeckPick: (_actorNr, deck) => {
     if (!photon.isMaster) return;
@@ -622,6 +625,45 @@ game.onTurnAnchor = (cardBottomCss) => {
   el.style.top = `${mid}px`;
 };
 
+game.onKnifeLoop = (on) => {
+  if (on) audio.startLoop('knifeSpin');
+  else audio.stopLoop('knifeSpin');
+};
+
+game.onKnifeSelect = () => {
+  audio.play('knifeSelect');
+};
+
+function countCaptures(before: BoardCell[][], after: BoardCell[][]): number {
+  let n = 0;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const prev = before[r][c];
+      const next = after[r][c];
+      if (!prev || !('card' in prev)) continue;
+      if (next && 'card' in next) {
+        if (next.card.id === prev.card.id && next.owner !== prev.owner) n++;
+      } else if (next && 'blood' in next) {
+        n++;
+      }
+    }
+  }
+  return n;
+}
+
+function applyPlacedCard(actorNr: number, cardId: string, row: number, col: number): GameState | null {
+  if (!gameState) return null;
+  const prev = gameState;
+  const next = placeCard(prev, actorNr, cardId, row, col);
+  gameState = next;
+  if (next !== prev) {
+    audio.play('cardPlay');
+    if (countCaptures(prev.board, next.board) > 0) audio.play('cardCapture');
+  }
+  game.setState(next);
+  return next;
+}
+
 function syncPageBg() {
   const c = document.getElementById('page-bg') as HTMLCanvasElement | null;
   if (!c) return;
@@ -645,15 +687,15 @@ syncPageBg();
 game.onPlaceCard = (cardId, row, col) => {
   if (!gameState) return;
   if (cpuMode) {
-    gameState = placeCard(gameState, CPU_LOCAL_NR, cardId, row, col);
-    game.setState(gameState);
-    if (gameState.phase === 'finished') handleCpuGameEnd(gameState);
-    else if (gameState.currentTurn === CPU_OPP_NR) scheduleCpuMove();
+    const next = applyPlacedCard(CPU_LOCAL_NR, cardId, row, col);
+    if (!next) return;
+    if (next.phase === 'finished') handleCpuGameEnd(next);
+    else if (next.currentTurn === CPU_OPP_NR) scheduleCpuMove();
   } else {
-    gameState = placeCard(gameState, photon.actorNr, cardId, row, col);
-    game.setState(gameState);
+    const next = applyPlacedCard(photon.actorNr, cardId, row, col);
+    if (!next) return;
     photon.sendPlaceCard(cardId, row, col);
-    if (gameState.phase === 'finished') handleGameEnd(gameState);
+    if (next.phase === 'finished') handleGameEnd(next);
   }
 };
 
