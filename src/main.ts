@@ -881,6 +881,16 @@ cardBackSelect.addEventListener('change', () => {
   game.setCardBack(cardBackSelect.value);
 });
 
+const volumeSlider = getElement<HTMLInputElement>('volume-slider');
+function syncVolumeSlider() {
+  volumeSlider.value = String(Math.round(audio.getVolume() * 100));
+}
+syncVolumeSlider();
+audio.onVolumeChange(syncVolumeSlider);
+volumeSlider.addEventListener('input', () => {
+  audio.setVolume(Number(volumeSlider.value) / 100);
+});
+
 const colorblindToggle = getElement<HTMLInputElement>('colorblind-toggle');
 colorblindToggle.checked = localStorage.getItem('colorblindMode') === 'true';
 game.setColorblindMode(colorblindToggle.checked);
@@ -899,6 +909,8 @@ cpuCheck.addEventListener('change', () => {
 
 getElement('settings-btn').addEventListener('click', () => ui.showSettings());
 getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
+getElement('admin-settings-btn').addEventListener('click', () => ui.showAdminSettings());
+getElement('admin-settings-back-btn').addEventListener('click', () => ui.showSettings());
 
 // ── foil creator ──────────────────────────────────────────────────────────────
 
@@ -1016,7 +1028,7 @@ getElement('foil-creator-btn').addEventListener('click', () => {
 
 getElement('foil-creator-back-btn').addEventListener('click', () => {
   stopFoilPreview();
-  ui.showSettings();
+  ui.showAdminSettings();
 });
 
 getElement('foil-save-btn').addEventListener('click', () => {
@@ -1026,7 +1038,7 @@ getElement('foil-save-btn').addEventListener('click', () => {
   game.setFoilStyle(3);
   if (inRoom) photon.sendFoilPick(3, workingFoilParams);
   stopFoilPreview();
-  ui.showSettings();
+  ui.showAdminSettings();
 });
 
 // ── card version select ───────────────────────────────────────────────────────
@@ -1163,7 +1175,7 @@ getElement('card-version-btn').addEventListener('click', () => {
   buildCardVersionList();
 });
 
-getElement('card-version-back-btn').addEventListener('click', () => ui.showSettings());
+getElement('card-version-back-btn').addEventListener('click', () => ui.showAdminSettings());
 
 // ── debug toggle ──────────────────────────────────────────────────────────────
 

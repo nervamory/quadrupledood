@@ -83,6 +83,11 @@ function friendlySendError(message: string): string {
   return "couldn't send the login link";
 }
 
+function showLine(node: HTMLElement, text: string) {
+  node.textContent = text;
+  node.hidden = text.trim() === '';
+}
+
 function paint(fillName = false) {
   const panel = el('account-panel');
   const loggedOut = el('account-logged-out');
@@ -100,7 +105,7 @@ function paint(fillName = false) {
   }
 
   panel.hidden = false;
-  status.textContent = statusText;
+  showLine(status, statusText);
 
   if (!booted) {
     loggedOut.hidden = true;
@@ -114,18 +119,16 @@ function paint(fillName = false) {
   if (!signedIn || !current) {
     lobby.hidden = true;
     lobby.textContent = '';
-    if (signedIn) {
-      record.textContent = '—';
-      who.textContent = '';
-      nameInput.value = '';
-    }
+    showLine(record, '');
+    showLine(who, '');
+    if (signedIn) nameInput.value = '';
     return;
   }
 
   loggedOut.hidden = true;
   loggedIn.hidden = false;
-  record.textContent = formatRecord(current.wins, current.losses, current.draws);
-  who.textContent = current.email;
+  showLine(record, formatRecord(current.wins, current.losses, current.draws));
+  showLine(who, current.email);
   lobby.hidden = false;
   lobby.textContent = `${current.displayName} · ${formatRecord(current.wins, current.losses, current.draws)}`;
   const savedName = current.displayName;
@@ -159,8 +162,7 @@ async function onSession(session: Session | null) {
     signedIn = false;
     currentUserId = null;
     current = null;
-    if (hadUser) statusText = 'logged out';
-    else if (statusText === '…') statusText = '';
+    if (hadUser || statusText === '…') statusText = '';
     paint();
     emitUser();
     emitName();

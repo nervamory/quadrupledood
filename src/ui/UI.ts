@@ -6,12 +6,13 @@ export class UI {
   private betweenScreen  = document.getElementById('between-screen')!;
   private matchoverScreen = document.getElementById('matchover-screen')!;
   private settingsScreen = document.getElementById('settings-screen')!;
+  private adminSettingsScreen = document.getElementById('admin-settings-screen')!;
   private foilCreatorScreen = document.getElementById('foil-creator-screen')!;
   private cardVersionScreen = document.getElementById('card-version-screen')!;
   private status         = document.getElementById('status')!;
 
   private allScreens() {
-    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.foilCreatorScreen, this.cardVersionScreen];
+    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.adminSettingsScreen, this.foilCreatorScreen, this.cardVersionScreen];
   }
 
   private show(screen: HTMLElement) {
@@ -24,6 +25,7 @@ export class UI {
   showLobby()        { this.clearTurnStatus(); this.show(this.lobby); }
   showGame()         { this.show(this.gameScreen); }
   showSettings()     { this.clearTurnStatus(); this.show(this.settingsScreen); }
+  showAdminSettings() { this.clearTurnStatus(); this.show(this.adminSettingsScreen); }
   showFoilCreator()  { this.clearTurnStatus(); this.show(this.foilCreatorScreen); }
   showCardVersionSelect() { this.clearTurnStatus(); this.show(this.cardVersionScreen); }
 

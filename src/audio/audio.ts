@@ -19,9 +19,20 @@ const EXTS = ['mp3'] as const;
 const LOOP_CUES = ['knifeSpin', 'music'] as const;
 
 const STORAGE_KEY = 'soundEnabled';
+const VOLUME_KEY = 'volume';
+
+function readVolume(): number {
+  const raw = localStorage.getItem(VOLUME_KEY);
+  if (raw == null || raw === '') return 1;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(1, Math.max(0, n));
+}
 
 class Sound {
   private enabled = localStorage.getItem(STORAGE_KEY) !== 'false';
+  private volume = readVolume();
+  private volumeListeners: Array<() => void> = [];
   private loaded = false;
   private ready: Promise<void> | null = null;
   private fetchPromise: Promise<void> | null = null;
@@ -66,10 +77,37 @@ class Sound {
     return this.enabled;
   }
 
+  getVolume() {
+    return this.volume;
+  }
+
+  onVolumeChange(cb: () => void) {
+    this.volumeListeners.push(cb);
+  }
+
+  /** 0–1. Zero mutes; any higher level turns sound back on. */
+  setVolume(level: number) {
+    this.volume = Math.min(1, Math.max(0, level));
+    localStorage.setItem(VOLUME_KEY, String(this.volume));
+    const shouldEnable = this.volume > 0;
+    if (shouldEnable !== this.enabled) {
+      this.setEnabled(shouldEnable);
+      return;
+    }
+    this.applyGain();
+    this.emitVolume();
+  }
+
   setEnabled(on: boolean) {
+    if (on && this.volume <= 0) {
+      this.volume = 1;
+      localStorage.setItem(VOLUME_KEY, '1');
+    }
     this.enabled = on;
     localStorage.setItem(STORAGE_KEY, String(on));
     this.renderToggle();
+    this.applyGain();
+    this.emitVolume();
     if (!on) {
       this.loopWanted.delete('music');
       this.stopLoopNode('knifeSpin');
@@ -110,8 +148,17 @@ class Sound {
     if (!Ctor) return null;
     this.ctx = new Ctor();
     this.master = this.ctx.createGain();
+    this.master.gain.value = this.enabled ? this.volume : 0;
     this.master.connect(this.ctx.destination);
     return this.ctx;
+  }
+
+  private applyGain() {
+    if (this.master) this.master.gain.value = this.enabled ? this.volume : 0;
+  }
+
+  private emitVolume() {
+    for (const cb of this.volumeListeners) cb();
   }
 
   private ensureRunning(): Promise<void> {
