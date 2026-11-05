@@ -300,10 +300,45 @@
         margin-bottom: 20px;
       }
       #pref-deck-select,
-      #card-back-select,
       #foil-style-select,
-      #volume-slider {
+      #volume-slider,
+      #card-back-choices {
         width: 180px;
+      }
+      #card-back-choices {
+        display: flex;
+        gap: 8px;
+        margin: 6px 4px;
+      }
+      #card-back-choices .card-back-choice {
+        flex: 1;
+        height: 86px;
+        margin: 0;
+        padding: 0;
+        border: 2px solid #333;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #111;
+        line-height: 0;
+      }
+      #card-back-choices .card-back-choice img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+      #card-back-choices .card-back-choice:hover {
+        border-color: #666;
+        background: #111;
+      }
+      #card-back-choices .card-back-choice[aria-pressed="true"],
+      #card-back-choices .card-back-choice[aria-pressed="true"]:hover {
+        border-color: #c99a3d;
+      }
+      #card-back-choices .card-back-choice:focus-visible {
+        outline: 2px solid #eee;
+        outline-offset: 2px;
       }
       #volume-slider {
         margin: 6px 4px;
@@ -404,7 +439,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v21.1</p>
+        <p id="lobby-version">v21.2</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -486,10 +521,14 @@
             <option value="dolphin">dolphin deck</option>
           </select>
           <label style="color:#555; font-size:13px; text-align:right;">card back</label>
-          <select id="card-back-select">
-            <option value="skull">skull</option>
-            <option value="gilded" selected>gilded</option>
-          </select>
+          <div id="card-back-choices" role="radiogroup" aria-label="card back">
+            <button type="button" class="card-back-choice" data-back="skull" aria-label="skull" aria-pressed="false">
+              <img src="/assets/card-back.png" alt="">
+            </button>
+            <button type="button" class="card-back-choice" data-back="gilded" aria-label="gilded" aria-pressed="true">
+              <img src="/assets/card-back-gilded.jpg" alt="">
+            </button>
+          </div>
           <label style="color:#555; font-size:13px; text-align:right;">colorblind colors</label>
           <input type="checkbox" id="colorblind-toggle">
           <label style="color:#555; font-size:13px; text-align:right;">queue vs cpu</label>

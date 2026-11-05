@@ -874,12 +874,20 @@ cardArtToggle.addEventListener('change', () => {
   localStorage.setItem('cardArtMode', String(cardArtToggle.checked));
 });
 
-const cardBackSelect = getElement<HTMLSelectElement>('card-back-select');
-cardBackSelect.value = localStorage.getItem('cardBack') === 'skull' ? 'skull' : 'gilded';
-game.setCardBack(cardBackSelect.value);
-cardBackSelect.addEventListener('change', () => {
-  game.setCardBack(cardBackSelect.value);
-});
+const cardBackButtons = [...getElement('card-back-choices').querySelectorAll<HTMLButtonElement>('.card-back-choice')];
+function applyCardBack(id: string) {
+  game.setCardBack(id);
+  for (const btn of cardBackButtons) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.back === id));
+  }
+}
+applyCardBack(localStorage.getItem('cardBack') === 'skull' ? 'skull' : 'gilded');
+for (const btn of cardBackButtons) {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.back;
+    if (id) applyCardBack(id);
+  });
+}
 
 const volumeSlider = getElement<HTMLInputElement>('volume-slider');
 function syncVolumeSlider() {
