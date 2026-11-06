@@ -55,9 +55,15 @@ export function versionedArtKey(baseKey: string, version: number): string {
   return version > 1 ? `${baseKey}-v${version}` : baseKey;
 }
 
-/** Unset prefs follow the newest pack so dropping in a higher -vN just works. */
+// Oni v1 is the full figure. The card ships as the face.
+const PINNED_VERSION: Record<string, number> = {
+  oni: 2,
+};
+
+/** Unset prefs follow the newest pack, unless a card pins a specific look. */
 export function resolvedVersion(prefs: Record<string, number>, key: string, count: number): number {
-  return prefs[key] ?? count;
+  if (prefs[key] != null) return prefs[key];
+  return PINNED_VERSION[key] ?? count;
 }
 
 // Probes /assets/cards/<baseKey>-vN.png for N = 2..maxVersions, stopping at
