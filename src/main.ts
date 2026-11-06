@@ -275,17 +275,30 @@ function getCpuMove(state: GameState): { cardId: string; row: number; col: numbe
   return top[Math.floor(Math.random() * top.length)];
 }
 
+function playSettleRemaining(): number {
+  return Math.max(game.playEffectsRemaining(), audio.cardEffectRemaining());
+}
+
+// The 600ms think can overlap a short effect. A longer one holds the move until it ends.
 function scheduleCpuMove() {
   if (cpuMoveTimer !== null) return;
+  armCpuMove(600);
+}
+
+function armCpuMove(minDelay: number) {
+  if (cpuMoveTimer !== null) return;
+  const wait = Math.max(minDelay, playSettleRemaining());
   cpuMoveTimer = setTimeout(() => {
     cpuMoveTimer = null;
+    const still = playSettleRemaining();
+    if (still > 0) { armCpuMove(still); return; }
     if (!gameState || gameState.currentTurn !== CPU_OPP_NR || gameState.phase !== 'playing') return;
     const move = getCpuMove(gameState);
     if (!move) return;
     const next = applyPlacedCard(CPU_OPP_NR, move.cardId, move.row, move.col);
     if (!next) return;
     if (next.phase === 'finished') handleCpuGameEnd(next);
-  }, 600);
+  }, wait);
 }
 
 function startCpuGame(myDeck: DeckType) {
@@ -317,9 +330,7 @@ function handleCpuGameEnd(state: GameState) {
   }
   const myWins  = matchScore[CPU_LOCAL_NR] ?? 0;
   const oppWins = matchScore[CPU_OPP_NR]   ?? 0;
-  clearEndTimer();
-  endTransitionTimer = setTimeout(() => {
-    endTransitionTimer = null;
+  scheduleEndTransition(() => {
     if (myWins >= 2 || oppWins >= 2) {
       ui.showMatchOver({ myWins, oppWins, iWon: myWins >= 2 });
       return;
@@ -329,7 +340,7 @@ function handleCpuGameEnd(state: GameState) {
       : state.winner === CPU_LOCAL_NR ? 'win' : 'loss';
     const lockedDeck = state.winner === CPU_LOCAL_NR ? myPlayedDeck : null;
     ui.showBetweenGames({ myWins, oppWins, lastResult, lockedDeck });
-  }, 2000);
+  });
 }
 
 function doCpuLeave() {
@@ -351,6 +362,21 @@ function doCpuLeave() {
 
 function clearEndTimer() {
   if (endTransitionTimer !== null) { clearTimeout(endTransitionTimer); endTransitionTimer = null; }
+}
+
+// Keep the board up through the winning play's animations, then the usual pause.
+function scheduleEndTransition(run: () => void) {
+  clearEndTimer();
+  const waitFor = (minMs: number) => {
+    const wait = Math.max(minMs, playSettleRemaining());
+    endTransitionTimer = setTimeout(() => {
+      endTransitionTimer = null;
+      const still = playSettleRemaining();
+      if (still > 0) { waitFor(still); return; }
+      run();
+    }, wait);
+  };
+  waitFor(2000);
 }
 
 let myDisplayName: string | null = null;
@@ -414,28 +440,22 @@ function handleGameEnd(state: GameState) {
   const matchOver = myWins >= 2 || oppWins >= 2;
   if (matchOver) saveMatchResult(myWins >= 2);
 
-  clearEndTimer();
-  endTransitionTimer = setTimeout(() => {
-    endTransitionTimer = null;
-
-    // Match over?
+  scheduleEndTransition(() => {
     if (matchOver) {
       ui.showMatchOver({ myWins, oppWins, iWon: myWins >= 2 });
       return;
     }
 
-    // Between games
     const lastResult: 'win' | 'loss' | 'draw' =
       state.winner === null ? 'draw'
       : state.winner === photon.actorNr ? 'win'
       : 'loss';
 
-    // Winner must keep their deck; loser can pick freely
     const iWonLastGame = state.winner === photon.actorNr;
     const lockedDeck = iWonLastGame ? myPlayedDeck : null;
 
     ui.showBetweenGames({ myWins, oppWins, lastResult, lockedDeck });
-  }, 2000);
+  });
 }
 
 // ── Photon ────────────────────────────────────────────────────────────────────
@@ -603,6 +623,8 @@ const photon = new PhotonClient({
 });
 
 // ── game callbacks ────────────────────────────────────────────────────────────
+
+game.playSfxSettled = () => audio.cardEffectRemaining() <= 0;
 
 game.onHoverChange = (idx) => {
   photon.sendHover(idx);

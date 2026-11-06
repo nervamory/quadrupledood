@@ -44,6 +44,7 @@ class Sound {
   private loopWanted = new Set<LoopCue>();
   private queued = new Set<OneShot>();
   private toggle: HTMLButtonElement | null = null;
+  private cardEffectUntil = 0;
 
   preload() {
     this.fetchPromise = Promise.all(
@@ -123,6 +124,11 @@ class Sound {
     if (this.buffers.has(cue)) this.playNow(cue);
     else if (!this.loaded) this.queued.add(cue);
     void this.ensureRunning();
+  }
+
+  /** Ms left on the card-play or capture one-shot, if one is still sounding. */
+  cardEffectRemaining(): number {
+    return Math.max(0, this.cardEffectUntil - performance.now());
   }
 
   startLoop(cue: LoopCue) {
@@ -213,6 +219,10 @@ class Sound {
     src.buffer = buffer;
     src.connect(this.master);
     src.start();
+    if (cue === 'cardPlay' || cue === 'cardCapture') {
+      const until = performance.now() + buffer.duration * 1000;
+      if (until > this.cardEffectUntil) this.cardEffectUntil = until;
+    }
   }
 
   private ensureLoop(cue: LoopCue) {

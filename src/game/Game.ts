@@ -91,6 +91,27 @@ const SPIN_HOLD        = 1100;           // ms to hold settled result before sho
 // newest sample and walk the in-between positions, instead of snapping.
 const OPP_DRAG_DELAY = 120;
 
+// Card-play effects. The next placement waits until these finish.
+const FLIP_MS = 340;
+const ROBOT_FLIP_MS = 520;
+const HELLFIRE_HOLD_MS = 220;
+const HELLFIRE_BURN_MS = 1400;
+const HELLFIRE_FADE_AT = 1650;
+const HELLFIRE_FADE_MS = 500;
+const HELLFIRE_MS = HELLFIRE_FADE_AT + HELLFIRE_FADE_MS;
+const GHOST_SWAP_MS = 1350;
+const LIGHTNING_MS = 350;
+const MIRROR_MS = 500;
+const SCORE_BOUNCE_MS = 220;
+const SUCCUBUS_PULL_MS = 280;
+const POP_MS = 190;
+const MERMAID_PULL_MS = 380;
+const BAT_CREATE_MS = 160;
+const BAT_MOVE_MS = 280;
+const VAMPIRE_MS = 380;
+const CB_RETURN_MS = 400;
+const SHAKE_MS = 450;
+
 type CardLayout = { cx: number; cy: number; rotation: number; card: Card };
 
 type FlipAnim = {
@@ -243,6 +264,8 @@ export class Game {
   private vampireAnim: { vampX: number; vampY: number; cells: { row: number; col: number; fromX: number; fromY: number }[]; startTime: number; hiddenKeys: Set<string> } | null = null;
 
   onPlaceCard?: (cardId: string, row: number, col: number) => void;
+  /** False while a card-play sound is still going. Set from main. */
+  playSfxSettled: () => boolean = () => true;
   onHoverChange?: (idx: number | null) => void;
   onDragChange?: (drag: { idx: number; x: number; y: number; t?: number } | null) => void;
   onStatusTextChange?: (text: string, color: string) => void;
@@ -902,18 +925,13 @@ export class Game {
 
   private drawHellfireAnim(now: number) {
     if (!this.hellfireAnim) return;
-    const HOLD_MS = 220;
-    const BURN_MS = 1400;
-    const FADE_AT = 1650;
-    const FADE_MS = 500;
-    const TOTAL = FADE_AT + FADE_MS;
     const t = now - this.hellfireAnim.startTime;
-    if (t > TOTAL) { this.hellfireAnim = null; return; }
+    if (t > HELLFIRE_MS) { this.hellfireAnim = null; return; }
 
     const ctx = this.ctx;
     const pad = (CELL - CARD) / 2;
-    const fade = t < FADE_AT ? 1 : Math.max(0, 1 - (t - FADE_AT) / FADE_MS);
-    const burn01 = t <= HOLD_MS ? 0 : Math.min(1, (t - HOLD_MS) / BURN_MS);
+    const fade = t < HELLFIRE_FADE_AT ? 1 : Math.max(0, 1 - (t - HELLFIRE_FADE_AT) / HELLFIRE_FADE_MS);
+    const burn01 = t <= HELLFIRE_HOLD_MS ? 0 : Math.min(1, (t - HELLFIRE_HOLD_MS) / HELLFIRE_BURN_MS);
     const burnEase = 1 - Math.pow(1 - burn01, 1.6);
 
     for (const { row, col, card, isBlack, embers } of this.hellfireAnim.cells) {
@@ -971,7 +989,7 @@ export class Game {
 
       for (const ember of embers) {
         const spawnFrac = ember.y / CARD;
-        const appearAt = HOLD_MS + (1 - spawnFrac) * BURN_MS;
+        const appearAt = HELLFIRE_HOLD_MS + (1 - spawnFrac) * HELLFIRE_BURN_MS;
         if (t < appearAt) continue;
         const age = t - appearAt;
         if (age > ember.life) continue;
@@ -1001,11 +1019,10 @@ export class Game {
 
   private drawLightningFlash(now: number) {
     if (this.lightningFlashAnims.length === 0) return;
-    const DURATION = 350;
     const ctx = this.ctx;
-    this.lightningFlashAnims = this.lightningFlashAnims.filter(a => now - a.startTime < DURATION);
+    this.lightningFlashAnims = this.lightningFlashAnims.filter(a => now - a.startTime < LIGHTNING_MS);
     for (const { row, col, startTime } of this.lightningFlashAnims) {
-      const t = (now - startTime) / DURATION;
+      const t = (now - startTime) / LIGHTNING_MS;
       const alpha = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8; // quick ramp up, slow fade
       const { x, y } = this.cellPos(row, col);
       ctx.save();
@@ -1028,12 +1045,11 @@ export class Game {
 
   private drawMirrorFlash(now: number) {
     if (this.mirrorFlashAnims.length === 0) return;
-    const DURATION = 500;
     const ctx = this.ctx;
     const pad = (CELL - CARD) / 2;
-    this.mirrorFlashAnims = this.mirrorFlashAnims.filter(a => now - a.startTime < DURATION);
+    this.mirrorFlashAnims = this.mirrorFlashAnims.filter(a => now - a.startTime < MIRROR_MS);
     for (const { row, col, startTime } of this.mirrorFlashAnims) {
-      const t = (now - startTime) / DURATION;
+      const t = (now - startTime) / MIRROR_MS;
       const alpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
       const { x, y } = this.cellPos(row, col);
       const cx = x + CELL / 2, cy = y + CELL / 2;
@@ -1089,10 +1105,9 @@ export class Game {
 
   private drawSuccubusPullAnims(now: number) {
     if (this.succubusPullAnims.length === 0) return;
-    const DURATION = 280;
     const ongoing: typeof this.succubusPullAnims = [];
     for (const anim of this.succubusPullAnims) {
-      const t = Math.min((now - anim.startTime) / DURATION, 1);
+      const t = Math.min((now - anim.startTime) / SUCCUBUS_PULL_MS, 1);
       if (t >= 1) {
         this.flipAnims = this.flipAnims.filter(f => !(f.row === anim.toRow && f.col === anim.toCol));
         this.flipAnims.push({ row: anim.toRow, col: anim.toCol, startTime: now, oldCard: anim.card, oldIsBlack: anim.pullIsBlack, newCard: anim.card, newIsBlack: anim.landIsBlack });
@@ -1123,11 +1138,10 @@ export class Game {
 
   private drawPopAnims(now: number) {
     if (this.popAnims.length === 0) return;
-    const DURATION = 190;
     const ctx = this.ctx;
-    this.popAnims = this.popAnims.filter(a => now - a.startTime < DURATION);
+    this.popAnims = this.popAnims.filter(a => now - a.startTime < POP_MS);
     for (const { row, col, startTime } of this.popAnims) {
-      const t = Math.min((now - startTime) / DURATION, 1);
+      const t = Math.min((now - startTime) / POP_MS, 1);
       const { x, y } = this.cellPos(row, col);
       const cx = x + CELL / 2, cy = y + CELL / 2;
       const radius = CELL * 0.35 + CELL * 0.65 * t;
@@ -1179,9 +1193,8 @@ export class Game {
 
   private drawMermaidPullAnim(now: number) {
     if (!this.mermaidPullAnim) return;
-    const DURATION = 380;
     const { card, fromX, fromY, fromRot, toX, toY, toRow, toCol, startTime, pullIsBlack, landIsBlack } = this.mermaidPullAnim;
-    const t = Math.min((now - startTime) / DURATION, 1);
+    const t = Math.min((now - startTime) / MERMAID_PULL_MS, 1);
     if (t >= 1) {
       // land: synthesize a flip from opponent color → mermaid player color
       this.flipAnims = this.flipAnims.filter(f => !(f.row === toRow && f.col === toCol));
@@ -1223,8 +1236,8 @@ export class Game {
 
   private drawBatSpawnAnim(now: number) {
     if (!this.batSpawnAnim) return;
-    const CREATE_MS = 160;
-    const MOVE_MS = 280;
+    const CREATE_MS = BAT_CREATE_MS;
+    const MOVE_MS = BAT_MOVE_MS;
     const { card, fromX, fromY, toX, toY, startTime, isBlack } = this.batSpawnAnim;
     const elapsed = now - startTime;
     if (elapsed >= CREATE_MS + MOVE_MS) {
@@ -1269,8 +1282,7 @@ export class Game {
 
   private drawVampireAnim(now: number) {
     if (!this.vampireAnim) return;
-    const DURATION = 380;
-    const t = Math.min((now - this.vampireAnim.startTime) / DURATION, 1);
+    const t = Math.min((now - this.vampireAnim.startTime) / VAMPIRE_MS, 1);
     if (t >= 1) { this.vampireAnim = null; return; }
 
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out toward vampire
@@ -1322,8 +1334,7 @@ export class Game {
 
   private drawCbReturnAnim(now: number) {
     if (!this.cbReturnAnim) return;
-    const DURATION = 400;
-    const t = Math.min((now - this.cbReturnAnim.startTime) / DURATION, 1);
+    const t = Math.min((now - this.cbReturnAnim.startTime) / CB_RETURN_MS, 1);
     if (t >= 1) { this.cbReturnAnim.done = true; return; }
 
     const { card, fromX, fromY, toX, toY, isBlack } = this.cbReturnAnim;
@@ -1648,8 +1659,40 @@ export class Game {
     return (this.state.hands[this.localNr] ?? [])[idx]?.id ?? null;
   }
 
+  /** Ms until this play's board animations have painted out, including chained landings. */
+  playEffectsRemaining(now = performance.now()): number {
+    let until = 0;
+    let lingering = false;
+    const track = (end: number) => {
+      if (end > now) until = Math.max(until, end);
+      else lingering = true;
+    };
+    for (const f of this.flipAnims) track(f.startTime + (f.kind === 'robot' ? ROBOT_FLIP_MS : FLIP_MS));
+    if (this.hellfireAnim) track(this.hellfireAnim.startTime + HELLFIRE_MS);
+    if (this.ghostSwapAnim) track(this.ghostSwapAnim.startTime + GHOST_SWAP_MS);
+    if (this.cbReturnAnim) track(this.cbReturnAnim.startTime + CB_RETURN_MS);
+    for (const a of this.lightningFlashAnims) track(a.startTime + LIGHTNING_MS);
+    for (const a of this.mirrorFlashAnims) track(a.startTime + MIRROR_MS);
+    for (const a of this.succubusPullAnims) track(a.startTime + SUCCUBUS_PULL_MS);
+    for (const a of this.popAnims) track(a.startTime + POP_MS);
+    if (this.mermaidPullAnim) track(this.mermaidPullAnim.startTime + MERMAID_PULL_MS);
+    if (this.batSpawnAnim) track(this.batSpawnAnim.startTime + BAT_CREATE_MS + BAT_MOVE_MS);
+    for (const a of this.captureShakeAnims) track(a.startTime + SHAKE_MS);
+    if (this.vampireAnim) track(this.vampireAnim.startTime + VAMPIRE_MS);
+    if (this.scoreAnimMy != null && now < this.scoreAnimMy + SCORE_BOUNCE_MS) until = Math.max(until, this.scoreAnimMy + SCORE_BOUNCE_MS);
+    if (this.scoreAnimOpp != null && now < this.scoreAnimOpp + SCORE_BOUNCE_MS) until = Math.max(until, this.scoreAnimOpp + SCORE_BOUNCE_MS);
+    if (until > now) return until - now;
+    // A finished clip can still be on the list until the next paint, which is also
+    // when a follow-up (pull landing into a flip) gets scheduled.
+    return lingering ? 16 : 0;
+  }
+
+  private playInProgress(): boolean {
+    return this.playEffectsRemaining() > 0 || !this.playSfxSettled();
+  }
+
   private hitHandCard(mx: number, my: number): { layout: CardLayout; idx: number } | null {
-    if (!this.state || this.state.currentTurn !== this.localNr || this.state.phase !== 'playing') {
+    if (!this.state || this.state.currentTurn !== this.localNr || this.state.phase !== 'playing' || this.playInProgress()) {
       return null;
     }
     const hand = this.state.hands[this.localNr] ?? [];
@@ -1851,7 +1894,7 @@ export class Game {
     this.drag.y = y;
     this.emitDrag(true);
     const cell = this.hitCell(x, y);
-    if (cell) {
+    if (cell && !this.playInProgress()) {
       const target = this.state.board[cell.row][cell.col];
       const isBlood = target !== null && 'blood' in target;
       const isCard = target !== null && !isBlood;
@@ -1937,7 +1980,7 @@ export class Game {
         this.drag.y = y;
         this.emitDrag(true);
         const cell = this.hitCell(x, y);
-        if (cell) {
+        if (cell && !this.playInProgress()) {
           const target = this.state.board[cell.row][cell.col];
           const isBlood = target !== null && 'blood' in target;
           const isCard = target !== null && !isBlood;
@@ -2310,7 +2353,7 @@ export class Game {
 
   private drawGhostSwapCards(now: number) {
     if (!this.ghostSwapAnim) return;
-    const DURATION = 1350;
+    const DURATION = GHOST_SWAP_MS;
     const TRAVEL   = 0.6; // 0–60% travel, 60–100% flip
     const t = Math.min((now - this.ghostSwapAnim.startTime) / DURATION, 1);
     if (t >= 1) { this.ghostSwapAnim.done = true; return; }
@@ -3614,7 +3657,7 @@ export class Game {
           const flip = this.flipAnims.find(f => f.row === row && f.col === col);
           if (flip) {
             const isRobot = flip.kind === 'robot';
-            const FLIP_DUR = isRobot ? 520 : 340;
+            const FLIP_DUR = isRobot ? ROBOT_FLIP_MS : FLIP_MS;
             const rawT = (now - flip.startTime) / FLIP_DUR;
             if (rawT < 0) {
               // Waiting on stagger — keep showing the old face until the switch starts.
@@ -3650,7 +3693,7 @@ export class Game {
             const shake = (() => {
               const sa = this.captureShakeAnims.find(a => a.row === row && a.col === col);
               if (!sa) return 0;
-              const SHAKE_DUR = 450;
+              const SHAKE_DUR = SHAKE_MS;
               const st = (now - sa.startTime) / SHAKE_DUR;
               if (st >= 1) { this.captureShakeAnims = this.captureShakeAnims.filter(a => a !== sa); return 0; }
               return Math.sin(st * Math.PI * 4) * 3 * (1 - st);
@@ -3668,7 +3711,7 @@ export class Game {
     {
       const robotFlip = this.flipAnims.find(f => f.kind === 'robot');
       if (robotFlip && now >= robotFlip.startTime) {
-        const ROBOT_DUR = 520;
+        const ROBOT_DUR = ROBOT_FLIP_MS;
         const t = Math.min((now - robotFlip.startTime) / ROBOT_DUR, 1);
         const pulse = 0.3 + 0.45 * Math.sin(t * Math.PI);
         for (const [rr, cc] of (state.robotPulse ?? [])) {
@@ -3838,7 +3881,6 @@ export class Game {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const SCORE_BOUNCE_MS = 220;
     const scoreScale = (animStart: number | null) => {
       if (animStart === null) return 1;
       const t = Math.min((now - animStart) / SCORE_BOUNCE_MS, 1);
