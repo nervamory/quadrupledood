@@ -1593,6 +1593,32 @@ export class Game {
     return this.viewFlipped ? VIEW_OPPOSITE[dir] : dir;
   }
 
+  // Fixed capture patterns (balloon's down, bone's diagonal, brain, skull, …)
+  // are stored in board coordinates. The seat across the table already sees the
+  // board rotated 180°, so the arrow has to be drawn on the opposite edge or
+  // it points at a different square than the one resolveCaptures actually hits.
+  private fillArrow(x: number, y: number, dir: Direction) {
+    const ctx = this.ctx;
+    const cx = x + CARD / 2;
+    const cy = y + CARD / 2;
+    const m = 6;
+    const ts = 10;
+    const mc = 7;
+    const d = this.visualDir(dir);
+    ctx.beginPath();
+    switch (d) {
+      case 'up':         ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); break;
+      case 'down':       ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); break;
+      case 'left':       ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); break;
+      case 'right':      ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); break;
+      case 'up-left':    ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); break;
+      case 'up-right':   ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); break;
+      case 'down-left':  ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); break;
+      case 'down-right': ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); break;
+    }
+    ctx.fill();
+  }
+
   private cellPos(row: number, col: number) {
     const r = this.viewFlipped ? 3 - row : row;
     const c = this.viewFlipped ? 3 - col : col;
@@ -2579,19 +2605,9 @@ export class Game {
         ctx.fillText('🧛', 0, (vm.actualBoundingBoxAscent - vm.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
-      // Diagonal-down indicators at bottom-left and bottom-right corners
-      const m = 7; const ts = 10;
       ctx.fillStyle = fg;
-      ctx.beginPath(); // bottom-left corner → points ↙
-      ctx.moveTo(x + m, y + CARD - m);
-      ctx.lineTo(x + m + ts * 1.5, y + CARD - m);
-      ctx.lineTo(x + m, y + CARD - m - ts * 1.5);
-      ctx.fill();
-      ctx.beginPath(); // bottom-right corner → points ↘
-      ctx.moveTo(x + CARD - m, y + CARD - m);
-      ctx.lineTo(x + CARD - m - ts * 1.5, y + CARD - m);
-      ctx.lineTo(x + CARD - m, y + CARD - m - ts * 1.5);
-      ctx.fill();
+      this.fillArrow(x, y, 'down-left');
+      this.fillArrow(x, y, 'down-right');
       return;
     }
 
@@ -2641,10 +2657,10 @@ export class Game {
         ctx.restore();
       }
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
-      ctx.beginPath(); ctx.moveTo(x + m, y + CARD - m); ctx.lineTo(x + m + ts * 1.5, y + CARD - m); ctx.lineTo(x + m, y + CARD - m - ts * 1.5); ctx.fill(); // down-left
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, y + CARD - m); ctx.lineTo(x + CARD - m - ts * 1.5, y + CARD - m); ctx.lineTo(x + CARD - m, y + CARD - m - ts * 1.5); ctx.fill(); // down-right
+      this.fillArrow(x, y, 'left');
+      this.fillArrow(x, y, 'right');
+      this.fillArrow(x, y, 'down-left');
+      this.fillArrow(x, y, 'down-right');
       return;
     }
 
@@ -2662,9 +2678,9 @@ export class Game {
         ctx.restore();
       }
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
-      ctx.beginPath(); ctx.moveTo(x + m, y + m); ctx.lineTo(x + m + ts * 1.5, y + m); ctx.lineTo(x + m, y + m + ts * 1.5); ctx.fill(); // up-left corner
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
+      this.fillArrow(x, y, 'left');
+      this.fillArrow(x, y, 'up-left');
+      this.fillArrow(x, y, 'up');
       return;
     }
 
@@ -2714,9 +2730,9 @@ export class Game {
         ctx.restore();
       }
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
-      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill(); // down
+      this.fillArrow(x, y, 'left');
+      this.fillArrow(x, y, 'right');
+      this.fillArrow(x, y, 'down');
       return;
     }
 
@@ -2750,9 +2766,9 @@ export class Game {
         ctx.restore();
       }
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(x + m, cy); ctx.lineTo(x + m + ts * 1.5, cy - ts); ctx.lineTo(x + m + ts * 1.5, cy + ts); ctx.fill(); // left
-      ctx.beginPath(); ctx.moveTo(x + CARD - m, cy); ctx.lineTo(x + CARD - m - ts * 1.5, cy - ts); ctx.lineTo(x + CARD - m - ts * 1.5, cy + ts); ctx.fill(); // right
-      ctx.beginPath(); ctx.moveTo(cx, y + m); ctx.lineTo(cx - ts, y + m + ts * 1.5); ctx.lineTo(cx + ts, y + m + ts * 1.5); ctx.fill(); // up
+      this.fillArrow(x, y, 'left');
+      this.fillArrow(x, y, 'right');
+      this.fillArrow(x, y, 'up');
       return;
     }
 
@@ -2762,7 +2778,8 @@ export class Game {
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(card.direction === 'up-right' ? 0 : Math.PI / 2);
+        const slashArt = card.direction === 'up-right' || card.direction === 'down-left';
+        ctx.rotate(slashArt ? 0 : Math.PI / 2);
         ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
@@ -2770,14 +2787,17 @@ export class Game {
         ctx.fillText('🦴', 0, (bom.actualBoundingBoxAscent - bom.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
-      const mc = 7;
+      // drawCard already mirrors direction for the far seat, and up-right's
+      // opposite is down-left — same diagonal. Matching only 'up-right' painted
+      // the other diagonal on that seat.
+      const slash = card.direction === 'up-right' || card.direction === 'down-left';
       ctx.fillStyle = fg;
-      if (card.direction === 'up-right') {
-        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
-        ctx.beginPath(); ctx.moveTo(x + mc, y + CARD - mc); ctx.lineTo(x + mc + ts * 1.5, y + CARD - mc); ctx.lineTo(x + mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-left
+      if (slash) {
+        this.fillArrow(x, y, 'up-right');
+        this.fillArrow(x, y, 'down-left');
       } else {
-        ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
-        ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + CARD - mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + CARD - mc); ctx.lineTo(x + CARD - mc, y + CARD - mc - ts * 1.5); ctx.fill(); // down-right
+        this.fillArrow(x, y, 'up-left');
+        this.fillArrow(x, y, 'down-right');
       }
       return;
     }
@@ -2935,11 +2955,9 @@ export class Game {
         ctx.fillText('👿', 0, (im.actualBoundingBoxAscent - im.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
-      // Two upper-corner triangles — captures diagonally upward (2 squares)
       ctx.fillStyle = fg;
-      const mc = 7;
-      ctx.beginPath(); ctx.moveTo(x + mc, y + mc); ctx.lineTo(x + mc + ts * 1.5, y + mc); ctx.lineTo(x + mc, y + mc + ts * 1.5); ctx.fill(); // up-left
-      ctx.beginPath(); ctx.moveTo(x + CARD - mc, y + mc); ctx.lineTo(x + CARD - mc - ts * 1.5, y + mc); ctx.lineTo(x + CARD - mc, y + mc + ts * 1.5); ctx.fill(); // up-right
+      this.fillArrow(x, y, 'up-left');
+      this.fillArrow(x, y, 'up-right');
       return;
     }
 
@@ -3054,7 +3072,7 @@ export class Game {
         ctx.restore();
       }
       ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.moveTo(cx, y + CARD - m); ctx.lineTo(cx - ts, y + CARD - m - ts * 1.5); ctx.lineTo(cx + ts, y + CARD - m - ts * 1.5); ctx.fill();
+      this.fillArrow(x, y, 'down');
       return;
     }
 
