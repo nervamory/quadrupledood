@@ -720,13 +720,18 @@ export class Game {
     ctx.restore();
   }
 
-  private drawCardImage(x: number, y: number, isBlack: boolean, key: string) {
+  private drawCardImage(x: number, y: number, isBlack: boolean, key: string, mirror = false) {
     const img = this.artImage(key);
     if (!img) return;
     const pad = 6;
     const dw = CARD - pad * 2;
     const ctx = this.ctx;
     ctx.save();
+    if (mirror) {
+      ctx.translate(x + CARD / 2, y + CARD / 2);
+      ctx.scale(-1, 1);
+      ctx.translate(-(x + CARD / 2), -(y + CARD / 2));
+    }
     if (isBlack) {
       const inv = this.invertedArtCanvas(`${key}@${img.src}`, img);
       ctx.globalCompositeOperation = 'screen';
@@ -2878,13 +2883,15 @@ export class Game {
     }
 
     if (card.type === 'bone') {
+      // The drawing lies on the up-right / down-left diagonal. The other
+      // diagonal is the same picture reflected, so the shaft meets those corners.
+      const slash = card.direction === 'up-right' || card.direction === 'down-left';
       if (this.cardArtMode) {
-        this.drawCardImage(x, y, isBlack, 'bone');
+        this.drawCardImage(x, y, isBlack, 'bone', !slash);
       } else {
         ctx.save();
         ctx.translate(cx, cy);
-        const slashArt = card.direction === 'up-right' || card.direction === 'down-left';
-        ctx.rotate(slashArt ? 0 : Math.PI / 2);
+        ctx.rotate(slash ? 0 : Math.PI / 2);
         ctx.font = '40px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
@@ -2892,10 +2899,6 @@ export class Game {
         ctx.fillText('🦴', 0, (bom.actualBoundingBoxAscent - bom.actualBoundingBoxDescent) / 2);
         ctx.restore();
       }
-      // drawCard already mirrors direction for the far seat, and up-right's
-      // opposite is down-left — same diagonal. Matching only 'up-right' painted
-      // the other diagonal on that seat.
-      const slash = card.direction === 'up-right' || card.direction === 'down-left';
       ctx.fillStyle = fg;
       if (slash) {
         this.fillArrow(x, y, 'up-right');
