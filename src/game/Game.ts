@@ -194,6 +194,9 @@ export class Game {
   ) | null = null;
   private knifeLoopOn = false;
   private lastHoverIdx: number | null = null;
+  // Per-card hover lift, 0–1. Retargets from the current value so a quick
+  // move to the next card doesn't wait out the previous one's animation.
+  private handLift = new Map<string, { v: number; from: number; to: number; t0: number }>();
   private matchScore: Record<number, number> = {};
   private seatNames: Record<number, string> = {};
   oppHoverIdx: number | null = null;
@@ -761,7 +764,7 @@ export class Game {
         announced: false,
       };
     }
-    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.clearOppDrag(); this.setKnifeLoop(false); }
+    if (!state) { this.spinAnim = null; this.ghostSwapAnim = null; this.hellfireAnim = null; this.cbReturnAnim = null; this.lightningFlashAnims = []; this.scoreAnimMy = null; this.scoreAnimOpp = null; this.succubusPullAnims = []; this.popAnims = []; this.mermaidPullAnim = null; this.batSpawnAnim = null; this.captureShakeAnims = []; this.vampireAnim = null; this.handLift.clear(); this.clearOppDrag(); this.setKnifeLoop(false); }
     if (state && this.state) {
       this.detectGhostSwap(this.state, state);
       this.detectFlips(this.state, state);
@@ -1587,6 +1590,47 @@ export class Game {
 
   private cardIsBlack(owner: number): boolean {
     return this.localNr !== 0 && owner !== this.localNr;
+  }
+
+  // Full 0→1 travel. Ease-out, and shorter when less distance is left, so the
+  // card is already most of the way up in the first few frames and a scrub
+  // across the fan doesn't trail behind the pointer.
+  private static readonly HAND_LIFT_MS = 140;
+
+  private handLiftAmount(id: string, hot: boolean, now: number): number {
+    const target = hot ? 1 : 0;
+    let a = this.handLift.get(id);
+    if (!a) {
+      if (target === 0) return 0;
+      a = { v: 0, from: 0, to: 1, t0: now };
+      this.handLift.set(id, a);
+    } else if (a.to !== target) {
+      a.from = a.v;
+      a.to = target;
+      a.t0 = now;
+    }
+    const dist = Math.abs(a.to - a.from);
+    if (dist < 1e-4) {
+      a.v = a.to;
+    } else {
+      const t = Math.min(1, (now - a.t0) / (Game.HAND_LIFT_MS * dist));
+      const e = 1 - (1 - t) ** 3;
+      a.v = a.from + (a.to - a.from) * e;
+    }
+    if (!hot && a.v < 0.004) {
+      this.handLift.delete(id);
+      return 0;
+    }
+    return a.v;
+  }
+
+  private liftedFanPoint(l: CardLayout, lift: number, pivotY: number): { x: number; y: number } {
+    if (lift <= 0) return { x: l.cx, y: l.cy };
+    const dx = l.cx - this.W / 2;
+    const dy = l.cy - pivotY;
+    const len = Math.hypot(dx, dy) || 1;
+    const d = 14 * lift;
+    return { x: l.cx + (dx / len) * d, y: l.cy + (dy / len) * d };
   }
 
   private visualDir(dir: Direction): Direction {
@@ -3820,58 +3864,50 @@ export class Game {
       c => c && 'card' in c && c.owner === this.localNr && c.card.type === 'eye'
     );
     const oppLayout = this.computeHandLayout(oppHand, false);
-    const HOVER_LIFT = 14;
-    let oppHoveredEntry: CardLayout | null = null;
+    const oppHotId = this.oppHoverIdx != null ? oppLayout[this.oppHoverIdx]?.card.id ?? null : null;
+    const oppDraw: { l: CardLayout; lift: number }[] = [];
     for (let i = 0; i < oppLayout.length; i++) {
       const l = oppLayout[i];
-      if (this.ghostSwapAnim?.hiddenIds.has(l.card.id)) continue;
-      if (this.oppDrag && i === this.oppDrag.idx) continue;
-      if (i === this.oppHoverIdx) { oppHoveredEntry = l; continue; }
+      if (this.ghostSwapAnim?.hiddenIds.has(l.card.id) || (this.oppDrag && i === this.oppDrag.idx)) {
+        this.handLift.delete(l.card.id);
+        continue;
+      }
+      oppDraw.push({ l, lift: this.handLiftAmount(l.card.id, l.card.id === oppHotId, now) });
+    }
+    oppDraw.sort((a, b) => (a.l.card.id === oppHotId ? 1 : 0) - (b.l.card.id === oppHotId ? 1 : 0) || a.lift - b.lift);
+    for (const { l, lift } of oppDraw) {
+      const p = this.liftedFanPoint(l, lift, this.oppPivotY);
       ctx.save();
-      this.drawFanCard(l.cx, l.cy, l.rotation, l.card, oppIsBlack, !myEyeActive);
+      this.drawFanCard(p.x, p.y, l.rotation, l.card, oppIsBlack, !myEyeActive);
       ctx.restore();
     }
-    if (oppHoveredEntry) {
-      const dx = oppHoveredEntry.cx - this.W / 2;
-      const dy = oppHoveredEntry.cy - this.oppPivotY;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      this.drawFanCard(
-        oppHoveredEntry.cx + dx / len * HOVER_LIFT,
-        oppHoveredEntry.cy + dy / len * HOVER_LIFT,
-        oppHoveredEntry.rotation,
-        oppHoveredEntry.card,
-        oppIsBlack,
-        !myEyeActive,
-      );
-    }
 
-    // my hand — face-up fan at bottom; hovered card drawn last so it layers on top
+    // my hand — face-up fan at bottom; the card with the most lift draws last
     const myHand = state.hands[this.localNr] ?? [];
     const myLayout = this.computeHandLayout(myHand, true);
     const draggingId = this.drag?.card.id;
     const hoveredId = this.hoveredHandCardId();
-    let hoveredEntry: CardLayout | null = null;
+    const myDraw: { l: CardLayout; lift: number }[] = [];
     for (const l of myLayout) {
-      if (l.card.id === draggingId) continue;
-      if (this.ghostSwapAnim?.hiddenIds.has(l.card.id)) continue;
-      if (this.cbReturnAnim?.hiddenId === l.card.id) continue;
-      if (l.card.id === hoveredId) { hoveredEntry = l; continue; }
+      if (
+        l.card.id === draggingId
+        || this.ghostSwapAnim?.hiddenIds.has(l.card.id)
+        || this.cbReturnAnim?.hiddenId === l.card.id
+      ) {
+        this.handLift.delete(l.card.id);
+        continue;
+      }
+      myDraw.push({ l, lift: this.handLiftAmount(l.card.id, l.card.id === hoveredId, now) });
+    }
+    myDraw.sort((a, b) => (a.l.card.id === hoveredId ? 1 : 0) - (b.l.card.id === hoveredId ? 1 : 0) || a.lift - b.lift);
+    for (const { l, lift } of myDraw) {
+      const p = this.liftedFanPoint(l, lift, this.myPivotY);
       ctx.save();
-      this.drawFanCard(l.cx, l.cy, l.rotation, l.card, myIsBlack);
+      this.drawFanCard(p.x, p.y, l.rotation, l.card, myIsBlack);
       ctx.restore();
     }
-    if (hoveredEntry) {
-      const dx = hoveredEntry.cx - this.W / 2;
-      const dy = hoveredEntry.cy - this.myPivotY;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      this.drawFanCard(
-        hoveredEntry.cx + dx / len * HOVER_LIFT,
-        hoveredEntry.cy + dy / len * HOVER_LIFT,
-        hoveredEntry.rotation,
-        hoveredEntry.card,
-        myIsBlack,
-      );
-    }
+    const liveIds = new Set([...oppLayout, ...myLayout].map(l => l.card.id));
+    for (const id of this.handLift.keys()) if (!liveIds.has(id)) this.handLift.delete(id);
 
     // scores — top center, above the opponent hand. Left is you, right is opp.
     const cells = state.board.flat();
