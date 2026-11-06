@@ -52,7 +52,7 @@ export class UI {
     scoreEl.textContent = `${opts.myWins} — ${opts.oppWins}`;
     resultEl.textContent = opts.lastResult === 'win' ? 'you won that game'
       : opts.lastResult === 'loss' ? 'you lost that game'
-      : opts.lastResult === 'rematch' ? 'rematch'
+      : opts.lastResult === 'rematch' ? 'sacrifice again'
       : 'that game was a draw';
 
     if (opts.lockedDeck !== null) {
