@@ -889,6 +889,26 @@ for (const btn of cardBackButtons) {
   });
 }
 
+let cardBackPreviewRaf = 0;
+function tickCardBacks() {
+  cardBackPreviewRaf = 0;
+  if (!document.getElementById('settings-screen')?.classList.contains('active')) return;
+  for (const btn of cardBackButtons) {
+    const canvas = btn.querySelector('canvas');
+    const id = btn.dataset.back;
+    if (canvas && id) game.paintCardBackPreview(canvas, id);
+  }
+  cardBackPreviewRaf = requestAnimationFrame(tickCardBacks);
+}
+function syncCardBackPreview() {
+  const open = document.getElementById('settings-screen')?.classList.contains('active') ?? false;
+  if (open && !cardBackPreviewRaf) cardBackPreviewRaf = requestAnimationFrame(tickCardBacks);
+  if (!open && cardBackPreviewRaf) {
+    cancelAnimationFrame(cardBackPreviewRaf);
+    cardBackPreviewRaf = 0;
+  }
+}
+
 const volumeSlider = getElement<HTMLInputElement>('volume-slider');
 function syncVolumeSlider() {
   volumeSlider.value = String(Math.round(audio.getVolume() * 100));
@@ -915,10 +935,10 @@ cpuCheck.addEventListener('change', () => {
   localStorage.setItem('cpuMode', String(cpuCheck.checked));
 });
 
-getElement('settings-btn').addEventListener('click', () => ui.showSettings());
-getElement('settings-back-btn').addEventListener('click', () => ui.showLobby());
-getElement('admin-settings-btn').addEventListener('click', () => ui.showAdminSettings());
-getElement('admin-settings-back-btn').addEventListener('click', () => ui.showSettings());
+getElement('settings-btn').addEventListener('click', () => { ui.showSettings(); syncCardBackPreview(); });
+getElement('settings-back-btn').addEventListener('click', () => { ui.showLobby(); syncCardBackPreview(); });
+getElement('admin-settings-btn').addEventListener('click', () => { ui.showAdminSettings(); syncCardBackPreview(); });
+getElement('admin-settings-back-btn').addEventListener('click', () => { ui.showSettings(); syncCardBackPreview(); });
 
 // ── foil creator ──────────────────────────────────────────────────────────────
 

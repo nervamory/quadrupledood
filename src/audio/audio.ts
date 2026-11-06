@@ -272,7 +272,11 @@ export function installButtonSounds() {
     const target = e.target;
     if (!(target instanceof Element)) return;
     const btn = target.closest('button');
-    if (!btn || btn.id === 'sound-toggle') return;
-    audio.play('button');
+    if (btn && btn.id !== 'sound-toggle') {
+      audio.play('button');
+      return;
+    }
+    const box = target.closest('input[type="checkbox"]');
+    if (box?.closest('#settings-screen, #admin-settings-screen')) audio.play('button');
   }, { capture: true });
 }

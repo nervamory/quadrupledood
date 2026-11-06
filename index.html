@@ -321,10 +321,9 @@
         background: #111;
         line-height: 0;
       }
-      #card-back-choices .card-back-choice img {
+      #card-back-choices .card-back-choice canvas {
         width: 100%;
         height: 100%;
-        object-fit: cover;
         display: block;
         pointer-events: none;
       }
@@ -439,7 +438,7 @@
           </svg>
         </button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v21.2</p>
+        <p id="lobby-version">v21.3</p>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>
@@ -523,10 +522,10 @@
           <label style="color:#555; font-size:13px; text-align:right;">card back</label>
           <div id="card-back-choices" role="radiogroup" aria-label="card back">
             <button type="button" class="card-back-choice" data-back="skull" aria-label="skull" aria-pressed="false">
-              <img src="/assets/card-back.png" alt="">
+              <canvas width="172" height="172" aria-hidden="true"></canvas>
             </button>
             <button type="button" class="card-back-choice" data-back="gilded" aria-label="gilded" aria-pressed="true">
-              <img src="/assets/card-back-gilded.jpg" alt="">
+              <canvas width="172" height="172" aria-hidden="true"></canvas>
             </button>
           </div>
           <label style="color:#555; font-size:13px; text-align:right;">colorblind colors</label>

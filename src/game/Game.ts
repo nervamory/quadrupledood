@@ -332,6 +332,53 @@ export class Game {
     localStorage.setItem('cardBack', this.cardBack);
   }
 
+  private backPreviewBuf: HTMLCanvasElement | null = null;
+
+  /** Card back with the current foil style, for the settings picker. */
+  paintCardBackPreview(target: HTMLCanvasElement, id: string) {
+    const backId: CardBackId = id === 'skull' ? 'skull' : 'gilded';
+    if (!this.backPreviewBuf || this.backPreviewBuf.width !== CARD) {
+      this.backPreviewBuf = document.createElement('canvas');
+      this.backPreviewBuf.width = CARD;
+      this.backPreviewBuf.height = CARD;
+    }
+    const buf = this.backPreviewBuf;
+    const bctx = buf.getContext('2d');
+    if (!bctx) return;
+    const saved = this.ctx;
+    this.ctx = bctx;
+    try {
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.clearRect(0, 0, CARD, CARD);
+      bctx.save();
+      bctx.beginPath();
+      bctx.roundRect(0, 0, CARD, CARD, 6);
+      bctx.clip();
+      const back = this.cardBackImgs[backId];
+      if (back.complete && back.naturalWidth > 0) {
+        bctx.drawImage(back, 0, 0, CARD, CARD);
+      } else {
+        bctx.fillStyle = backId === 'gilded' ? '#6e2244' : '#7a1de8';
+        bctx.fillRect(0, 0, CARD, CARD);
+      }
+      bctx.restore();
+      this.drawFoilOverlay(0, 0);
+    } finally {
+      this.ctx = saved;
+    }
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const px = Math.round(86 * dpr);
+    if (target.width !== px || target.height !== px) {
+      target.width = px;
+      target.height = px;
+    }
+    const tctx = target.getContext('2d');
+    if (!tctx) return;
+    tctx.clearRect(0, 0, px, px);
+    tctx.drawImage(buf, 0, 0, px, px);
+  }
+
   private loadVersionImage(baseKey: string, version: number) {
     this.ensureArt(versionedArtKey(baseKey, version));
   }
