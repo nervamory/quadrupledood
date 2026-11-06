@@ -3598,9 +3598,9 @@ export class Game {
         const { x, y } = this.cellPos(row, col);
         ctx.beginPath();
         ctx.roundRect(x, y, CELL, CELL, 4);
-        ctx.fillStyle = '#31414e'; // board outline charcoal
+        ctx.fillStyle = 'rgba(49, 65, 78, 0.45)'; // charcoal, translucent so board texture shows
         ctx.fill();
-        ctx.strokeStyle = '#31414e';
+        ctx.strokeStyle = 'rgba(49, 65, 78, 0.45)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
