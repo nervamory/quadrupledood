@@ -98,7 +98,8 @@ const HELLFIRE_HOLD_MS = 220;
 const HELLFIRE_BURN_MS = 1400;
 const HELLFIRE_FADE_AT = 1650;
 const HELLFIRE_FADE_MS = 500;
-const HELLFIRE_MS = HELLFIRE_FADE_AT + HELLFIRE_FADE_MS;
+const HELLFIRE_SELF_FADE_MS = 420;
+const HELLFIRE_MS = HELLFIRE_FADE_AT + HELLFIRE_FADE_MS + HELLFIRE_SELF_FADE_MS;
 const GHOST_SWAP_MS = 1350;
 const LIGHTNING_MS = 350;
 const MIRROR_MS = 500;
@@ -234,7 +235,7 @@ export class Game {
   private flipAnims: FlipAnim[] = [];
 
   private hellfireAnim: {
-    cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[] }[];
+    cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[]; self: boolean }[];
     startTime: number;
   } | null = null;
 
@@ -914,11 +915,22 @@ export class Game {
     }
   }
 
+  private playedHellfire(oldState: GameState, newState: GameState): { card: Card; owner: number } | null {
+    const next = newState.lastPlayed ?? {};
+    const prev = oldState.lastPlayed ?? {};
+    for (const key of Object.keys(next)) {
+      const owner = Number(key);
+      const card = next[owner];
+      if (card?.type === 'hellfire' && prev[owner]?.id !== card.id) return { card, owner };
+    }
+    return null;
+  }
+
   private detectHellfire(oldState: GameState, newState: GameState) {
     if (!newState.hellfirePos) return;
     const [hr, hc] = newState.hellfirePos;
-    const cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[] }[] = [];
-    for (const [dr, dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]] as [number,number][]) {
+    const cells: { row: number; col: number; card: Card; isBlack: boolean; embers: HellfireEmber[]; self: boolean }[] = [];
+    for (const [dr, dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]] as [number,number][]) {
       const r = hr + dr, c = hc + dc;
       if (r < 0 || r >= 4 || c < 0 || c >= 4) continue;
       const cell = oldState.board[r][c];
@@ -936,8 +948,20 @@ export class Game {
             life: 480 + rnd() * 640,
           });
         }
-        cells.push({ row: r, col: c, card: cell.card, isBlack: this.cardIsBlack(cell.owner), embers });
+        cells.push({ row: r, col: c, card: cell.card, isBlack: this.cardIsBlack(cell.owner), embers, self: false });
       }
+    }
+    // The placed card is already gone from the board. Hold it in the animation
+    // so the other seat sees it, and remove it only after the victims finish.
+    const played = this.playedHellfire(oldState, newState);
+    if (played) {
+      cells.push({
+        row: hr, col: hc,
+        card: played.card,
+        isBlack: this.cardIsBlack(played.owner),
+        embers: [],
+        self: true,
+      });
     }
     this.hellfireAnim = { cells, startTime: performance.now() };
   }
@@ -949,16 +973,37 @@ export class Game {
 
     const ctx = this.ctx;
     const pad = (CELL - CARD) / 2;
+    const victimsDoneAt = HELLFIRE_FADE_AT + HELLFIRE_FADE_MS;
     const fade = t < HELLFIRE_FADE_AT ? 1 : Math.max(0, 1 - (t - HELLFIRE_FADE_AT) / HELLFIRE_FADE_MS);
+    const selfFade = t < victimsDoneAt ? 1 : Math.max(0, 1 - (t - victimsDoneAt) / HELLFIRE_SELF_FADE_MS);
     const burn01 = t <= HELLFIRE_HOLD_MS ? 0 : Math.min(1, (t - HELLFIRE_HOLD_MS) / HELLFIRE_BURN_MS);
     const burnEase = 1 - Math.pow(1 - burn01, 1.6);
 
-    for (const { row, col, card, isBlack, embers } of this.hellfireAnim.cells) {
+    for (const { row, col, card, isBlack, embers, self } of this.hellfireAnim.cells) {
       const { x, y } = this.cellPos(row, col);
       const cardX = x + pad, cardY = y + pad;
       const cx = x + CELL / 2;
+      const cy = y + CELL / 2;
       const flicker = 0.82 + 0.18 * Math.sin(now * 0.038 + row * 2.1 + col);
       const lineY = cardY + CARD * (1 - burnEase);
+
+      if (self) {
+        ctx.save();
+        ctx.globalAlpha = selfFade;
+        if (t > HELLFIRE_HOLD_MS && selfFade > 0.05) {
+          const halo = ctx.createRadialGradient(cx, cy, CARD * 0.15, cx, cy, CELL * 0.9);
+          halo.addColorStop(0, `rgba(190, 255, 140, ${0.34 * flicker})`);
+          halo.addColorStop(0.55, `rgba(40, 230, 80, ${0.16 * flicker})`);
+          halo.addColorStop(1, 'rgba(0, 180, 50, 0)');
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(cx, cy, CELL * 0.9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        this.drawCard(cardX, cardY, card, isBlack);
+        ctx.restore();
+        continue;
+      }
 
       ctx.save();
       ctx.globalAlpha = fade;
@@ -966,9 +1011,9 @@ export class Game {
       // Heat bloom under the card — strongest at the burn front
       if (burn01 > 0) {
         const glow = ctx.createRadialGradient(cx, lineY, 4, cx, lineY, CELL * 0.72);
-        glow.addColorStop(0, `rgba(255, 210, 90, ${0.55 * flicker})`);
-        glow.addColorStop(0.35, `rgba(201, 154, 61, ${0.32 * flicker})`);
-        glow.addColorStop(1, 'rgba(180, 40, 0, 0)');
+        glow.addColorStop(0, `rgba(220, 255, 190, ${0.62 * flicker})`);
+        glow.addColorStop(0.35, `rgba(70, 255, 90, ${0.42 * flicker})`);
+        glow.addColorStop(1, 'rgba(0, 160, 40, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
         ctx.arc(cx, Math.min(lineY, cardY + CARD * 0.85), CELL * 0.7, 0, Math.PI * 2);
@@ -988,17 +1033,17 @@ export class Game {
           ctx.fillStyle = `rgba(6, 3, 1, ${0.72 + 0.18 * flicker})`;
           ctx.fillRect(cardX, lineY, CARD, charH);
           const ash = ctx.createLinearGradient(cardX, lineY, cardX, lineY + Math.min(28, charH));
-          ash.addColorStop(0, `rgba(40, 22, 8, ${0.55 * flicker})`);
-          ash.addColorStop(1, 'rgba(8, 4, 2, 0)');
+          ash.addColorStop(0, `rgba(16, 52, 24, ${0.55 * flicker})`);
+          ash.addColorStop(1, 'rgba(4, 12, 6, 0)');
           ctx.fillStyle = ash;
           ctx.fillRect(cardX, lineY, CARD, Math.min(28, charH));
         }
         // Hot leading edge
         const edge = ctx.createLinearGradient(cardX, lineY - 10, cardX, lineY + 8);
-        edge.addColorStop(0, 'rgba(255, 248, 210, 0)');
-        edge.addColorStop(0.45, `rgba(255, 236, 160, ${0.95 * flicker})`);
-        edge.addColorStop(0.62, GILDED_GOLD);
-        edge.addColorStop(1, 'rgba(180, 50, 10, 0.15)');
+        edge.addColorStop(0, 'rgba(236, 255, 220, 0)');
+        edge.addColorStop(0.45, `rgba(210, 255, 170, ${0.95 * flicker})`);
+        edge.addColorStop(0.62, '#7dff45');
+        edge.addColorStop(1, 'rgba(20, 170, 50, 0.18)');
         ctx.fillStyle = edge;
         ctx.fillRect(cardX, lineY - 10, CARD, 18);
       }
@@ -1017,7 +1062,7 @@ export class Game {
         const ey = cardY + ember.y + ember.vy * age;
         ctx.save();
         ctx.globalAlpha = a;
-        ctx.fillStyle = ember.size > 2.6 ? '#fff3c4' : ember.size > 1.8 ? GILDED_GOLD : '#e06020';
+        ctx.fillStyle = ember.size > 2.6 ? '#f4ffe6' : ember.size > 1.8 ? '#9dff55' : '#3dff6e';
         ctx.beginPath();
         ctx.arc(ex, ey, ember.size * (0.55 + 0.45 * (1 - age / ember.life)), 0, Math.PI * 2);
         ctx.fill();
