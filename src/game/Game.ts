@@ -694,22 +694,21 @@ export class Game {
 
   // Hand art is drawn fingers-up; oni emoji angles assume a right-facing glyph.
   // +π/2 maps those angles onto the assets so fingertips follow capture direction.
-  // A full-card square rotated off-axis sticks out past the corners, so the
-  // drawn size shrinks until the rotated square fits inside the card.
+  // Drawn at the same size as every other card. The clip hides the corners that
+  // swing outside the card when the square is rotated, without shrinking it.
   private drawRotatedHandArt(x: number, y: number, isBlack: boolean, emoji: string, angle: number) {
     const ctx = this.ctx;
     const key = emoji === '🫳' ? 'hand2' : 'hand';
     const img = this.artImage(key);
     if (!img) return;
-    const rot = angle + Math.PI / 2;
-    const extent = Math.abs(Math.cos(rot)) + Math.abs(Math.sin(rot));
-    const dw = (CARD - 16) / extent;
+    const pad = 6;
+    const dw = CARD - pad * 2;
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(x, y, CARD, CARD, 6);
     ctx.clip();
     ctx.translate(x + CARD / 2, y + CARD / 2);
-    ctx.rotate(rot);
+    ctx.rotate(angle + Math.PI / 2);
     if (isBlack) {
       const inv = this.invertedArtCanvas(`${key}@${img.src}`, img);
       ctx.globalCompositeOperation = 'screen';
