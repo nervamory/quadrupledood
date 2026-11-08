@@ -305,6 +305,10 @@ export class PhotonClient {
     return (this.lbc.myRoomActors()[actorNr]?.name ?? '').trim();
   }
 
+  actorUserId(actorNr: number): string {
+    return (this.lbc.myRoomActors()[actorNr]?.userId ?? '').trim();
+  }
+
   /** Connect as this account. A logged-in id is what a later refresh uses to reclaim the seat. */
   setAccountUser(userId: string | null) {
     if (!this.started) {

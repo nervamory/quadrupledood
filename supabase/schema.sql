@@ -17,10 +17,15 @@ create table if not exists public.profiles (
   losses integer not null default 0,
   draws integer not null default 0,
   last_match_at timestamptz,
+  last_win_at timestamptz,
   updated_at timestamptz not null default now(),
   constraint display_name_len check (char_length(display_name) between 1 and 12),
   constraint profile_counts_nonnegative check (wins >= 0 and losses >= 0 and draws >= 0)
 );
+
+-- Existing installs: also run migrate_leaderboard.sql (adds last_win_at + leaderboard RPCs).
+alter table public.profiles
+  add column if not exists last_win_at timestamptz;
 
 alter table public.profiles enable row level security;
 
@@ -99,6 +104,7 @@ begin
       losses = losses + case when outcome = 'loss' then 1 else 0 end,
       draws = draws + case when outcome = 'draw' then 1 else 0 end,
       last_match_at = now(),
+      last_win_at = case when outcome = 'win' then now() else last_win_at end,
       updated_at = now()
     where id = uid
     returning * into row;
@@ -109,6 +115,7 @@ begin
     'wins', row.wins,
     'losses', row.losses,
     'draws', row.draws,
+    'last_win_at', row.last_win_at,
     'applied', applied
   );
 end;
@@ -116,3 +123,71 @@ $$;
 
 revoke all on function public.record_match(text) from public;
 grant execute on function public.record_match(text) to authenticated;
+
+-- Ranked board for the lobby. Only players who have finished at least one match.
+-- Order: most wins, then fewer losses, then most recent win.
+create or replace function public.leaderboard(limit_count integer default 50)
+returns table (
+  id uuid,
+  display_name text,
+  wins integer,
+  losses integer,
+  draws integer,
+  last_win_at timestamptz,
+  rank bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p.id,
+    p.display_name,
+    p.wins,
+    p.losses,
+    p.draws,
+    p.last_win_at,
+    rank() over (
+      order by
+        p.wins desc,
+        p.losses asc,
+        p.last_win_at desc nulls last
+    ) as rank
+  from public.profiles p
+  where p.wins + p.losses + p.draws > 0
+  order by
+    p.wins desc,
+    p.losses asc,
+    p.last_win_at desc nulls last
+  limit greatest(1, least(coalesce(limit_count, 50), 200));
+$$;
+
+revoke all on function public.leaderboard(integer) from public;
+grant execute on function public.leaderboard(integer) to anon, authenticated;
+
+create or replace function public.player_rank(player_id uuid)
+returns bigint
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select r.rank
+  from (
+    select
+      p.id,
+      rank() over (
+        order by
+          p.wins desc,
+          p.losses asc,
+          p.last_win_at desc nulls last
+      ) as rank
+    from public.profiles p
+    where p.wins + p.losses + p.draws > 0
+  ) r
+  where r.id = player_id;
+$$;
+
+revoke all on function public.player_rank(uuid) from public;
+grant execute on function public.player_rank(uuid) to anon, authenticated;

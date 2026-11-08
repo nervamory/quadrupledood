@@ -20,7 +20,19 @@ import {
   probeVersionCount,
   resolvedVersion,
 } from './game/cardVersions';
-import { accountUserId, initAccount, onAccountName, onAccountUser, recordMatch } from './account/account';
+import {
+  accountUserId,
+  ensureRanks,
+  fetchLeaderboard,
+  formatRankedName,
+  initAccount,
+  onAccountName,
+  onAccountRank,
+  onAccountUser,
+  rankForUser,
+  recordMatch,
+  type LeaderboardEntry,
+} from './account/account';
 
 function getElement<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -380,19 +392,35 @@ function scheduleEndTransition(run: () => void) {
 }
 
 let myDisplayName: string | null = null;
+let myRank: number | null = null;
+
+function rankedSeatName(name: string, userId: string | null | undefined, self = false): string {
+  const rank = self ? myRank : rankForUser(userId);
+  return formatRankedName(name, rank);
+}
 
 function syncSeatNames() {
   const names: Record<number, string> = {};
+  const pendingIds: string[] = [];
   if (cpuMode) {
-    if (myDisplayName) names[CPU_LOCAL_NR] = myDisplayName;
+    if (myDisplayName) names[CPU_LOCAL_NR] = rankedSeatName(myDisplayName, accountUserId(), true);
   } else if (inRoom) {
     for (const nr of photon.allActorNrs) {
+      const uid = photon.actorUserId(nr);
+      if (uid) pendingIds.push(uid);
       const fromNet = photon.actorName(nr);
-      if (fromNet) names[nr] = fromNet;
+      if (fromNet) names[nr] = rankedSeatName(fromNet, uid, nr === photon.actorNr);
     }
-    if (myDisplayName && photon.actorNr > 0) names[photon.actorNr] = myDisplayName;
+    if (myDisplayName && photon.actorNr > 0) {
+      names[photon.actorNr] = rankedSeatName(myDisplayName, accountUserId(), true);
+    }
   }
   game.setSeatNames(names);
+  if (pendingIds.length) {
+    void ensureRanks(pendingIds).then((changed) => {
+      if (changed) syncSeatNames();
+    });
+  }
 }
 
 function startGame(myDeck: DeckType, oppDeckUsed: DeckType) {
@@ -838,7 +866,13 @@ getElement('reconnect-leave-btn').addEventListener('click', () => { if (cpuMode)
 
 onAccountName((name) => {
   myDisplayName = name;
+  // Photon only carries the bare username — rank is applied locally in syncSeatNames.
   photon.setDisplayName(name);
+  syncSeatNames();
+});
+
+onAccountRank((rank) => {
+  myRank = rank;
   syncSeatNames();
 });
 
@@ -856,6 +890,48 @@ onAccountUser((userId) => {
   photon.setAccountUser(userId);
 });
 initAccount();
+
+function renderLeaderboard(entries: LeaderboardEntry[], status: string) {
+  const list = getElement('leaderboard-list');
+  const statusEl = getElement('leaderboard-status');
+  statusEl.textContent = status;
+  list.replaceChildren();
+  const me = accountUserId();
+  for (const entry of entries) {
+    const row = document.createElement('div');
+    row.className = 'lb-row' + (me && entry.id === me ? ' me' : '');
+
+    const rank = document.createElement('span');
+    rank.className = 'lb-rank';
+    rank.textContent = `#${entry.rank}`;
+
+    const name = document.createElement('span');
+    name.className = 'lb-name';
+    name.textContent = entry.displayName;
+    name.title = entry.displayName;
+
+    const record = document.createElement('span');
+    record.className = 'lb-record';
+    record.textContent = `${entry.wins}W–${entry.losses}L`;
+
+    row.append(rank, name, record);
+    list.append(row);
+  }
+}
+
+async function openLeaderboard() {
+  ui.showLeaderboard();
+  renderLeaderboard([], 'loading…');
+  try {
+    const entries = await fetchLeaderboard();
+    renderLeaderboard(entries, entries.length ? '' : 'no matches recorded yet');
+  } catch {
+    renderLeaderboard([], "couldn't load leaderboard");
+  }
+}
+
+getElement('leaderboard-btn').addEventListener('click', () => { void openLeaderboard(); });
+getElement('leaderboard-back-btn').addEventListener('click', () => { ui.showLobby(); });
 
 const foilSelect = getElement<HTMLSelectElement>('foil-style-select');
 foilSelect.value = String(Math.min(4, Math.max(0, parseInt(localStorage.getItem('foilStyle') ?? String(DEFAULT_FOIL_STYLE), 10))));

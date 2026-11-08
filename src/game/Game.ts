@@ -3676,18 +3676,26 @@ export class Game {
 
     let angle: number;
 
-    const myLabel = this.seatLabel(this.localNr, 'you');
+    const myRaw = this.seatLabel(this.localNr, 'you');
     const oppActor = this.opponentNr();
-    const oppLabel = oppActor !== undefined ? this.seatLabel(oppActor, 'opponent') : 'opponent';
+    const oppRaw = oppActor !== undefined ? this.seatLabel(oppActor, 'opponent') : 'opponent';
+    const spinMax = W - 48;
+    const fitSpin = (label: string, goingFirst: boolean) => {
+      const full = goingFirst ? this.goesFirst(label) : label;
+      return this.fitSeatLabel(full, spinMax);
+    };
 
     if (spinAnim.mode === 'idle') {
       angle = (now - spinAnim.startTime) * IDLE_SPEED;
-      ctx.font = `14px ${FONT_MONO}`;
+      const oppFit = fitSpin(oppRaw, false);
+      const myFit = fitSpin(myRaw, false);
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ddd';
-      ctx.fillText(oppLabel, W / 2, 52);
+      ctx.font = `${oppFit.size}px ${FONT_MONO}`;
+      ctx.fillText(oppFit.text, W / 2, 52);
       ctx.fillStyle = '#ddd';
-      ctx.fillText(myLabel, W / 2, H - 52);
+      ctx.font = `${myFit.size}px ${FONT_MONO}`;
+      ctx.fillText(myFit.text, W / 2, H - 52);
     } else {
       const elapsed = now - spinAnim.startTime;
       const t = Math.min(elapsed / LANDING_DURATION, 1);
@@ -3705,12 +3713,15 @@ export class Game {
         : spinAnim.target;
       angle = settled ? resolvedTarget : spinAnim.startAngle + spinAnim.totalAngle * eased;
 
-      ctx.font = `14px ${FONT_MONO}`;
+      const oppFit = fitSpin(oppRaw, settled && !isMyTurn);
+      const myFit = fitSpin(myRaw, settled && isMyTurn);
       ctx.textAlign = 'center';
       ctx.fillStyle = (settled && !isMyTurn) ? '#fff' : '#ddd';
-      ctx.fillText((settled && !isMyTurn) ? this.goesFirst(oppLabel) : oppLabel, W / 2, 52);
+      ctx.font = `${oppFit.size}px ${FONT_MONO}`;
+      ctx.fillText(oppFit.text, W / 2, 52);
       ctx.fillStyle = (settled && isMyTurn) ? '#fff' : '#ddd';
-      ctx.fillText((settled && isMyTurn) ? this.goesFirst(myLabel) : myLabel, W / 2, H - 52);
+      ctx.font = `${myFit.size}px ${FONT_MONO}`;
+      ctx.fillText(myFit.text, W / 2, H - 52);
 
       if (settled && !spinAnim.announced) {
         spinAnim.announced = true;

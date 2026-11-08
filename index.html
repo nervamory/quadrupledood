@@ -171,7 +171,87 @@
         #account-who { color: #444; font-size: 11px; margin: 2px 0 4px; }
         #account-record { color: #888; font-size: 13px; margin: 0 0 8px; }
         #account-status { color: #666; font-size: 12px; margin-top: 8px; }
-        #lobby-account { margin-top: 16px; color: #555; font-size: 12px; }
+        #lobby-account {
+          margin-top: 16px;
+          color: #555;
+          font-size: 12px;
+          max-width: min(100%, 320px);
+          margin-left: auto;
+          margin-right: auto;
+          overflow-wrap: anywhere;
+          line-height: 1.45;
+        }
+        #leaderboard-btn { margin-top: 18px; }
+        #leaderboard-screen.active {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          background: transparent;
+          padding: calc(56px + env(safe-area-inset-top, 0px)) 20px 40px;
+          text-align: center;
+        }
+        #leaderboard-screen.active #leaderboard-back-btn {
+          position: fixed;
+          top: calc(8px + env(safe-area-inset-top, 0px));
+          right: calc(8px + env(safe-area-inset-right, 0px));
+          z-index: 51;
+          width: 36px;
+          height: 36px;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(10, 10, 20, 0.82);
+          color: #ccc;
+        }
+        #leaderboard-screen.active #leaderboard-back-btn:hover {
+          background: rgba(26, 26, 46, 0.95);
+          color: #eee;
+        }
+        #leaderboard-list {
+          width: min(100%, 360px);
+          margin: 0 auto 20px;
+          text-align: left;
+          font-size: 13px;
+          color: #ccc;
+        }
+        #leaderboard-list .lb-row {
+          display: grid;
+          grid-template-columns: 3.2em minmax(0, 1fr) auto;
+          gap: 8px 10px;
+          align-items: baseline;
+          padding: 8px 0;
+          border-bottom: 1px solid #222;
+        }
+        #leaderboard-list .lb-row.me {
+          color: #eee;
+        }
+        #leaderboard-list .lb-rank {
+          color: #888;
+          font-variant-numeric: tabular-nums;
+        }
+        #leaderboard-list .lb-row.me .lb-rank { color: #cc1111; }
+        #leaderboard-list .lb-name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        #leaderboard-list .lb-record {
+          color: #666;
+          font-size: 12px;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        #leaderboard-status {
+          color: #555;
+          font-size: 12px;
+          margin: 0 0 16px;
+          min-height: 16px;
+        }
       #lobby-version {
         position: fixed;
         left: 50%;
@@ -283,7 +363,8 @@
       /* Sit one button-width plus a gap to the left of the corner settings/back control. */
       body:has(#lobby-screen.active) #sound-toggle,
       body:has(#settings-screen.active) #sound-toggle,
-      body:has(#admin-settings-screen.active) #sound-toggle {
+      body:has(#admin-settings-screen.active) #sound-toggle,
+      body:has(#leaderboard-screen.active) #sound-toggle {
         right: calc(8px + 36px + 8px + env(safe-area-inset-right, 0px));
       }
       /* Game gear is pinned to the play column, not the viewport corner. */
@@ -438,8 +519,19 @@
             <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.63-.94l-.36-2.54A.5.5 0 0014.3 2h-4.6a.5.5 0 00-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 00-.6.22L2.31 8.48a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.43 14.16a.5.5 0 00-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h4.6c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/>
           </svg>
         </button>
+        <button id="leaderboard-btn" type="button">leaderboard</button>
         <p id="lobby-account" hidden></p>
-        <p id="lobby-version">v22.4</p>
+        <p id="lobby-version">v22.5</p>
+      </div>
+      <div id="leaderboard-screen" class="screen">
+        <button id="leaderboard-back-btn" type="button" aria-label="close leaderboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+        <h2 style="margin-bottom:20px; letter-spacing:2px; font-size:clamp(28px,9vw,42px);">leaderboard</h2>
+        <p id="leaderboard-status" aria-live="polite">loading…</p>
+        <div id="leaderboard-list"></div>
       </div>
       <div id="game-screen" class="screen" style="position:relative;">
         <canvas id="game-canvas" width="680" height="700"></canvas>

@@ -21,9 +21,9 @@ declare module 'photon-realtime' {
       leaveRoom(): void;
       disconnect(): void;
       isJoinedToRoom(): boolean;
-      myActor(): { actorNr: number; name: string; setName(name: string): void };
+      myActor(): { actorNr: number; name: string; userId?: string; setName(name: string): void };
       myRoom(): { playerCount: number; name: string } | null;
-      myRoomActors(): Record<number, { actorNr: number; name?: string }>;
+      myRoomActors(): Record<number, { actorNr: number; name?: string; userId?: string }>;
       myRoomMasterActorNr(): number;
       availableRooms(): Array<{ name: string; playerCount: number; maxPlayers: number; isOpen: boolean }>;
     }

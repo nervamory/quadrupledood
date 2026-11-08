@@ -9,10 +9,11 @@ export class UI {
   private adminSettingsScreen = document.getElementById('admin-settings-screen')!;
   private foilCreatorScreen = document.getElementById('foil-creator-screen')!;
   private cardVersionScreen = document.getElementById('card-version-screen')!;
+  private leaderboardScreen = document.getElementById('leaderboard-screen')!;
   private status         = document.getElementById('status')!;
 
   private allScreens() {
-    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.adminSettingsScreen, this.foilCreatorScreen, this.cardVersionScreen];
+    return [this.lobby, this.gameScreen, this.betweenScreen, this.matchoverScreen, this.settingsScreen, this.adminSettingsScreen, this.foilCreatorScreen, this.cardVersionScreen, this.leaderboardScreen];
   }
 
   private show(screen: HTMLElement) {
@@ -28,6 +29,7 @@ export class UI {
   showAdminSettings() { this.clearTurnStatus(); this.show(this.adminSettingsScreen); }
   showFoilCreator()  { this.clearTurnStatus(); this.show(this.foilCreatorScreen); }
   showCardVersionSelect() { this.clearTurnStatus(); this.show(this.cardVersionScreen); }
+  showLeaderboard()  { this.clearTurnStatus(); this.show(this.leaderboardScreen); }
 
   private clearTurnStatus() {
     const el = document.getElementById('turn-status');
